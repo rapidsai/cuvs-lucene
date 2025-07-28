@@ -10,7 +10,7 @@ The cuVS library is plugged in as a new `KnnVectorFormat` via a custom codec.
 > This is not production ready yet.
 
 ### Prerequisites
-- [CUDA 12.8](https://developer.nvidia.com/cuda-12-8-0-download-archive),
+- [CUDA 12.0+](https://developer.nvidia.com/cuda-toolkit-archive),
 - [Maven 3.9.6+](https://maven.apache.org/download.cgi),
 - [JDK 22](https://jdk.java.net/archive/)
 
