@@ -352,13 +352,13 @@ public class CuVSVectorsReader extends KnnVectorsReader {
     if (knnCollector.k() <= 1024 && cuvsIndex.getCagraIndex() != null) {
       // log.info("searching cagra index");
       CagraSearchParams searchParams =
-          new CagraSearchParams.Builder(resources)
+          new CagraSearchParams.Builder()
               .withItopkSize(topK) // TODO: params
               .withSearchWidth(1)
               .build();
 
       var query =
-          new CagraQuery.Builder()
+          new CagraQuery.Builder(resources)
               .withTopK(topK)
               .withSearchParams(searchParams)
               // we don't use ord to doc mapping, https://github.com/rapidsai/cuvs/issues/699
@@ -381,7 +381,9 @@ public class CuVSVectorsReader extends KnnVectorsReader {
       assert bruteforceIndex != null;
       // log.info("searching brute index, with actual topK=" + topK);
       var queryBuilder =
-          new BruteForceQuery.Builder().withQueryVectors(new float[][] {target}).withTopK(topK);
+          new BruteForceQuery.Builder(resources)
+              .withQueryVectors(new float[][] {target})
+              .withTopK(topK);
       BruteForceQuery query = queryBuilder.build();
 
       List<Map<Integer, Float>> searchResult = null;
