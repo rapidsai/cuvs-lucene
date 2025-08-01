@@ -28,10 +28,12 @@ import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.tests.index.BaseKnnVectorsFormatTestCase;
 import org.apache.lucene.tests.util.TestUtil;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 
 public class TestCuVSVectorsFormat extends BaseKnnVectorsFormatTestCase {
 
@@ -126,4 +128,40 @@ public class TestCuVSVectorsFormat extends BaseKnnVectorsFormatTestCase {
       }
     }
   }
+
+  @Override
+  // Overriding this method from superclass for the tests to only use float vector encoding
+  protected VectorEncoding randomVectorEncoding() {
+    return VectorEncoding.FLOAT32;
+  }
+
+  @Ignore
+  @Override
+  // Ignoring this test from superclass as we do not support byte vectors
+  public void testByteVectorScorerIteration() {}
+
+  @Ignore
+  @Override
+  // Ignoring this test from superclass as we do not support byte vectors
+  public void testEmptyByteVectorData() {}
+
+  @Ignore
+  @Override
+  // Ignoring this test from superclass as we do not support byte vectors
+  public void testMergingWithDifferentByteKnnFields() {}
+
+  @Ignore
+  @Override
+  // Ignoring this test from superclass as we do not support byte vectors
+  public void testMismatchedFields() {}
+
+  @Ignore
+  @Override
+  // Ignoring this test from superclass as we do not support byte vectors
+  public void testRandomBytes() {}
+
+  @Ignore
+  @Override
+  // Ignoring this test from superclass as we do not support byte vectors
+  public void testSortedIndexBytes() {}
 }
