@@ -19,6 +19,11 @@ The cuVS library is plugged in as a new `KnnVectorFormat` via a custom codec.
 mvn clean compile package
 ```
 
+### Run Tests
+```sh
+export LD_LIBRARY_PATH={ PATH TO YOUR LOCAL libcuvs_c.so }:$LD_LIBRARY_PATH && mvn clean test
+```
+
 The artifacts would be built and available in the target/ folder.
 
 > [!NOTE]
