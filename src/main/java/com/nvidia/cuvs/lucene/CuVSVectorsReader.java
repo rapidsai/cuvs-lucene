@@ -334,7 +334,6 @@ public class CuVSVectorsReader extends KnnVectorsReader {
     }
 
     var fieldNumber = fieldInfos.fieldInfo(field).number;
-    // log.info("fieldNumber=" + fieldNumber + ", fieldEntry.count()=" + fieldEntry.count());
 
     CuVSIndex cuvsIndex = cuvsIndices.get(fieldNumber);
     if (cuvsIndex == null) {
@@ -350,7 +349,6 @@ public class CuVSVectorsReader extends KnnVectorsReader {
 
     Map<Integer, Float> result;
     if (knnCollector.k() <= 1024 && cuvsIndex.getCagraIndex() != null) {
-      // log.info("searching cagra index");
       CagraSearchParams searchParams =
           new CagraSearchParams.Builder()
               .withItopkSize(topK) // TODO: params
@@ -377,7 +375,6 @@ public class CuVSVectorsReader extends KnnVectorsReader {
     } else {
       BruteForceIndex bruteforceIndex = cuvsIndex.getBruteforceIndex();
       assert bruteforceIndex != null;
-      // log.info("searching brute index, with actual topK=" + topK);
       var queryBuilder =
           new BruteForceQuery.Builder(resources)
               .withQueryVectors(new float[][] {target})

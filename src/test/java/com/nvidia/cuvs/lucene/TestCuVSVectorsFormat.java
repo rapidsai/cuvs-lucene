@@ -45,9 +45,6 @@ public class TestCuVSVectorsFormat extends BaseKnnVectorsFormatTestCase {
   @Override
   protected Codec getCodec() {
     return TestUtil.alwaysKnnVectorsFormat(new CuVSVectorsFormat());
-    // For convenience, to sanitize the test code, one can comment out
-    // the supported check and use another format, e.g.
-    // return TestUtil.alwaysKnnVectorsFormat(new Lucene99HnswVectorsFormat());
   }
 
   public void testMergeTwoSegsWithASingleDocPerSeg() throws Exception {

@@ -200,10 +200,6 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
       // https://github.com/rapidsai/cuvs/issues/666
       throw new IllegalArgumentException("cagra index must be greater than 2");
     }
-    // var minIntGraphDegree = Math.min(intGraphDegree, size - 1);
-    // var minGraphDegree = Math.min(graphDegree, minIntGraphDegree);
-    // log.info(indexMsg(size, intGraphDegree, minIntGraphDegree, graphDegree,
-    // minGraphDegree));
 
     return new CagraIndexParams.Builder()
         .withNumWriterThreads(cuvsWriterThreads)
@@ -359,15 +355,6 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
         hnswIndexLength = cuvsIndex.getFilePointer() - hnswIndexOffset;
       }
 
-      // StringBuilder sb = new StringBuilder("writeField ");
-      // sb.append(": fieldInfo.name=").append(fieldInfo.name);
-      // sb.append(", fieldInfo.number=").append(fieldInfo.number);
-      // sb.append(", size=").append(vectors.length);
-      // sb.append(", cagraIndexLength=").append(cagraIndexLength);
-      // sb.append(", bruteForceIndexLength=").append(bruteForceIndexLength);
-      // sb.append(", hnswIndexLength=").append(hnswIndexLength);
-      // log.info(sb.toString());
-
       writeMeta(
           fieldInfo,
           (int) dataset.size(),
@@ -445,7 +432,6 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     KnnVectorValues.DocIndexIterator iter = floatVectorValues.iterator();
     for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
       assert iter.index() == count;
-      // dst[iter.index()] = floatVectorValues.vectorValue(iter.index());
       builder.addVector(floatVectorValues.vectorValue(iter.index())); // is this correct?
       docsWithField.add(docV);
       count++;
