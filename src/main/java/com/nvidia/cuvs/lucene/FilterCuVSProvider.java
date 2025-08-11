@@ -18,10 +18,9 @@ package com.nvidia.cuvs.lucene;
 import com.nvidia.cuvs.BruteForceIndex;
 import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CuVSMatrix;
-import com.nvidia.cuvs.CuVSMatrix.Builder;
-import com.nvidia.cuvs.CuVSMatrix.DataType;
 import com.nvidia.cuvs.CuVSResources;
 import com.nvidia.cuvs.HnswIndex;
+import com.nvidia.cuvs.TieredIndex;
 import com.nvidia.cuvs.spi.CuVSProvider;
 import java.lang.invoke.MethodHandle;
 import java.nio.file.Path;
@@ -68,8 +67,24 @@ import java.nio.file.Path;
   }
 
   @Override
-  public Builder newMatrixBuilder(int size, int dimensions, DataType dataType) {
-    return delegate.newMatrixBuilder(size, dimensions, dataType);
+  public TieredIndex.Builder newTieredIndexBuilder(CuVSResources cuVSResources)
+      throws UnsupportedOperationException {
+    return delegate.newTieredIndexBuilder(cuVSResources);
+  }
+
+  @Override
+  public CuVSMatrix newMatrixFromArray(byte[][] array) {
+    return delegate.newMatrixFromArray(array);
+  }
+
+  @Override
+  public CuVSMatrix newMatrixFromArray(int[][] array) {
+    return delegate.newMatrixFromArray(array);
+  }
+
+  @Override
+  public CuVSMatrix newMatrixFromArray(float[][] array) {
+    return delegate.newMatrixFromArray(array);
   }
 
   @Override
@@ -78,23 +93,7 @@ import java.nio.file.Path;
   }
 
   @Override
-  public CuVSMatrix newMatrixFromArray(float[][] vectors) {
-    return delegate.newMatrixFromArray(vectors);
-  }
-
-  @Override
-  public CuVSMatrix newMatrixFromArray(int[][] vectors) {
-    return delegate.newMatrixFromArray(vectors);
-  }
-
-  @Override
-  public CuVSMatrix newMatrixFromArray(byte[][] vectors) {
-    return delegate.newMatrixFromArray(vectors);
-  }
-
-  @Override
-  public com.nvidia.cuvs.TieredIndex.Builder newTieredIndexBuilder(CuVSResources cuVSResources)
-      throws UnsupportedOperationException {
-    return delegate.newTieredIndexBuilder(cuVSResources);
+  public CuVSMatrix.Builder newMatrixBuilder(int rows, int cols, CuVSMatrix.DataType dataType) {
+    return delegate.newMatrixBuilder(rows, cols, dataType);
   }
 }

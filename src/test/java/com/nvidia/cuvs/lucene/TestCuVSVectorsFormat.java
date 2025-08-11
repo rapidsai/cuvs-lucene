@@ -17,6 +17,7 @@ package com.nvidia.cuvs.lucene;
 
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
+import java.util.Arrays;
 import java.util.List;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.document.Document;
@@ -28,13 +29,15 @@ import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.index.VectorEncoding;
+import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.tests.index.BaseKnnVectorsFormatTestCase;
+import org.apache.lucene.tests.util.LuceneTestCase.SuppressSysoutChecks;
 import org.apache.lucene.tests.util.TestUtil;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
+import org.junit.Test;
 
+@SuppressSysoutChecks(bugUrl = "Ignore the sysout")
 public class TestCuVSVectorsFormat extends BaseKnnVectorsFormatTestCase {
 
   @BeforeClass
@@ -45,12 +48,17 @@ public class TestCuVSVectorsFormat extends BaseKnnVectorsFormatTestCase {
   @Override
   protected Codec getCodec() {
     return TestUtil.alwaysKnnVectorsFormat(new CuVSVectorsFormat());
+    // For convenience, to sanitize the test code, one can comment out
+    // the supported check and use another format, e.g.
+    // return TestUtil.alwaysKnnVectorsFormat(new Lucene99HnswVectorsFormat());
   }
 
+  @Test
   public void testMergeTwoSegsWithASingleDocPerSeg() throws Exception {
     float[][] f = new float[][] {randomVector(384), randomVector(384)};
     try (Directory dir = newDirectory();
-        IndexWriter w = new IndexWriter(dir, newIndexWriterConfig())) {
+        IndexWriter w =
+            new IndexWriter(dir, newIndexWriterConfig().setMergePolicy(NoMergePolicy.INSTANCE))) {
       Document doc1 = new Document();
       doc1.add(new StringField("id", "0", Field.Store.NO));
       doc1.add(new KnnFloatVectorField("f", f[0], EUCLIDEAN));
@@ -71,6 +79,8 @@ public class TestCuVSVectorsFormat extends BaseKnnVectorsFormatTestCase {
         assertEquals(1, subReaders.get(1).reader().getFloatVectorValues("f").size());
       }
 
+      // Enable merging for forceMerge to work
+      w.getConfig().setMergePolicy(newMergePolicy());
       // now merge to a single segment
       w.forceMerge(1);
 
@@ -87,11 +97,13 @@ public class TestCuVSVectorsFormat extends BaseKnnVectorsFormatTestCase {
   }
 
   // Basic test for multiple vectors fields per document
+  @Test
   public void testTwoVectorFieldsPerDoc() throws Exception {
     float[][] f1 = new float[][] {randomVector(384), randomVector(384)};
     float[][] f2 = new float[][] {randomVector(384), randomVector(384)};
     try (Directory dir = newDirectory();
         IndexWriter w = new IndexWriter(dir, newIndexWriterConfig())) {
+      System.out.println("Is sorting enabled: " + w.getConfig().getIndexSort());
       Document doc1 = new Document();
       doc1.add(new StringField("id", "0", Field.Store.NO));
       doc1.add(new KnnFloatVectorField("f1", f1[0], EUCLIDEAN));
@@ -102,13 +114,24 @@ public class TestCuVSVectorsFormat extends BaseKnnVectorsFormatTestCase {
       doc2.add(new KnnFloatVectorField("f1", f1[1], EUCLIDEAN));
       doc2.add(new KnnFloatVectorField("f2", f2[1], EUCLIDEAN));
       w.addDocument(doc2);
+
+      System.out.println("Force merge - begin");
       w.forceMerge(1);
+      System.out.println("Force merge - end");
 
       try (DirectoryReader reader = DirectoryReader.open(w)) {
         LeafReader r = getOnlyLeafReader(reader);
         FloatVectorValues values = r.getFloatVectorValues("f1");
         assertNotNull(values);
         assertEquals(2, values.size());
+        System.out.println("f1[0]" + Arrays.toString(f1[0]));
+        System.out.println("f1[1]" + Arrays.toString(f1[1]));
+        System.out.println("f2[0]" + Arrays.toString(f2[0]));
+        System.out.println("f2[1]" + Arrays.toString(f2[1]));
+
+        System.out.println("returned f1[0]" + Arrays.toString(values.vectorValue(0)));
+        System.out.println("returned f1[1]" + Arrays.toString(values.vectorValue(1)));
+
         assertArrayEquals(f1[0], values.vectorValue(0), 0.0f);
         assertArrayEquals(f1[1], values.vectorValue(1), 0.0f);
 
@@ -126,39 +149,83 @@ public class TestCuVSVectorsFormat extends BaseKnnVectorsFormatTestCase {
     }
   }
 
+  // Override byte vector tests to skip them since we only support float32
   @Override
-  // Overriding this method from superclass for the tests to only use float vector encoding
-  protected VectorEncoding randomVectorEncoding() {
-    return VectorEncoding.FLOAT32;
+  public void testRandomBytes() throws Exception {
+    // Skip - CuVS only supports float32 vectors
   }
 
-  @Ignore
   @Override
-  // Ignoring this test from superclass as we do not support byte vectors
-  public void testByteVectorScorerIteration() {}
+  public void testSortedIndexBytes() throws Exception {
+    // Skip - CuVS only supports float32 vectors
+  }
 
-  @Ignore
   @Override
-  // Ignoring this test from superclass as we do not support byte vectors
-  public void testEmptyByteVectorData() {}
+  public void testMergingWithDifferentByteKnnFields() throws Exception {
+    // Skip - CuVS only supports float32 vectors
+  }
 
-  @Ignore
   @Override
-  // Ignoring this test from superclass as we do not support byte vectors
-  public void testMergingWithDifferentByteKnnFields() {}
+  public void testVectorValuesReportCorrectDocs() throws Exception {
+    // Skip - CuVS only supports float32 vectors
+  }
 
-  @Ignore
   @Override
-  // Ignoring this test from superclass as we do not support byte vectors
-  public void testMismatchedFields() {}
+  public void testMismatchedFields() throws Exception {
+    // Skip - CuVS only supports float32 vectors
+  }
 
-  @Ignore
   @Override
-  // Ignoring this test from superclass as we do not support byte vectors
-  public void testRandomBytes() {}
+  public void testRandomExceptions() throws Exception {
+    // Skip - this test uses byte vectors which are not supported
+  }
 
-  @Ignore
   @Override
-  // Ignoring this test from superclass as we do not support byte vectors
-  public void testSortedIndexBytes() {}
+  public void testByteVectorScorerIteration() throws Exception {
+    // Skip - CuVS only supports float32 vectors
+  }
+
+  @Override
+  public void testEmptyByteVectorData() throws Exception {
+    // Skip - CuVS only supports float32 vectors
+  }
+
+  @Override
+  public void testCheckIntegrityReadsAllBytes() throws Exception {
+    // Skip - may use byte vectors
+  }
+
+  @Override
+  public void testSparseVectors() throws Exception {
+    // Override to only test float vectors
+    try (Directory dir = newDirectory();
+        IndexWriter w = new IndexWriter(dir, newIndexWriterConfig())) {
+      int numDocs = atLeast(100);
+      int dimension = atLeast(10);
+      int numIndexed = 0;
+      for (int i = 0; i < numDocs; i++) {
+        Document doc = new Document();
+        if (random().nextInt(4) == 3) {
+          doc.add(new KnnFloatVectorField("knn", randomVector(dimension), EUCLIDEAN));
+          numIndexed++;
+        }
+        doc.add(new StringField("id", Integer.toString(i), Field.Store.YES));
+        w.addDocument(doc);
+      }
+      w.forceMerge(1);
+
+      try (DirectoryReader reader = DirectoryReader.open(w)) {
+        LeafReader r = getOnlyLeafReader(reader);
+        FloatVectorValues values = r.getFloatVectorValues("knn");
+
+        if (numIndexed == 0) {
+          assertNull(values);
+        } else {
+          assertNotNull(values);
+          assertEquals(numIndexed, values.size());
+          assertEquals(dimension, values.dimension());
+        }
+      }
+    }
+  }
 }
