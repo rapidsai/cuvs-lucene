@@ -20,7 +20,6 @@ import static com.nvidia.cuvs.lucene.CuVSVectorsFormat.CUVS_INDEX_EXT;
 import static com.nvidia.cuvs.lucene.CuVSVectorsFormat.CUVS_META_CODEC_EXT;
 import static com.nvidia.cuvs.lucene.CuVSVectorsFormat.CUVS_META_CODEC_NAME;
 import static com.nvidia.cuvs.lucene.CuVSVectorsFormat.VERSION_CURRENT;
-import static com.nvidia.cuvs.lucene.CuVSVectorsReader.handleThrowable;
 import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader.SIMILARITY_FUNCTIONS;
 import static org.apache.lucene.index.VectorEncoding.FLOAT32;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
@@ -32,6 +31,7 @@ import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.CuVSMatrix;
+import com.nvidia.cuvs.CuVSMatrix.DataType;
 import com.nvidia.cuvs.CuVSResources;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -48,7 +48,6 @@ import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatFieldVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
-import org.apache.lucene.codecs.perfield.PerFieldKnnVectorsFormat.FieldsReader;
 import org.apache.lucene.index.DocsWithFieldSet;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
@@ -369,7 +368,7 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
           hnswIndexOffset,
           hnswIndexLength);
     } catch (Throwable t) {
-      handleThrowable(t);
+      Utils.handleThrowable(t);
     }
   }
 
@@ -422,51 +421,14 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     if (t.getMessage().contains(msg)) {
       return;
     }
-    handleThrowable(t);
-  }
-
-  /**
-   * Copies the vector values into dst. Returns the actual number of vectors
-   * copied.
-   */
-  private static int getVectorData(FloatVectorValues floatVectorValues, CuVSMatrix.Builder builder)
-      throws IOException {
-    DocsWithFieldSet docsWithField = new DocsWithFieldSet();
-    int count = 0;
-    KnnVectorValues.DocIndexIterator iter = floatVectorValues.iterator();
-    for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
-      assert iter.index() == count;
-      builder.addVector(floatVectorValues.vectorValue(iter.index())); // is this correct?
-      docsWithField.add(docV);
-      count++;
-    }
-    return docsWithField.cardinality();
+    Utils.handleThrowable(t);
   }
 
   private void mergeCagraIndexes(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
     try {
-      // Check if there are any deletions in the merge - if so, we must use vector-based merge
-      // because native CAGRA merge doesn't handle ordinal remapping correctly with deletions
-      boolean hasDeletions =
-          java.util.stream.IntStream.range(0, mergeState.liveDocs.length)
-              .anyMatch(
-                  i ->
-                      mergeState.liveDocs[i] == null
-                          || java.util.stream.IntStream.range(0, mergeState.maxDocs[i])
-                              .anyMatch(j -> !mergeState.liveDocs[i].get(j)));
-
-      // Since CAGRA merge does not support merging of indexes with purging of deletes,
-      // we fallback to vector-based re-indexing. Issue:
-      // https://github.com/rapidsai/cuvs/issues/1253
-      if (hasDeletions) {
-        info(
-            "Detected deletions during merge, using vector-based merge to preserve ordinal"
-                + " mapping");
-        fallbackToVectorMerge(fieldInfo, mergeState);
-        return;
-      }
 
       List<CagraIndex> cagraIndexes = new ArrayList<>();
+      // We need this count so that the merged segment's meta information has the vector count.
       int totalVectorCount = 0;
 
       for (int i = 0; i < mergeState.knnVectorsReaders.length; i++) {
@@ -474,42 +436,39 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
         // Access the CAGRA index for this field from the reader
 
         if (knnReader != null) {
-          // TODO: Is there a better approach for below?
-          CuVSVectorsReader cvr =
-              (CuVSVectorsReader) ((FieldsReader) knnReader).getFieldReader(fieldInfo.name);
-
-          if (cvr != null) {
-            totalVectorCount += cvr.getFieldEntries().get(fieldInfo.number).count();
-            CagraIndex cagraIndex = getCagraIndexFromReader(cvr, fieldInfo.name);
-            if (cagraIndex != null) {
-              cagraIndexes.add(cagraIndex);
+          if (knnReader instanceof CuVSVectorsReader cvr) {
+            if (cvr != null) {
+              totalVectorCount += cvr.getFieldEntries().get(fieldInfo.number).count();
+              CagraIndex cagraIndex = getCagraIndexFromReader(cvr, fieldInfo.name);
+              if (cagraIndex != null) {
+                cagraIndexes.add(cagraIndex);
+              }
             }
+          } else {
+            // This should never happen
+            throw new RuntimeException(
+                "Reader is not of CuVSVectorsReader type. Instead it is: " + knnReader.getClass());
           }
         }
       }
+      assert cagraIndexes.size() > 1;
 
-      if (cagraIndexes.size() > 1) {
-        CagraIndex mergedIndex =
-            CagraIndex.merge(cagraIndexes.toArray(new CagraIndex[cagraIndexes.size()]));
-        writeMergedCagraIndex(fieldInfo, mergedIndex, totalVectorCount);
-        info(
-            "Successfully merged " + cagraIndexes.size() + " CAGRA indexes using native merge API");
-      } else {
-        fallbackToVectorMerge(fieldInfo, mergeState);
-      }
+      CagraIndex mergedIndex =
+          CagraIndex.merge(cagraIndexes.toArray(new CagraIndex[cagraIndexes.size()]));
+      writeMergedCagraIndex(fieldInfo, mergedIndex, totalVectorCount);
+      info("Successfully merged " + cagraIndexes.size() + " CAGRA indexes using native merge API");
 
     } catch (Throwable t) {
-      info("Native CAGRA merge failed, falling back to vector-based merge: " + t.getMessage());
-      fallbackToVectorMerge(fieldInfo, mergeState);
+      Utils.handleThrowable(t);
     }
   }
 
   /**
    * Fallback method that rebuilds indexes from merged vectors.
-   * Used when native CAGRA merge is not possible or fails.
+   * Used when native CAGRA merge is not possible or fails. Also used
+   * when non-CAGRA index types are used (for eg. bruteforce).
    */
-  private void fallbackToVectorMerge(FieldInfo fieldInfo, MergeState mergeState)
-      throws IOException {
+  private void vectorBasedMerge(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
     try {
       // Get the merged vectors from Lucene's merge process
       final FloatVectorValues mergedVectorValues =
@@ -519,48 +478,46 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
                 KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState);
           };
 
-      int vectorCount = mergedVectorValues.size();
-      int dimensions = fieldInfo.getVectorDimension();
-
-      // Create CAGRA index from the properly merged vectors
-      CuVSMatrix dataset =
-          createMatrixFromMergedVectors(mergedVectorValues, vectorCount, dimensions);
-
-      if (dataset == null) {
-        writeEmpty(fieldInfo);
-        return;
+      // We need to compute the size of the number of merged documents up-front so that we can
+      // compute the CuVSMatrix capacity. TODO: Find a way to do this without merging twice.
+      KnnVectorValues.DocIndexIterator iter =
+          KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState)
+              .iterator();
+      int numMergedDocs = 0;
+      for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
+        numMergedDocs++;
       }
-      writeFieldInternal(fieldInfo, dataset);
-      info("Completed fallback vector-based merge for field: " + fieldInfo.name);
+
+      CuVSMatrix dataset;
+      if (numMergedDocs != 0) {
+        dataset = createMatrixFromMergedVectors(mergedVectorValues, numMergedDocs);
+        writeFieldInternal(fieldInfo, dataset);
+      } else {
+        writeEmpty(fieldInfo);
+      }
+
     } catch (Throwable t) {
-      handleThrowable(t);
+      Utils.handleThrowable(t);
     }
   }
 
   /** Creates CuVSMatrix from merged vectors, using dense array without gaps. */
   private CuVSMatrix createMatrixFromMergedVectors(
-      FloatVectorValues mergedVectorValues, int vectorCount, int dimensions) throws IOException {
-    if (vectorCount == 0) {
-      return null;
-    }
+      FloatVectorValues mergedVectorValues, int numMergedDocs) throws IOException {
 
-    // Use a dense array approach to avoid null elements that CuVSMatrix.ofArray can't handle
-    java.util.List<float[]> vectorList = new java.util.ArrayList<>();
+    CuVSMatrix.Builder builder =
+        CuVSMatrix.builder(numMergedDocs, mergedVectorValues.dimension(), DataType.FLOAT);
 
     KnnVectorValues.DocIndexIterator iter = mergedVectorValues.iterator();
+    int count = 0;
     for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
       int ordinal = iter.index();
       float[] vector = mergedVectorValues.vectorValue(ordinal);
-      if (vector != null) {
-        vectorList.add(vector.clone()); // Clone to ensure we have distinct arrays
-      }
+      builder.addVector(vector.clone());
+      count++;
     }
 
-    if (vectorList.isEmpty()) {
-      return null;
-    }
-
-    return CuVSMatrix.ofArray(vectorList.toArray(new float[vectorList.size()][]));
+    return builder.build();
   }
 
   /**
@@ -606,36 +563,37 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
       // Clean up the merged index
       mergedIndex.destroyIndex();
     } catch (Throwable t) {
-      handleThrowable(t);
+      Utils.handleThrowable(t);
     }
   }
 
   @Override
   public void mergeOneField(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
     flatVectorsWriter.mergeOneField(fieldInfo, mergeState);
-    try {
-      if (indexType.cagra()) {
+
+    if (indexType.cagra() && !indexType.bruteForce()) {
+      // Since CAGRA merge does not support merging of indexes with purging of deletes,
+      // we fallback to vector-based re-indexing. Issue:
+      // https://github.com/rapidsai/cuvs/issues/1253
+      boolean hasDeletions =
+          java.util.stream.IntStream.range(0, mergeState.liveDocs.length)
+              .anyMatch(
+                  i ->
+                      mergeState.liveDocs[i] == null
+                          || java.util.stream.IntStream.range(0, mergeState.maxDocs[i])
+                              .anyMatch(j -> !mergeState.liveDocs[i].get(j)));
+
+      if (mergeState.knnVectorsReaders.length > 1 && !hasDeletions) {
         mergeCagraIndexes(fieldInfo, mergeState);
       } else {
-
-        final FloatVectorValues mergedVectorValues =
-            switch (fieldInfo.getVectorEncoding()) {
-              case BYTE -> throw new AssertionError("bytes not supported");
-              case FLOAT32 ->
-                  KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState);
-            };
-
-        // Also will be replaced with the cuVS merge api
-        CuVSMatrix.Builder builder =
-            CuVSMatrix.builder(
-                mergedVectorValues.size(),
-                mergedVectorValues.dimension(),
-                CuVSMatrix.DataType.FLOAT);
-        getVectorData(mergedVectorValues, builder);
-        writeFieldInternal(fieldInfo, builder.build());
+        // CAGRA's merge API does not handle the trivial case of merging 1 index.
+        vectorBasedMerge(fieldInfo, mergeState);
       }
-    } catch (Throwable t) {
-      handleThrowable(t);
+
+    } else {
+      // If there is a Brute Force index then re-index using the vectors even if there is a CAGRA
+      // index.
+      vectorBasedMerge(fieldInfo, mergeState);
     }
   }
 

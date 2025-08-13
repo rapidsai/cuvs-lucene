@@ -53,6 +53,8 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+// TODO: add a test for bruteforce index.
+
 /** Comprehensive tests for merge functionality with CuVS CAGRA indexes */
 @SuppressSysoutChecks(bugUrl = "CuVS native library produces verbose logging output")
 public class TestMerge extends LuceneTestCase {
