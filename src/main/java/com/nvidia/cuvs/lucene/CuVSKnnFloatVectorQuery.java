@@ -30,31 +30,6 @@ public class CuVSKnnFloatVectorQuery extends KnnFloatVectorQuery {
   private final int iTopK;
   private final int searchWidth;
 
-  /**
-   * Constructs a CuVS KNN query for float vectors.
-   *
-   * @param field the vector field to search
-   * @param target the query vector to find nearest neighbors for
-   * @param k the number of nearest neighbors to return
-   * @param iTopK the internal top-k parameter for CAGRA search
-   * @param searchWidth the search width parameter for CAGRA search
-   */
-  public CuVSKnnFloatVectorQuery(String field, float[] target, int k, int iTopK, int searchWidth) {
-    super(field, target, k);
-    this.iTopK = iTopK;
-    this.searchWidth = searchWidth;
-  }
-
-  /**
-   * Constructs a CuVS KNN query for float vectors with a filter.
-   *
-   * @param field the vector field to search
-   * @param target the query vector to find nearest neighbors for
-   * @param k the number of nearest neighbors to return
-   * @param filter query to filter the results
-   * @param iTopK the internal top-k parameter for CAGRA search
-   * @param searchWidth the search width parameter for CAGRA search
-   */
   public CuVSKnnFloatVectorQuery(
       String field, float[] target, int k, Query filter, int iTopK, int searchWidth) {
     super(field, target, k, filter);

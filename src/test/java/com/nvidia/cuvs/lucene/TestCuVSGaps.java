@@ -15,6 +15,8 @@
  */
 package com.nvidia.cuvs.lucene;
 
+import static com.nvidia.cuvs.lucene.TestUtils.generateDataset;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -51,22 +53,26 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   protected static Logger log = Logger.getLogger(TestCuVSGaps.class.getName());
 
-  static final Codec codec =
-      TestUtil.alwaysKnnVectorsFormat(new com.nvidia.cuvs.lucene.CuVSVectorsFormat());
+  static final Codec codec = TestUtil.alwaysKnnVectorsFormat(new CuVSVectorsFormat());
   static IndexSearcher searcher;
   static IndexReader reader;
   static Directory directory;
+  static Random random;
 
-  static final int DATASET_SIZE = 20;
-  static final int DIMENSIONS = 128;
-  static final int TOP_K = 10;
+  static int DATASET_SIZE_LIMIT = 1000;
+  static int DIMENSIONS_LIMIT = 2048;
+  static int NUM_QUERIES_LIMIT = 10;
+  static int TOP_K_LIMIT = 64;
 
-  public static float[][] dataset;
+  static int datasetSize;
+  static int dimension;
+  static float[][] dataset;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuvs not supported", com.nvidia.cuvs.lucene.CuVSVectorsFormat.supported());
+    assumeTrue("cuvs not supported", CuVSVectorsFormat.supported());
     directory = newDirectory();
+    random = random();
 
     RandomIndexWriter writer =
         new RandomIndexWriter(
@@ -79,11 +85,12 @@ public class TestCuVSGaps extends LuceneTestCase {
 
     log.info("Merge Policy: " + writer.w.getConfig().getMergePolicy());
 
-    Random random = random();
-    dataset = generateDataset(random, DATASET_SIZE, DIMENSIONS);
+    datasetSize = random.nextInt(100, DATASET_SIZE_LIMIT);
+    dimension = random.nextInt(8, DIMENSIONS_LIMIT);
+    dataset = generateDataset(random, datasetSize, dimension);
 
     // Create documents where only even-numbered documents have vectors
-    for (int i = 0; i < DATASET_SIZE; i++) {
+    for (int i = 0; i < datasetSize; i++) {
       Document doc = new Document();
       doc.add(new StringField("id", String.valueOf(i), Field.Store.YES));
       doc.add(newTextField("field", English.intToEnglish(i), Field.Store.YES));
@@ -113,16 +120,17 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   @Test
   public void testVectorSearchWithAlternatingDocuments() throws IOException {
-    assumeTrue("cuvs not supported", com.nvidia.cuvs.lucene.CuVSVectorsFormat.supported());
+    assumeTrue("cuvs not supported", CuVSVectorsFormat.supported());
 
     // Use the first vector (from document 0) as query
     float[] queryVector = dataset[0];
+    int topK = random.nextInt(5, TOP_K_LIMIT);
 
-    Query query = new KnnFloatVectorQuery("vector", queryVector, TOP_K);
-    ScoreDoc[] hits = searcher.search(query, TOP_K).scoreDocs;
+    Query query = new KnnFloatVectorQuery("vector", queryVector, topK);
+    ScoreDoc[] hits = searcher.search(query, topK).scoreDocs;
 
     // Verify we get exactly TOP_K results
-    assertEquals("Should return exactly " + TOP_K + " results", TOP_K, hits.length);
+    assertEquals("Should return exactly " + topK + " results", topK, hits.length);
 
     // Verify all returned documents have vectors (even-numbered IDs)
     for (ScoreDoc hit : hits) {
@@ -133,7 +141,7 @@ public class TestCuVSGaps extends LuceneTestCase {
     }
 
     // Verify the results match expected top-k based on Euclidean distance
-    List<Integer> expectedIds = calculateExpectedTopK(queryVector, TOP_K);
+    List<Integer> expectedIds = calculateExpectedTopK(queryVector, topK, dataset);
     for (int i = 0; i < hits.length; i++) {
       String docId = reader.storedFields().document(hits[i].doc).get("id");
       int id = Integer.parseInt(docId);
@@ -145,19 +153,18 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   @Test
   public void testVectorSearchWithFilterAndAlternatingDocuments() throws IOException {
-    assumeTrue("cuvs not supported", com.nvidia.cuvs.lucene.CuVSVectorsFormat.supported());
+    assumeTrue("cuvs not supported", CuVSVectorsFormat.supported());
 
     // Use the first vector (from document 0) as query
     float[] queryVector = dataset[0];
+    int topK = random.nextInt(5, TOP_K_LIMIT);
 
     // Create a filter that only matches documents with ID less than 10
     // This should further restrict our results to even numbers 0, 2, 4, 6, 8
     Query filter = new TermQuery(new Term("id", "8")); // Only match document 8
 
-    Query filteredQuery =
-        new com.nvidia.cuvs.lucene.CuVSKnnFloatVectorQuery(
-            "vector", queryVector, TOP_K, filter, TOP_K, 1);
-    ScoreDoc[] filteredHits = searcher.search(filteredQuery, TOP_K).scoreDocs;
+    Query filteredQuery = new CuVSKnnFloatVectorQuery("vector", queryVector, topK, filter, topK, 1);
+    ScoreDoc[] filteredHits = searcher.search(filteredQuery, topK).scoreDocs;
 
     // Should only get document 8 (the only one that matches the filter and has a vector)
     assertEquals("Should return exactly 1 result", 1, filteredHits.length);
@@ -168,23 +175,13 @@ public class TestCuVSGaps extends LuceneTestCase {
     log.info("Filtered alternating document test passed with " + filteredHits.length + " results");
   }
 
-  private static float[][] generateDataset(Random random, int datasetSize, int dimensions) {
-    float[][] dataset = new float[datasetSize][dimensions];
-    for (int i = 0; i < datasetSize; i++) {
-      for (int j = 0; j < dimensions; j++) {
-        dataset[i][j] = random.nextFloat() * 100;
-      }
-    }
-    return dataset;
-  }
-
-  private List<Integer> calculateExpectedTopK(float[] query, int topK) {
+  public static List<Integer> calculateExpectedTopK(float[] query, int topK, float[][] dataset) {
     Map<Integer, Double> distances = new TreeMap<>();
 
     // Calculate distances only for documents that have vectors (even-numbered)
-    for (int i = 0; i < DATASET_SIZE; i += 2) {
+    for (int i = 0; i < dataset.length; i += 2) {
       double distance = 0;
-      for (int j = 0; j < DIMENSIONS; j++) {
+      for (int j = 0; j < dataset[0].length; j++) {
         distance += (query[j] - dataset[i][j]) * (query[j] - dataset[i][j]);
       }
       distances.put(i, distance);

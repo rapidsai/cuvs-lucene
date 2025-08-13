@@ -15,14 +15,15 @@
  */
 package com.nvidia.cuvs.lucene;
 
+import static com.nvidia.cuvs.lucene.TestUtils.generateDataset;
+import static com.nvidia.cuvs.lucene.TestUtils.generateQueries;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.Codec;
@@ -64,9 +65,7 @@ public class TestCuVSRandomizedVectorSearch extends LuceneTestCase {
   static int DIMENSIONS_LIMIT = 2048;
   static int NUM_QUERIES_LIMIT = 10;
   static int TOP_K_LIMIT = 64; // TODO This fails beyond 64
-
-  public static float[][] dataset;
-  public static Set<Integer> docsWithVectors;
+  static float[][] dataset;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -88,7 +87,6 @@ public class TestCuVSRandomizedVectorSearch extends LuceneTestCase {
     int datasetSize = random.nextInt(DATASET_SIZE_LIMIT) + 1;
     int dimensions = random.nextInt(DIMENSIONS_LIMIT) + 1;
     dataset = generateDataset(random, datasetSize, dimensions);
-    docsWithVectors = new HashSet<>();
     for (int i = 0; i < datasetSize; i++) {
       Document doc = new Document();
       doc.add(new StringField("id", String.valueOf(i), Field.Store.YES));
@@ -100,7 +98,6 @@ public class TestCuVSRandomizedVectorSearch extends LuceneTestCase {
           || datasetSize < 100) { // about 10th of the documents shouldn't have a single vector
         doc.add(new KnnFloatVectorField("vector", dataset[i], VectorSimilarityFunction.EUCLIDEAN));
         doc.add(new KnnFloatVectorField("vector2", dataset[i], VectorSimilarityFunction.EUCLIDEAN));
-        docsWithVectors.add(i); // Track documents with vectors
       }
 
       writer.addDocument(doc);
@@ -118,7 +115,6 @@ public class TestCuVSRandomizedVectorSearch extends LuceneTestCase {
     searcher = null;
     reader = null;
     directory = null;
-    docsWithVectors = null;
     log.info("Test finished");
   }
 
@@ -137,7 +133,6 @@ public class TestCuVSRandomizedVectorSearch extends LuceneTestCase {
     log.info("Query size: " + numQueries + "x" + queries[0].length);
     log.info("TopK: " + topK);
 
-    // Query query = new CuVSKnnFloatVectorQuery("vector", queries[0], topK, topK, 1);
     Query query = new KnnFloatVectorQuery("vector", queries[0], topK);
     int correct[] = new int[topK];
     for (int i = 0; i < topK; i++) correct[i] = expected.get(0).get(i);
@@ -150,57 +145,10 @@ public class TestCuVSRandomizedVectorSearch extends LuceneTestCase {
       log.info("\t" + reader.storedFields().document(hit.doc).get("id") + ": " + hit.score);
     }
 
-    int toleranceViolations = 0;
     for (ScoreDoc hit : hits) {
       int doc = Integer.parseInt(reader.storedFields().document(hit.doc).get("id"));
-      if (!expected.get(0).contains(doc)) {
-        toleranceViolations++;
-        log.warning(
-            "Search result not in expected top-"
-                + (topK * 5)
-                + ": doc="
-                + doc
-                + ", score="
-                + hit.score
-                + " (tolerance violation "
-                + toleranceViolations
-                + ")");
-      }
+      assertTrue("Result returned was not in topk*2: " + doc, expected.get(0).contains(doc));
     }
-
-    // Allow up to 50% of results to be outside expected tolerance for approximate search
-    int maxToleranceViolations = Math.max(1, hits.length / 2);
-    assertTrue(
-        "Too many tolerance violations: "
-            + toleranceViolations
-            + " > "
-            + maxToleranceViolations
-            + " (more than 50% of results outside top-"
-            + (topK * 5)
-            + ")",
-        toleranceViolations <= maxToleranceViolations);
-  }
-
-  private static float[][] generateQueries(Random random, int dimensions, int numQueries) {
-    // Generate random query vectors
-    float[][] queries = new float[numQueries][dimensions];
-    for (int i = 0; i < numQueries; i++) {
-      for (int j = 0; j < dimensions; j++) {
-        queries[i][j] = random.nextFloat() * 100;
-      }
-    }
-    return queries;
-  }
-
-  private static float[][] generateDataset(Random random, int datasetSize, int dimensions) {
-    // Generate a random dataset
-    float[][] dataset = new float[datasetSize][dimensions];
-    for (int i = 0; i < datasetSize; i++) {
-      for (int j = 0; j < dimensions; j++) {
-        dataset[i][j] = random.nextFloat() * 100;
-      }
-    }
-    return dataset;
   }
 
   private static List<List<Integer>> generateExpectedResults(
@@ -211,10 +159,6 @@ public class TestCuVSRandomizedVectorSearch extends LuceneTestCase {
     for (float[] query : queries) {
       Map<Integer, Double> distances = new TreeMap<>();
       for (int j = 0; j < dataset.length; j++) {
-        // Only include documents that actually have vectors
-        if (!docsWithVectors.contains(j)) {
-          continue;
-        }
         double distance = 0;
         for (int k = 0; k < dimensions; k++) {
           distance += (query[k] - dataset[j][k]) * (query[k] - dataset[j][k]);
@@ -231,12 +175,7 @@ public class TestCuVSRandomizedVectorSearch extends LuceneTestCase {
               .sorted(Map.Entry.comparingByValue())
               .map(Map.Entry::getKey)
               .toList();
-      neighborsResult.add(
-          neighbors.subList(
-              0,
-              Math.min(
-                  topK * 5,
-                  neighbors.size()))); // generate 5x the topK results in the expected array
+      neighborsResult.add(neighbors.subList(0, Math.min(topK * 3, dataset.length)));
     }
 
     log.info("Expected results generated successfully.");

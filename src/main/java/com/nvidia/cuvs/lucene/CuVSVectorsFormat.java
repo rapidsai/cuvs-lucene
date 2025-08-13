@@ -74,10 +74,6 @@ public class CuVSVectorsFormat extends KnnVectorsFormat {
   /**
    * Creates a CuVSVectorsFormat, with the given threads, graph degree, etc.
    *
-   * @param cuvsWriterThreads number of threads to use for index building
-   * @param intGraphDegree intermediate graph degree for CAGRA index
-   * @param graphDegree final graph degree for CAGRA index
-   * @param indexType the type of index to build (CAGRA, HNSW, or BRUTE_FORCE)
    * @throws LibraryException if the native library fails to load
    */
   public CuVSVectorsFormat(
@@ -139,10 +135,9 @@ public class CuVSVectorsFormat extends KnnVectorsFormat {
   public String toString() {
     StringBuilder sb = new StringBuilder("CuVSVectorsFormat(");
     sb.append("cuvsWriterThreads=").append(cuvsWriterThreads);
-    sb.append(", intGraphDegree=").append(intGraphDegree);
-    sb.append(", graphDegree=").append(graphDegree);
-    sb.append(", indexType=").append(indexType);
-    sb.append(", resources=").append(resources);
+    sb.append("intGraphDegree=").append(intGraphDegree);
+    sb.append("graphDegree=").append(graphDegree);
+    sb.append("resources=").append(resources);
     sb.append(")");
     return sb.toString();
   }

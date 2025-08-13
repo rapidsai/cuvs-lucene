@@ -51,7 +51,6 @@ import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.internal.hppc.IntObjectHashMap;
 import org.apache.lucene.search.KnnCollector;
-import org.apache.lucene.search.VectorScorer;
 import org.apache.lucene.store.ChecksumIndexInput;
 import org.apache.lucene.store.DataInput;
 import org.apache.lucene.store.IOContext;
@@ -67,9 +66,6 @@ public class CuVSVectorsReader extends KnnVectorsReader {
 
   @SuppressWarnings("unused")
   private static final Logger log = Logger.getLogger(CuVSVectorsReader.class.getName());
-
-  /** Threshold for k value to determine whether to use CAGRA or brute force search */
-  private static final int CAGRA_SEARCH_THRESHOLD = 1024;
 
   private final CuVSResources resources;
   private final FlatVectorsReader flatVectorsReader; // for reading the raw vectors
@@ -300,9 +296,7 @@ public class CuVSVectorsReader extends KnnVectorsReader {
 
   @Override
   public FloatVectorValues getFloatVectorValues(String field) throws IOException {
-    FloatVectorValues values = flatVectorsReader.getFloatVectorValues(field);
-    // TODO revisit this: Wrap the values to ensure distinct array copies are returned
-    return values == null ? null : new FloatVectorValuesWrapper(values);
+    return flatVectorsReader.getFloatVectorValues(field);
   }
 
   @Override
@@ -340,7 +334,6 @@ public class CuVSVectorsReader extends KnnVectorsReader {
     }
 
     var fieldNumber = fieldInfos.fieldInfo(field).number;
-    // log.info("fieldNumber=" + fieldNumber + ", fieldEntry.count()=" + fieldEntry.count());
 
     CuVSIndex cuvsIndex = cuvsIndices.get(fieldNumber);
     if (cuvsIndex == null) {
@@ -354,39 +347,37 @@ public class CuVSVectorsReader extends KnnVectorsReader {
     final int topK = Math.min(collectorTopK, fieldEntry.count());
     assert topK > 0 : "Expected topK > 0, got:" + topK;
 
-    Map<Integer, Float> result = null;
-    if (knnCollector.k() <= CAGRA_SEARCH_THRESHOLD && cuvsIndex.getCagraIndex() != null) {
-      // log.info("searching cagra index");
+    Map<Integer, Float> result;
+    if (knnCollector.k() <= 1024 && cuvsIndex.getCagraIndex() != null) {
       CagraSearchParams searchParams =
-          new CagraSearchParams.Builder(resources)
+          new CagraSearchParams.Builder()
               .withItopkSize(topK) // TODO: params
               .withSearchWidth(1)
               .build();
 
       var query =
-          new CagraQuery.Builder()
+          new CagraQuery.Builder(resources)
               .withTopK(topK)
               .withSearchParams(searchParams)
-              .withQueryVectors(createSingleQueryMatrix(target))
+              .withQueryVectors(new float[][] {target})
               .build();
 
       CagraIndex cagraIndex = cuvsIndex.getCagraIndex();
       List<Map<Integer, Float>> searchResult = null;
       try {
         searchResult = cagraIndex.search(query).getResults();
-        // List expected to have only one entry because of single query "target".
-        assert searchResult.size() == 1;
-        result = searchResult.getFirst();
       } catch (Throwable t) {
         handleThrowable(t);
       }
+      // List expected to have only one entry because of single query "target".
+      assert searchResult.size() == 1;
+      result = searchResult.getFirst();
     } else {
       BruteForceIndex bruteforceIndex = cuvsIndex.getBruteforceIndex();
       assert bruteforceIndex != null;
-      // log.info("searching brute index, with actual topK=" + topK);
       var queryBuilder =
-          new BruteForceQuery.Builder()
-              .withQueryVectors(createSingleQueryMatrix(target))
+          new BruteForceQuery.Builder(resources)
+              .withQueryVectors(new float[][] {target})
               .withTopK(topK);
       BruteForceQuery query = queryBuilder.build();
 
@@ -490,75 +481,15 @@ public class CuVSVectorsReader extends KnnVectorsReader {
     }
   }
 
-  /** Creates a CuVSMatrix for a single query vector to avoid array allocation. */
-  private float[][] createSingleQueryMatrix(float[] target) {
-    // For now, check if CuVS API supports single vector queries
-    // If not available, create minimal array - still more efficient than new float[][] {target}
-    return new float[][] {target};
+  public FieldInfos getFieldInfos() {
+    return fieldInfos;
   }
 
-  /**
-   * Gets the CuVSIndex for a given field name.
-   * This method is package-private to allow access from CuVSVectorsWriter for merging.
-   */
-  /*package-private*/ CuVSIndex getCuVSIndex(String fieldName) {
-    FieldInfo fieldInfo = fieldInfos.fieldInfo(fieldName);
-    if (fieldInfo == null) {
-      return null;
-    }
-    return cuvsIndices.get(fieldInfo.number);
+  public IntObjectHashMap<CuVSIndex> getCuvsIndexes() {
+    return cuvsIndices;
   }
 
-  /**
-   * Wrapper that fixes the array reuse bug by ensuring distinct array copies are returned
-   * for each vectorValue() call.
-   */
-  private static class FloatVectorValuesWrapper extends FloatVectorValues {
-    private final FloatVectorValues delegate;
-
-    FloatVectorValuesWrapper(FloatVectorValues delegate) {
-      this.delegate = delegate;
-    }
-
-    @Override
-    public int dimension() {
-      return delegate.dimension();
-    }
-
-    @Override
-    public int size() {
-      return delegate.size();
-    }
-
-    @Override
-    public float[] vectorValue(int index) throws IOException {
-      float[] original = delegate.vectorValue(index);
-      return original == null ? null : original.clone();
-    }
-
-    @Override
-    public DocIndexIterator iterator() {
-      return delegate.iterator();
-    }
-
-    @Override
-    public FloatVectorValues copy() throws IOException {
-      return new FloatVectorValuesWrapper(delegate.copy());
-    }
-
-    @Override
-    public Bits getAcceptOrds(Bits acceptDocs) {
-      return delegate.getAcceptOrds(acceptDocs);
-    }
-
-    @Override
-    public int ordToDoc(int ord) {
-      return delegate.ordToDoc(ord);
-    }
-
-    @Override
-    public VectorScorer scorer(float[] target) throws IOException {
-      return delegate.scorer(target);
-    }
+  public IntObjectHashMap<FieldEntry> getFieldEntries() {
+    return fields;
   }
 }
