@@ -43,6 +43,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
+import java.util.stream.IntStream;
+
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
 import org.apache.lucene.codecs.KnnVectorsReader;
@@ -591,11 +593,11 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
       // we fallback to vector-based re-indexing. Issue:
       // https://github.com/rapidsai/cuvs/issues/1253
       boolean hasDeletions =
-          java.util.stream.IntStream.range(0, mergeState.liveDocs.length)
+          IntStream.range(0, mergeState.liveDocs.length)
               .anyMatch(
                   i ->
                       mergeState.liveDocs[i] == null
-                          || java.util.stream.IntStream.range(0, mergeState.maxDocs[i])
+                          || IntStream.range(0, mergeState.maxDocs[i])
                               .anyMatch(j -> !mergeState.liveDocs[i].get(j)));
 
       if (mergeState.knnVectorsReaders.length > 1 && !hasDeletions) {
