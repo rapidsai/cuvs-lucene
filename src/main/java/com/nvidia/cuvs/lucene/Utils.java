@@ -15,7 +15,9 @@
  */
 package com.nvidia.cuvs.lucene;
 
+import com.nvidia.cuvs.CuVSMatrix;
 import java.io.IOException;
+import java.util.List;
 
 public class Utils {
 
@@ -26,5 +28,24 @@ public class Utils {
       case RuntimeException re -> throw re;
       case null, default -> throw new RuntimeException("UNEXPECTED: exception type", t);
     }
+  }
+
+  /**
+   * A method to build a {@link CuVSMatrix} from a list of float vectors.
+   *
+   * Note: This could be a memory-intensive operation and should therefore be avoided.
+   * Consider using this {@link CuVSMatrix.Builder} instead for copying the vectors without loading them in heap.
+   *
+   * @param data The float vectors
+   * @param dimensions The number float elements in each vector
+   * @return an instance of {@link CuVSMatrix}
+   */
+  static CuVSMatrix createFloatMatrix(List<float[]> data, int dimensions) {
+    CuVSMatrix.Builder builder =
+        CuVSMatrix.builder(data.size(), dimensions, CuVSMatrix.DataType.FLOAT);
+    for (float[] vector : data) {
+      builder.addVector(vector);
+    }
+    return builder.build();
   }
 }

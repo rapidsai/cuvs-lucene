@@ -44,7 +44,6 @@ import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.IntStream;
-
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
 import org.apache.lucene.codecs.KnnVectorsReader;
@@ -288,7 +287,7 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     List<float[]> vectors = fieldData.getVectors();
     writeFieldInternal(
         fieldData.fieldInfo(),
-        () -> createMatrix(vectors, fieldData.fieldInfo().getVectorDimension()),
+        () -> Utils.createFloatMatrix(vectors, fieldData.fieldInfo().getVectorDimension()),
         vectors.size());
   }
 
@@ -305,7 +304,7 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     }
     writeFieldInternal(
         fieldData.fieldInfo(),
-        () -> createMatrix(sortedVectors, fieldData.fieldInfo().getVectorDimension()),
+        () -> Utils.createFloatMatrix(sortedVectors, fieldData.fieldInfo().getVectorDimension()),
         sortedVectors.size());
   }
 
@@ -372,15 +371,6 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     } catch (Throwable t) {
       Utils.handleThrowable(t);
     }
-  }
-
-  CuVSMatrix createMatrix(List<float[]> vectors, int dimensions) {
-    CuVSMatrix.Builder builder =
-        CuVSMatrix.builder(vectors.size(), dimensions, CuVSMatrix.DataType.FLOAT);
-    for (float[] vec : vectors) {
-      builder.addVector(vec);
-    }
-    return builder.build();
   }
 
   private void writeEmpty(FieldInfo fieldInfo) throws IOException {
