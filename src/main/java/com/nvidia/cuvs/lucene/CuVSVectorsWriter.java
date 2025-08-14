@@ -41,6 +41,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
@@ -280,37 +281,36 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
   }
 
   private void writeField(CuVSFieldWriter fieldData) throws IOException {
-    // TODO: Argh! https://github.com/rapidsai/cuvs/issues/698
+    // TODO: Loading all vectors into memory is inefficient. Is there a way to stream the vectors
+    // from the flat writer to the CuVSMatrix?
     List<float[]> vectors = fieldData.getVectors();
-    CuVSMatrix.Builder builder =
-        CuVSMatrix.builder(
-            vectors.size(), fieldData.fieldInfo().getVectorDimension(), CuVSMatrix.DataType.FLOAT);
-    for (float[] vec : vectors) builder.addVector(vec);
-    writeFieldInternal(fieldData.fieldInfo(), builder.build());
+    writeFieldInternal(
+        fieldData.fieldInfo(),
+        () -> createMatrix(vectors, fieldData.fieldInfo().getVectorDimension()),
+        vectors.size());
   }
 
   private void writeSortingField(CuVSFieldWriter fieldData, Sorter.DocMap sortMap)
       throws IOException {
     DocsWithFieldSet oldDocsWithFieldSet = fieldData.getDocsWithFieldSet();
     final int[] new2OldOrd = new int[oldDocsWithFieldSet.cardinality()]; // new ord to old ord
-
     mapOldOrdToNewOrd(oldDocsWithFieldSet, sortMap, null, new2OldOrd, null);
-
-    float[][] oldVectors = fieldData.getVectors().toArray(float[][]::new);
-    CuVSMatrix.Builder builder =
-        CuVSMatrix.builder(
-            fieldData.getVectors().size(),
-            fieldData.fieldInfo().getVectorDimension(),
-            CuVSMatrix.DataType.FLOAT);
-    for (int i = 0; i < oldVectors.length; i++) {
-      float[] vec = oldVectors[new2OldOrd[i]];
-      builder.addVector(vec);
+    // TODO: Loading all vectors into memory is inefficient. Is there a way to stream the vectors
+    // from the flat writer to the CuVSMatrix?
+    List<float[]> sortedVectors = new ArrayList<float[]>();
+    for (int i = 0; i < fieldData.getVectors().size(); i++) {
+      sortedVectors.add(fieldData.getVectors().get(new2OldOrd[i]));
     }
-    writeFieldInternal(fieldData.fieldInfo(), builder.build());
+    writeFieldInternal(
+        fieldData.fieldInfo(),
+        () -> createMatrix(sortedVectors, fieldData.fieldInfo().getVectorDimension()),
+        sortedVectors.size());
   }
 
-  private void writeFieldInternal(FieldInfo fieldInfo, CuVSMatrix dataset) throws IOException {
-    if (dataset.size() == 0) {
+  private void writeFieldInternal(
+      FieldInfo fieldInfo, Supplier<CuVSMatrix> datasetSupplier, int datasetSize)
+      throws IOException {
+    if (datasetSize == 0) {
       writeEmpty(fieldInfo);
       return;
     }
@@ -320,7 +320,7 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
 
     // workaround for the minimum number of vectors for Cagra
     IndexType indexType =
-        this.indexType.cagra() && dataset.size() < MIN_CAGRA_INDEX_SIZE
+        this.indexType.cagra() && datasetSize < MIN_CAGRA_INDEX_SIZE
             ? IndexType.BRUTE_FORCE
             : this.indexType;
 
@@ -329,7 +329,7 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
       if (indexType.cagra()) {
         try {
           var cagraIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
-          writeCagraIndex(cagraIndexOutputStream, dataset);
+          writeCagraIndex(cagraIndexOutputStream, datasetSupplier.get());
         } catch (Throwable t) {
           handleThrowableWithIgnore(t, CANNOT_GENERATE_CAGRA);
           // workaround for cuVS issue
@@ -341,16 +341,16 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
       bruteForceIndexOffset = cuvsIndex.getFilePointer();
       if (indexType.bruteForce()) {
         var bruteForceIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
-        writeBruteForceIndex(bruteForceIndexOutputStream, dataset);
+        writeBruteForceIndex(bruteForceIndexOutputStream, datasetSupplier.get());
         bruteForceIndexLength = cuvsIndex.getFilePointer() - bruteForceIndexOffset;
       }
 
       hnswIndexOffset = cuvsIndex.getFilePointer();
       if (indexType.hnsw()) {
         var hnswIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
-        if (dataset.size() > MIN_CAGRA_INDEX_SIZE) {
+        if (datasetSize > MIN_CAGRA_INDEX_SIZE) {
           try {
-            writeHNSWIndex(hnswIndexOutputStream, dataset);
+            writeHNSWIndex(hnswIndexOutputStream, datasetSupplier.get());
           } catch (Throwable t) {
             handleThrowableWithIgnore(t, CANNOT_GENERATE_CAGRA);
           }
@@ -360,7 +360,7 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
 
       writeMeta(
           fieldInfo,
-          (int) dataset.size(),
+          (int) datasetSize,
           cagraIndexOffset,
           cagraIndexLength,
           bruteForceIndexOffset,
@@ -370,6 +370,15 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     } catch (Throwable t) {
       Utils.handleThrowable(t);
     }
+  }
+
+  CuVSMatrix createMatrix(List<float[]> vectors, int dimensions) {
+    CuVSMatrix.Builder builder =
+        CuVSMatrix.builder(vectors.size(), dimensions, CuVSMatrix.DataType.FLOAT);
+    for (float[] vec : vectors) {
+      builder.addVector(vec);
+    }
+    return builder.build();
   }
 
   private void writeEmpty(FieldInfo fieldInfo) throws IOException {
@@ -465,58 +474,64 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
 
   /**
    * Fallback method that rebuilds indexes from merged vectors.
-   * Used when native CAGRA merge is not possible or fails. Also used
-   * when non-CAGRA index types are used (for eg. bruteforce).
+   * Used when native CAGRA merge() is not possible. Also used
+   * when non-CAGRA index types are used (for e.g. Brute Force index).
    */
   private void vectorBasedMerge(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
+    if (fieldInfo.getVectorEncoding() != FLOAT32) {
+      throw new AssertionError("Only Float32 supported");
+    }
     try {
-      // Get the merged vectors from Lucene's merge process
-      final FloatVectorValues mergedVectorValues =
-          switch (fieldInfo.getVectorEncoding()) {
-            case BYTE -> throw new AssertionError("bytes not supported");
-            case FLOAT32 ->
-                KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState);
-          };
-
       // We need to compute the size of the number of merged documents up-front so that we can
       // compute the CuVSMatrix capacity. TODO: Find a way to do this without merging twice.
-      KnnVectorValues.DocIndexIterator iter =
-          KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState)
-              .iterator();
-      int numMergedDocs = 0;
-      for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
-        numMergedDocs++;
-      }
+      final int numMergedDocs = getMergedDocsCount(fieldInfo, mergeState);
 
-      CuVSMatrix dataset;
       if (numMergedDocs != 0) {
-        dataset = createMatrixFromMergedVectors(mergedVectorValues, numMergedDocs);
-        writeFieldInternal(fieldInfo, dataset);
+        writeFieldInternal(
+            fieldInfo,
+            () -> {
+              try {
+                return createMatrixFromMergedVectors(
+                    KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(
+                        fieldInfo, mergeState),
+                    numMergedDocs);
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+            },
+            numMergedDocs);
       } else {
         writeEmpty(fieldInfo);
       }
-
     } catch (Throwable t) {
       Utils.handleThrowable(t);
     }
   }
 
-  /** Creates CuVSMatrix from merged vectors, using dense array without gaps. */
+  private int getMergedDocsCount(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
+    KnnVectorValues.DocIndexIterator iter =
+        KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState)
+            .iterator();
+    int numMergedDocs = 0;
+    for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
+      numMergedDocs++;
+    }
+    return numMergedDocs;
+  }
+
+  /**
+   * Creates CuVSMatrix from merged vectors
+   * */
   private CuVSMatrix createMatrixFromMergedVectors(
       FloatVectorValues mergedVectorValues, int numMergedDocs) throws IOException {
-
     CuVSMatrix.Builder builder =
         CuVSMatrix.builder(numMergedDocs, mergedVectorValues.dimension(), DataType.FLOAT);
-
     KnnVectorValues.DocIndexIterator iter = mergedVectorValues.iterator();
-    int count = 0;
     for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
       int ordinal = iter.index();
       float[] vector = mergedVectorValues.vectorValue(ordinal);
       builder.addVector(vector.clone());
-      count++;
     }
-
     return builder.build();
   }
 
