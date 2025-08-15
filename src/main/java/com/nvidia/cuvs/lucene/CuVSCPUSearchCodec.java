@@ -24,19 +24,34 @@ import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.lucene101.Lucene101Codec;
 
 /** CuVS based codec for GPU based vector search */
-public class CuVSCodec extends FilterCodec {
+public class CuVSCPUSearchCodec extends FilterCodec {
 
-  public CuVSCodec() {
-    this("CuVSCodec", new Lucene101Codec());
+  public CuVSCPUSearchCodec() {
+    this("CuVSCPUSearchCodec", new Lucene101Codec());
   }
 
-  public CuVSCodec(String name, Codec delegate) {
+  public CuVSCPUSearchCodec(String name, Codec delegate) {
     super(name, delegate);
+    initializeFormat();
+  }
+
+  public CuVSCPUSearchCodec(
+      int cuvsWriterThreads, int intGraphDegree, int graphDegree, int hnswLayers) {
+    this("CuVSCPUSearchCodec", new Lucene101Codec());
+    initializeFormat(cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers);
+  }
+
+  private void initializeFormat() {
+    initializeFormat(1, 128, 64, 1); // Default values
+  }
+
+  private void initializeFormat(
+      int cuvsWriterThreads, int intGraphDegree, int graphDegree, int hnswLayers) {
     KnnVectorsFormat format;
     try {
-      // TODO: The hard-coded values passed below should be configurable.
-      // To make relevant changes in a subsequent PR.
-      format = new CuVSVectorsFormat(1, 128, 64, 1, IndexType.CAGRA);
+      format =
+          new CuVSVectorsFormat(
+              cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers, IndexType.HNSW_LUCENE);
       setKnnFormat(format);
     } catch (LibraryException ex) {
       Logger log = Logger.getLogger(CuVSCodec.class.getName());

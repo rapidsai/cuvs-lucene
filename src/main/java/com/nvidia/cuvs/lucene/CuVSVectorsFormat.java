@@ -21,16 +21,18 @@ import com.nvidia.cuvs.lucene.CuVSVectorsWriter.IndexType;
 import java.io.IOException;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.KnnVectorsFormat;
+import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.hnsw.DefaultFlatVectorScorer;
 import org.apache.lucene.codecs.hnsw.FlatVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99FlatVectorsFormat;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 
 /** CuVS based KnnVectorsFormat for GPU acceleration */
 public class CuVSVectorsFormat extends KnnVectorsFormat {
 
-  private static final Logger LOG = Logger.getLogger(CuVSVectorsFormat.class.getName());
+  private static final Logger log = Logger.getLogger(CuVSVectorsFormat.class.getName());
 
   // TODO: fix Lucene version in name, to the final targeted release, if any
   static final String CUVS_META_CODEC_NAME = "Lucene102CuVSVectorsFormatMeta";
@@ -45,6 +47,7 @@ public class CuVSVectorsFormat extends KnnVectorsFormat {
   public static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
   public static final int DEFAULT_GRAPH_DEGREE = 64;
   public static final IndexType DEFAULT_INDEX_TYPE = IndexType.CAGRA;
+  public static final int HNSW_GRAPH_LAYERS = 1;
 
   static CuVSResources resources = cuVSResourcesOrNull();
 
@@ -56,6 +59,7 @@ public class CuVSVectorsFormat extends KnnVectorsFormat {
   final int cuvsWriterThreads;
   final int intGraphDegree;
   final int graphDegree;
+  final int hnswLayers; // Number of layers to create in CAGRA->HNSW conversion
   final CuVSVectorsWriter.IndexType indexType; // the index type to build, when writing
 
   /**
@@ -68,6 +72,7 @@ public class CuVSVectorsFormat extends KnnVectorsFormat {
         DEFAULT_WRITER_THREADS,
         DEFAULT_INTERMEDIATE_GRAPH_DEGREE,
         DEFAULT_GRAPH_DEGREE,
+        HNSW_GRAPH_LAYERS,
         DEFAULT_INDEX_TYPE);
   }
 
@@ -77,11 +82,16 @@ public class CuVSVectorsFormat extends KnnVectorsFormat {
    * @throws LibraryException if the native library fails to load
    */
   public CuVSVectorsFormat(
-      int cuvsWriterThreads, int intGraphDegree, int graphDegree, IndexType indexType) {
+      int cuvsWriterThreads,
+      int intGraphDegree,
+      int graphDegree,
+      int hnswLayers,
+      IndexType indexType) {
     super("CuVSVectorsFormat");
     this.cuvsWriterThreads = cuvsWriterThreads;
     this.intGraphDegree = intGraphDegree;
     this.graphDegree = graphDegree;
+    this.hnswLayers = hnswLayers;
     this.indexType = indexType;
   }
 
@@ -90,12 +100,12 @@ public class CuVSVectorsFormat extends KnnVectorsFormat {
       resources = CuVSResources.create();
       return resources;
     } catch (UnsupportedOperationException uoe) {
-      LOG.warning("cuvs is not supported on this platform or java version: " + uoe.getMessage());
+      log.warning("cuvs is not supported on this platform or java version: " + uoe.getMessage());
     } catch (Throwable t) {
       if (t instanceof ExceptionInInitializerError ex) {
         t = ex.getCause();
       }
-      LOG.warning("Exception occurred during creation of cuvs resources. " + t);
+      log.warning("Exception occurred during creation of cuvs resources. " + t);
     }
     return null;
   }
@@ -116,14 +126,28 @@ public class CuVSVectorsFormat extends KnnVectorsFormat {
     checkSupported();
     var flatWriter = flatVectorsFormat.fieldsWriter(state);
     return new CuVSVectorsWriter(
-        state, cuvsWriterThreads, intGraphDegree, graphDegree, indexType, resources, flatWriter);
+        state,
+        cuvsWriterThreads,
+        intGraphDegree,
+        graphDegree,
+        hnswLayers,
+        indexType,
+        resources,
+        flatWriter);
   }
 
   @Override
-  public CuVSVectorsReader fieldsReader(SegmentReadState state) throws IOException {
+  public KnnVectorsReader fieldsReader(SegmentReadState state) throws IOException {
     checkSupported();
     var flatReader = flatVectorsFormat.fieldsReader(state);
-    return new CuVSVectorsReader(state, resources, flatReader);
+    if (this.indexType == IndexType.HNSW_LUCENE) {
+      log.info("Using Reader: Lucene99HnswVectorsReader");
+      return new Lucene99HnswVectorsReader(state, flatReader);
+    } else {
+      checkSupported();
+      log.info("Using Reader: CuVSVectorsReader");
+      return new CuVSVectorsReader(state, resources, flatReader);
+    }
   }
 
   @Override
@@ -137,6 +161,7 @@ public class CuVSVectorsFormat extends KnnVectorsFormat {
     sb.append("cuvsWriterThreads=").append(cuvsWriterThreads);
     sb.append("intGraphDegree=").append(intGraphDegree);
     sb.append("graphDegree=").append(graphDegree);
+    sb.append("hnswLayers=").append(hnswLayers);
     sb.append("resources=").append(resources);
     sb.append(")");
     return sb.toString();

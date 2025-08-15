@@ -68,7 +68,7 @@
       <groupId>com.nvidia.cuvs</groupId>
       <artifactId>cuvs-java</artifactId>
       <!-- Note: This is temporary measure (artifact coming from https://maven.searchscale.com/snapshots, for now) and will get updated in subsequent PRs. -->
-      <version>25.8.0-4f53f-SNAPSHOT</version>
+      <version>25.8.0-c9599-SNAPSHOT</version>
     </dependency>
   </dependencies>
 
@@ -102,6 +102,25 @@
                 </licenseHeader>
             </java>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>3.6.0</version>
+        <configuration>
+          <descriptorRefs>
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+          </descriptorRefs>
+        </configuration>
+        <executions>
+          <execution>
+            <id>make-assembly</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

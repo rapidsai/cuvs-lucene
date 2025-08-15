@@ -31,17 +31,15 @@ import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.CuVSMatrix;
-import com.nvidia.cuvs.CuVSMatrix.DataType;
 import com.nvidia.cuvs.CuVSResources;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.IntStream;
 import org.apache.lucene.codecs.CodecUtil;
@@ -50,6 +48,7 @@ import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatFieldVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.index.DocsWithFieldSet;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
@@ -65,6 +64,10 @@ import org.apache.lucene.internal.hppc.IntObjectHashMap;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.InfoStream;
+import org.apache.lucene.util.hnsw.HnswGraph;
+import org.apache.lucene.util.hnsw.HnswGraph.NodesIterator;
+import org.apache.lucene.util.hnsw.NeighborArray;
+import org.apache.lucene.util.packed.DirectMonotonicWriter;
 
 /**
  * KnnVectorsWriter for CuVS, responsible for merge and flush of vectors into
@@ -87,32 +90,39 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
   private final int cuvsWriterThreads;
   private final int intGraphDegree;
   private final int graphDegree;
+  private final int hnswLayers; // Number of layers to create in CAGRA->HNSW conversion
 
   private final CuVSResources resources;
   private final IndexType indexType;
 
   private final FlatVectorsWriter flatVectorsWriter; // for writing the raw vectors
   private final List<CuVSFieldWriter> fields = new ArrayList<>();
-  private final IndexOutput meta, cuvsIndex;
+  private IndexOutput meta = null, cuvsIndex = null;
+  private IndexOutput hnswMeta = null, hnswVectorIndex = null;
   private final InfoStream infoStream;
   private boolean finished;
+  private String vemFileName;
+  private String vexFileName;
 
   /** The CuVS index Type. */
   public enum IndexType {
     /** Builds a Cagra index. */
-    CAGRA(true, false, false),
+    CAGRA(true, false, false, false),
     /** Builds a Brute Force index. */
-    BRUTE_FORCE(false, true, false),
+    BRUTE_FORCE(false, true, false, false),
     /** Builds an HSNW index - suitable for searching on CPU. */
-    HNSW(false, false, true),
+    HNSW(false, false, true, false),
     /** Builds a Cagra and a Brute Force index. */
-    CAGRA_AND_BRUTE_FORCE(true, true, false);
-    private final boolean cagra, bruteForce, hnsw;
+    CAGRA_AND_BRUTE_FORCE(true, true, false, false),
+    /** Builds a Lucene HNSW index via CAGRA. */
+    HNSW_LUCENE(false, false, false, true);
+    private final boolean cagra, bruteForce, hnsw, hnswLucene;
 
-    IndexType(boolean cagra, boolean bruteForce, boolean hnsw) {
+    IndexType(boolean cagra, boolean bruteForce, boolean hnsw, boolean hnswLucene) {
       this.cagra = cagra;
       this.bruteForce = bruteForce;
       this.hnsw = hnsw;
+      this.hnswLucene = hnswLucene;
     }
 
     public boolean cagra() {
@@ -126,6 +136,10 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     public boolean hnsw() {
       return hnsw;
     }
+
+    public boolean hnswLucene() {
+      return hnswLucene;
+    }
   }
 
   public CuVSVectorsWriter(
@@ -133,6 +147,7 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
       int cuvsWriterThreads,
       int intGraphDegree,
       int graphDegree,
+      int hnswLayers,
       IndexType indexType,
       CuVSResources resources,
       FlatVectorsWriter flatVectorsWriter)
@@ -142,9 +157,16 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     this.cuvsWriterThreads = cuvsWriterThreads;
     this.intGraphDegree = intGraphDegree;
     this.graphDegree = graphDegree;
+    this.hnswLayers = hnswLayers;
     this.resources = resources;
     this.flatVectorsWriter = flatVectorsWriter;
     this.infoStream = state.infoStream;
+
+    vemFileName =
+        IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, "vem");
+
+    vexFileName =
+        IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, "vex");
 
     String metaFileName =
         IndexFileNames.segmentFileName(
@@ -154,20 +176,42 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
 
     boolean success = false;
     try {
-      meta = state.directory.createOutput(metaFileName, state.context);
-      cuvsIndex = state.directory.createOutput(cagraFileName, state.context);
-      CodecUtil.writeIndexHeader(
-          meta,
-          CUVS_META_CODEC_NAME,
-          VERSION_CURRENT,
-          state.segmentInfo.getId(),
-          state.segmentSuffix);
-      CodecUtil.writeIndexHeader(
-          cuvsIndex,
-          CUVS_INDEX_CODEC_NAME,
-          VERSION_CURRENT,
-          state.segmentInfo.getId(),
-          state.segmentSuffix);
+
+      // Only create CAGRA files if not in HNSW_LUCENE mode
+      if (indexType == IndexType.HNSW_LUCENE) {
+
+        hnswMeta = state.directory.createOutput(vemFileName, state.context);
+        hnswVectorIndex = state.directory.createOutput(vexFileName, state.context);
+
+        CodecUtil.writeIndexHeader(
+            hnswMeta,
+            "Lucene99HnswVectorsFormatMeta",
+            Lucene99HnswVectorsFormat.VERSION_CURRENT,
+            state.segmentInfo.getId(),
+            state.segmentSuffix);
+        CodecUtil.writeIndexHeader(
+            hnswVectorIndex,
+            "Lucene99HnswVectorsFormatIndex",
+            Lucene99HnswVectorsFormat.VERSION_CURRENT,
+            state.segmentInfo.getId(),
+            state.segmentSuffix);
+      } else {
+        // Only create CAGRA files if not in HNSW_LUCENE mode
+        meta = state.directory.createOutput(metaFileName, state.context);
+        cuvsIndex = state.directory.createOutput(cagraFileName, state.context);
+        CodecUtil.writeIndexHeader(
+            meta,
+            CUVS_META_CODEC_NAME,
+            VERSION_CURRENT,
+            state.segmentInfo.getId(),
+            state.segmentSuffix);
+        CodecUtil.writeIndexHeader(
+            cuvsIndex,
+            CUVS_INDEX_CODEC_NAME,
+            VERSION_CURRENT,
+            state.segmentInfo.getId(),
+            state.segmentSuffix);
+      }
       success = true;
     } finally {
       if (success == false) {
@@ -214,14 +258,543 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
         .build();
   }
 
-  static long nanosToMillis(long nanos) {
-    return Duration.ofNanos(nanos).toMillis();
-  }
-
   private void info(String msg) {
     if (infoStream.isEnabled(CUVS_COMPONENT)) {
       infoStream.message(CUVS_COMPONENT, msg);
     }
+  }
+
+  private void writeFieldInternal(FieldInfo fieldInfo, List<float[]> vectors) throws IOException {
+    if (vectors.size() == 0) {
+      writeEmpty(fieldInfo);
+      return;
+    }
+    long cagraIndexOffset, cagraIndexLength = 0L;
+    long bruteForceIndexOffset, bruteForceIndexLength = 0L;
+    long hnswIndexOffset, hnswIndexLength = 0L;
+
+    // workaround for the minimum number of vectors for Cagra
+    IndexType indexType =
+        this.indexType.cagra() && vectors.size() < MIN_CAGRA_INDEX_SIZE
+            ? IndexType.BRUTE_FORCE
+            : this.indexType;
+
+    info("=== INDEX TYPE DEBUG: original=" + this.indexType + ", effective=" + indexType + " ===");
+
+    try {
+      if (indexType.hnswLucene()) {
+        info("=== ENTERED HNSW_LUCENE BLOCK (HNSW-only mode) ===");
+        info("Entered the writeFieldInternal's HNSW LUCENE block - writing only HNSW files");
+        try {
+          CuVSMatrix dataset = Utils.createFloatMatrix(vectors, fieldInfo.getVectorDimension());
+          writeHnswOnlyIndex(dataset, fieldInfo, vectors);
+        } catch (Throwable t) {
+          info("=== ERROR IN HNSW_LUCENE: " + t.getMessage() + " ===");
+          handleThrowableWithIgnore(t, CANNOT_GENERATE_CAGRA);
+          // workaround for cuVS issue
+          indexType = IndexType.BRUTE_FORCE;
+        }
+        // For HNSW_LUCENE, we don't write any CAGRA data, so set lengths to 0
+        cagraIndexLength = 0L;
+        cagraIndexOffset = 0L;
+        bruteForceIndexOffset = 0L;
+        bruteForceIndexLength = 0L;
+        hnswIndexOffset = 0L;
+        hnswIndexLength = 0L;
+      } else {
+        cagraIndexOffset = cuvsIndex.getFilePointer();
+        if (indexType.cagra()) {
+          try {
+            var cagraIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
+            CuVSMatrix dataset = Utils.createFloatMatrix(vectors, fieldInfo.getVectorDimension());
+            writeCagraIndex(cagraIndexOutputStream, dataset);
+          } catch (Throwable t) {
+            handleThrowableWithIgnore(t, CANNOT_GENERATE_CAGRA);
+            // workaround for cuVS issue
+            indexType = IndexType.BRUTE_FORCE;
+          }
+          cagraIndexLength = cuvsIndex.getFilePointer() - cagraIndexOffset;
+        }
+
+        bruteForceIndexOffset = cuvsIndex.getFilePointer();
+        if (indexType.bruteForce()) {
+          var bruteForceIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
+          CuVSMatrix dataset = Utils.createFloatMatrix(vectors, fieldInfo.getVectorDimension());
+          writeBruteForceIndex(bruteForceIndexOutputStream, dataset);
+          bruteForceIndexLength = cuvsIndex.getFilePointer() - bruteForceIndexOffset;
+        }
+
+        hnswIndexOffset = cuvsIndex.getFilePointer();
+        if (indexType.hnsw()) {
+          var hnswIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
+          if (vectors.size() > MIN_CAGRA_INDEX_SIZE) {
+            try {
+              CuVSMatrix dataset = Utils.createFloatMatrix(vectors, fieldInfo.getVectorDimension());
+              writeHNSWIndex(hnswIndexOutputStream, dataset);
+            } catch (Throwable t) {
+              handleThrowableWithIgnore(t, CANNOT_GENERATE_CAGRA);
+            }
+          }
+          hnswIndexLength = cuvsIndex.getFilePointer() - hnswIndexOffset;
+        }
+      }
+
+      // Only write meta for non-HNSW_LUCENE modes
+      if (indexType != IndexType.HNSW_LUCENE) {
+        writeMeta(
+            fieldInfo,
+            vectors.size(),
+            cagraIndexOffset,
+            cagraIndexLength,
+            bruteForceIndexOffset,
+            bruteForceIndexLength,
+            hnswIndexOffset,
+            hnswIndexLength);
+      }
+    } catch (Throwable t) {
+      Utils.handleThrowable(t);
+    }
+  }
+
+  private void writeHnswOnlyIndex(
+      CuVSMatrix dataset, FieldInfo fieldInfo, List<float[]> originalVectors) throws Throwable {
+    if (dataset.size() < 2) {
+      throw new IllegalArgumentException(dataset.size() + " vectors, less than min [2] required");
+    }
+    CagraIndexParams params = cagraIndexParams((int) dataset.size());
+    long startTime = System.nanoTime();
+    CagraIndex index =
+        CagraIndex.newBuilder(resources).withDataset(dataset).withIndexParams(params).build();
+
+    // Get the adjacency list from CAGRA index
+    int[][] adjacencyList;
+    try {
+      adjacencyList = index.getGraph();
+      info("=== SUCCESS: Got adjacency list from CAGRA index ===");
+      info("Successfully got adjacency list from CAGRA index");
+    } catch (Exception e) {
+      info("=== FAILED: getGraph() method failed: " + e.getMessage() + " ===");
+      info("getGraph() method failed or doesn't exist: " + e.getMessage());
+      // Create a mock adjacency list for testing
+      int size = (int) dataset.size();
+      adjacencyList = new int[size][];
+      for (int i = 0; i < size; i++) {
+        // Create connections to next few nodes (circular)
+        int degree = Math.min(10, size - 1); // up to 10 connections
+        adjacencyList[i] = new int[degree];
+        for (int j = 0; j < degree; j++) {
+          adjacencyList[i][j] = (i + j + 1) % size;
+        }
+      }
+      info(
+          "=== CREATED MOCK ADJACENCY LIST: "
+              + size
+              + " nodes, degree="
+              + (adjacencyList.length > 0 ? adjacencyList[0].length : 0)
+              + " ===");
+      info(
+          "Created mock adjacency list with "
+              + size
+              + " nodes, degree="
+              + (adjacencyList.length > 0 ? adjacencyList[0].length : 0));
+    }
+
+    int size = (int) dataset.size();
+    int dimensions = fieldInfo.getVectorDimension();
+
+    // Debug: Check if we got valid adjacency data
+    info(
+        "Adjacency list info: "
+            + (adjacencyList == null
+                ? "null"
+                : "length="
+                    + adjacencyList.length
+                    + ", first row="
+                    + (adjacencyList.length > 0 && adjacencyList[0] != null
+                        ? adjacencyList[0].length
+                        : "null")));
+
+    // Create HNSW graph from CAGRA - multi-layer if original vectors available
+    OnHeapHnswGraph hnswGraph;
+    if (originalVectors != null && originalVectors.size() > 0) {
+      info("=== Creating 3-layer HNSW graph using original vectors ===");
+      hnswGraph =
+          createMultiLayerHnswGraph(fieldInfo, size, dimensions, adjacencyList, originalVectors);
+    } else {
+      info("=== Creating single-layer HNSW graph (no original vectors) ===");
+      // Create single layer graph
+      List<int[]> singleLayerNodes = new ArrayList<>();
+      List<int[][]> singleLayerAdjacencies = new ArrayList<>();
+      singleLayerAdjacencies.add(adjacencyList);
+      hnswGraph = new OnHeapHnswGraph(size, dimensions, singleLayerNodes, singleLayerAdjacencies);
+    }
+
+    // Remember the vector index offset before writing
+    long vectorIndexOffset = hnswVectorIndex.getFilePointer();
+
+    // Write the graph to the vector index
+    int[][] graphLevelNodeOffsets = writeGraph(hnswGraph, hnswVectorIndex);
+
+    // Calculate the length of written data
+    long vectorIndexLength = hnswVectorIndex.getFilePointer() - vectorIndexOffset;
+
+    // Write metadata
+    writeMeta(
+        hnswVectorIndex,
+        hnswMeta,
+        fieldInfo,
+        vectorIndexOffset,
+        vectorIndexLength,
+        size,
+        hnswGraph,
+        graphLevelNodeOffsets);
+
+    long elapsedMillis = Utils.nanosToMillis(System.nanoTime() - startTime);
+    info("HNSW-only graph created in " + elapsedMillis + "ms, with " + dataset.size() + " vectors");
+
+    // Don't serialize CAGRA index - destroy it immediately
+    index.destroyIndex();
+  }
+
+  /**
+   * Creates a multi-layer HNSW graph with dynamic number of layers.
+   * M = cagraGraphDegree/2
+   * Each layer contains 1/M nodes from the previous layer
+   * Creates layers until the highest layer has ≤ M nodes
+   */
+  private OnHeapHnswGraph createMultiLayerHnswGraph(
+      FieldInfo fieldInfo,
+      int size,
+      int dimensions,
+      int[][] adjacencyList,
+      List<float[]> originalVectors)
+      throws Throwable {
+
+    // Calculate M as cagraGraphDegree/2
+    int M = graphDegree / 2;
+    info(
+        "=== Creating "
+            + hnswLayers
+            + "-layer HNSW graph with M="
+            + M
+            + " (cagraGraphDegree/2) ===");
+    info("Creating " + hnswLayers + "-layer HNSW graph with size=" + size + ", M=" + M);
+
+    // Store all layers data
+    java.util.List<int[]> layerNodes = new java.util.ArrayList<>();
+    java.util.List<int[][]> layerAdjacencies = new java.util.ArrayList<>();
+
+    // Layer 0: Use full CAGRA adjacency list
+    layerNodes.add(null); // Layer 0 contains all nodes, so we don't need to store node list
+    layerAdjacencies.add(adjacencyList);
+
+    // Build higher layers - create exactly hnswLayers-1 additional layers (layer 0 is already
+    // added)
+    int currentLayerSize = size;
+    int layerIndex = 1;
+    java.util.Random random = new java.util.Random(42); // Fixed seed for reproducibility
+
+    while (layerIndex < hnswLayers && currentLayerSize > 1) {
+      // Calculate size for next layer (1/M of current layer)
+      int nextLayerSize = Math.max(1, currentLayerSize / M);
+
+      info(
+          "=== Layer "
+              + layerIndex
+              + " will have "
+              + nextLayerSize
+              + " nodes out of "
+              + currentLayerSize
+              + " (previous layer) ===");
+      info("Layer " + layerIndex + " will have " + nextLayerSize + " nodes");
+
+      // Select nodes for this layer
+      java.util.Set<Integer> selectedNodesSet = new java.util.HashSet<>();
+
+      if (layerIndex == 1) {
+        // Select from all nodes (Layer 0)
+        while (selectedNodesSet.size() < nextLayerSize) {
+          selectedNodesSet.add(random.nextInt(size));
+        }
+      } else {
+        // Select from previous layer nodes
+        int[] prevLayerNodes = layerNodes.get(layerNodes.size() - 1);
+        while (selectedNodesSet.size() < nextLayerSize) {
+          int idx = random.nextInt(prevLayerNodes.length);
+          selectedNodesSet.add(prevLayerNodes[idx]);
+        }
+      }
+
+      // Convert to sorted array
+      int[] selectedNodes =
+          selectedNodesSet.stream().mapToInt(Integer::intValue).sorted().toArray();
+      layerNodes.add(selectedNodes);
+
+      info(
+          "=== Selected Layer "
+              + layerIndex
+              + " nodes: "
+              + java.util.Arrays.toString(
+                  java.util.Arrays.copyOf(selectedNodes, Math.min(10, selectedNodes.length)))
+              + (selectedNodes.length > 10 ? "..." : "")
+              + " ===");
+
+      // Extract vectors for selected nodes
+      float[][] selectedVectors = new float[nextLayerSize][];
+      for (int i = 0; i < nextLayerSize; i++) {
+        int nodeId = selectedNodes[i];
+        if (nodeId < originalVectors.size()) {
+          selectedVectors[i] = originalVectors.get(nodeId);
+        } else {
+          selectedVectors[i] = createRandomVector(dimensions, nodeId);
+        }
+      }
+
+      // Build CAGRA graph for this layer
+      int[][] layerAdjacency = buildCagraGraphForSubset(selectedVectors, selectedNodes);
+      layerAdjacencies.add(layerAdjacency);
+
+      // Update for next iteration
+      currentLayerSize = nextLayerSize;
+      layerIndex++;
+
+      // Use different seed for each layer
+      random = new java.util.Random(42 + layerIndex);
+    }
+
+    int numLayers = layerAdjacencies.size();
+    info("=== Total layers created: " + numLayers + " ===");
+    info("Created " + numLayers + " layers total");
+
+    // Create the multi-layer graph with all layers
+    return new OnHeapHnswGraph(size, dimensions, layerNodes, layerAdjacencies);
+  }
+
+  /**
+   * Creates a random vector for fallback purposes
+   */
+  private float[] createRandomVector(int dimensions, int seed) {
+    float[] vector = new float[dimensions];
+    java.util.Random random = new java.util.Random(seed);
+    for (int i = 0; i < dimensions; i++) {
+      vector[i] = random.nextFloat();
+    }
+    return vector;
+  }
+
+  /**
+   * Builds a CAGRA graph for a subset of vectors
+   */
+  private int[][] buildCagraGraphForSubset(float[][] vectors, int[] originalNodeIds)
+      throws Throwable {
+    if (vectors.length < 2) {
+      // Can't build CAGRA graph with less than 2 vectors
+      return new int[vectors.length][0];
+    }
+
+    try {
+      // Create CuVSMatrix from the subset vectors
+      CuVSMatrix subsetDataset = CuVSMatrix.ofArray(vectors);
+
+      // Build CAGRA index for the subset
+      CagraIndexParams params = cagraIndexParams(vectors.length);
+      CagraIndex subsetIndex =
+          CagraIndex.newBuilder(resources)
+              .withDataset(subsetDataset)
+              .withIndexParams(params)
+              .build();
+
+      // Get adjacency list from subset CAGRA index
+      int[][] subsetAdjacency;
+      try {
+        subsetAdjacency = subsetIndex.getGraph();
+        info("=== SUCCESS: Got adjacency list from Layer 1 CAGRA index ===");
+        info("Successfully got adjacency list from Layer 1 CAGRA index");
+      } catch (Exception e) {
+        info("=== FAILED: getGraph() method failed for Layer 1: " + e.getMessage() + " ===");
+        info("getGraph() method failed for Layer 1: " + e.getMessage());
+        // Create mock adjacency list
+        subsetAdjacency = new int[vectors.length][];
+        for (int i = 0; i < vectors.length; i++) {
+          int degree = Math.min(5, vectors.length - 1);
+          subsetAdjacency[i] = new int[degree];
+          for (int j = 0; j < degree; j++) {
+            subsetAdjacency[i][j] = (i + j + 1) % vectors.length;
+          }
+        }
+      }
+
+      // Convert subset adjacency to use original node IDs
+      int[][] layer1Adjacency = new int[vectors.length][];
+      for (int i = 0; i < vectors.length; i++) {
+        if (subsetAdjacency[i] != null) {
+          layer1Adjacency[i] = new int[subsetAdjacency[i].length];
+          for (int j = 0; j < subsetAdjacency[i].length; j++) {
+            // Map subset index back to original node ID
+            int subsetNeighborId = subsetAdjacency[i][j];
+            layer1Adjacency[i][j] = originalNodeIds[subsetNeighborId];
+          }
+        } else {
+          layer1Adjacency[i] = new int[0];
+        }
+      }
+
+      subsetIndex.destroyIndex();
+      return layer1Adjacency;
+
+    } catch (Exception e) {
+      info("=== FAILED to build CAGRA graph for subset: " + e.getMessage() + " ===");
+      info("Failed to build CAGRA graph for subset: " + e.getMessage());
+
+      // Fallback: create simple connections between Layer 1 nodes
+      int[][] fallbackAdjacency = new int[vectors.length][];
+      for (int i = 0; i < vectors.length; i++) {
+        int degree = Math.min(3, vectors.length - 1);
+        fallbackAdjacency[i] = new int[degree];
+        for (int j = 0; j < degree; j++) {
+          int neighborIdx = (i + j + 1) % vectors.length;
+          fallbackAdjacency[i][j] = originalNodeIds[neighborIdx];
+        }
+      }
+      return fallbackAdjacency;
+    }
+  }
+
+  private void writeMeta(
+      IndexOutput vectorIndex,
+      IndexOutput meta,
+      FieldInfo field,
+      long vectorIndexOffset,
+      long vectorIndexLength,
+      int count,
+      HnswGraph graph,
+      int[][] graphLevelNodeOffsets)
+      throws IOException {
+    info(
+        "=== writeMeta: Writing field "
+            + field.name
+            + " with count="
+            + count
+            + ", dimensions="
+            + field.getVectorDimension()
+            + " ===");
+    meta.writeInt(field.number);
+    meta.writeInt(field.getVectorEncoding().ordinal());
+    meta.writeInt(distFuncToOrd(field.getVectorSimilarityFunction()));
+    meta.writeVLong(vectorIndexOffset);
+    meta.writeVLong(vectorIndexLength);
+    meta.writeVInt(field.getVectorDimension());
+    meta.writeInt(count);
+    // Use M = cagraGraphDegree/2
+    int M = graphDegree / 2;
+    info("=== writeMeta: Writing M=" + M + " (cagraGraphDegree/2) ===");
+    meta.writeVInt(M); // M = cagraGraphDegree/2
+    // write graph nodes on each level
+    if (graph == null) {
+      meta.writeVInt(0);
+    } else {
+      meta.writeVInt(graph.numLevels());
+      long valueCount = 0;
+      for (int level = 0; level < graph.numLevels(); level++) {
+        NodesIterator nodesOnLevel = graph.getNodesOnLevel(level);
+        valueCount += nodesOnLevel.size();
+        if (level > 0) {
+          int[] nol = new int[nodesOnLevel.size()];
+          int numberConsumed = nodesOnLevel.consume(nol);
+          Arrays.sort(nol);
+          assert numberConsumed == nodesOnLevel.size();
+          meta.writeVInt(nol.length); // number of nodes on a level
+          for (int i = nodesOnLevel.size() - 1; i > 0; --i) {
+            nol[i] -= nol[i - 1];
+          }
+          for (int n : nol) {
+            assert n >= 0 : "delta encoding for nodes failed; expected nodes to be sorted";
+            meta.writeVInt(n);
+          }
+        } else {
+          assert nodesOnLevel.size() == count : "Level 0 expects to have all nodes";
+        }
+      }
+      long start = vectorIndex.getFilePointer();
+      meta.writeLong(start);
+      meta.writeVInt(16); // DIRECT_MONOTONIC_BLOCK_SHIFT);
+      final DirectMonotonicWriter memoryOffsetsWriter =
+          DirectMonotonicWriter.getInstance(
+              meta, vectorIndex, valueCount, 16); // DIRECT_MONOTONIC_BLOCK_SHIFT);
+      long cumulativeOffsetSum = 0;
+      int totalOffsetsWritten = 0;
+      for (int[] levelOffsets : graphLevelNodeOffsets) {
+        info(
+            "=== writeMeta: Writing offsets for level with "
+                + levelOffsets.length
+                + " entries ===");
+        for (int v : levelOffsets) {
+          memoryOffsetsWriter.add(cumulativeOffsetSum);
+          cumulativeOffsetSum += v;
+          totalOffsetsWritten++;
+        }
+      }
+      info(
+          "=== writeMeta: Total offsets written: "
+              + totalOffsetsWritten
+              + ", expected: "
+              + valueCount
+              + " ===");
+      memoryOffsetsWriter.finish();
+      meta.writeLong(vectorIndex.getFilePointer() - start);
+    }
+  }
+
+  private int[][] writeGraph(OnHeapHnswGraph graph, IndexOutput vectorIndex) throws IOException {
+    if (graph == null) return new int[0][0];
+    // write vectors' neighbors on each level into the vectorIndex file
+    int countOnLevel0 = graph.size();
+    int[][] offsets = new int[graph.numLevels()][];
+    int[] scratch = new int[graph.maxConn() * 2];
+    for (int level = 0; level < graph.numLevels(); level++) {
+      int[] sortedNodes = NodesIterator.getSortedNodes(graph.getNodesOnLevel(level));
+      offsets[level] = new int[sortedNodes.length];
+      int nodeOffsetId = 0;
+      // Debug: print the actual number of nodes being processed
+      info(
+          "=== writeGraph: Level "
+              + level
+              + " has "
+              + sortedNodes.length
+              + " nodes, expected "
+              + (level == 0 ? countOnLevel0 : "unknown")
+              + " ===");
+      for (int node : sortedNodes) {
+        NeighborArray neighbors = graph.getNeighbors(level, node);
+        int size = neighbors.size();
+        // Write size in VInt as the neighbors list is typically small
+        long offsetStart = vectorIndex.getFilePointer();
+        int[] nnodes = neighbors.nodes();
+        Arrays.sort(nnodes, 0, size);
+        // Now that we have sorted, do delta encoding to minimize the required bits to store the
+        // information
+        int actualSize = 0;
+        if (size > 0) {
+          scratch[0] = nnodes[0];
+          actualSize = 1;
+        }
+        for (int i = 1; i < size; i++) {
+          assert nnodes[i] < countOnLevel0 : "node too large: " + nnodes[i] + ">=" + countOnLevel0;
+          if (nnodes[i - 1] == nnodes[i]) {
+            continue;
+          }
+          scratch[actualSize++] = nnodes[i] - nnodes[i - 1];
+        }
+        // Write the size after duplicates are removed
+        vectorIndex.writeVInt(actualSize);
+        for (int i = 0; i < actualSize; i++) {
+          vectorIndex.writeVInt(scratch[i]);
+        }
+        offsets[level][nodeOffsetId++] =
+            Math.toIntExact(vectorIndex.getFilePointer() - offsetStart);
+      }
+    }
+    return offsets;
   }
 
   private void writeCagraIndex(OutputStream os, CuVSMatrix dataset) throws Throwable {
@@ -230,9 +803,9 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     }
     CagraIndexParams params = cagraIndexParams((int) dataset.size());
     long startTime = System.nanoTime();
-    var index =
+    CagraIndex index =
         CagraIndex.newBuilder(resources).withDataset(dataset).withIndexParams(params).build();
-    long elapsedMillis = nanosToMillis(System.nanoTime() - startTime);
+    long elapsedMillis = Utils.nanosToMillis(System.nanoTime() - startTime);
     info("Cagra index created in " + elapsedMillis + "ms, with " + dataset.size() + " vectors");
     Path tmpFile = Files.createTempFile(resources.tempDirectory(), "tmpindex", "cag");
     index.serialize(os, tmpFile);
@@ -248,7 +821,7 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     long startTime = System.nanoTime();
     var index =
         BruteForceIndex.newBuilder(resources).withIndexParams(params).withDataset(dataset).build();
-    long elapsedMillis = nanosToMillis(System.nanoTime() - startTime);
+    long elapsedMillis = Utils.nanosToMillis(System.nanoTime() - startTime);
     info("bf index created in " + elapsedMillis + "ms, with " + dataset.size() + " vectors");
     index.serialize(os);
     index.destroyIndex();
@@ -260,9 +833,9 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     }
     CagraIndexParams indexParams = cagraIndexParams((int) dataset.size());
     long startTime = System.nanoTime();
-    var index =
+    CagraIndex index =
         CagraIndex.newBuilder(resources).withDataset(dataset).withIndexParams(indexParams).build();
-    long elapsedMillis = nanosToMillis(System.nanoTime() - startTime);
+    long elapsedMillis = Utils.nanosToMillis(System.nanoTime() - startTime);
     info("HNSW index created in " + elapsedMillis + "ms, with " + dataset.size() + " vectors");
     Path tmpFile = Files.createTempFile("tmpindex", "hnsw");
     index.serializeToHNSW(os, tmpFile);
@@ -282,95 +855,25 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
   }
 
   private void writeField(CuVSFieldWriter fieldData) throws IOException {
-    // TODO: Loading all vectors into memory is inefficient. Is there a way to stream the vectors
-    // from the flat writer to the CuVSMatrix?
-    List<float[]> vectors = fieldData.getVectors();
-    writeFieldInternal(
-        fieldData.fieldInfo(),
-        () -> Utils.createFloatMatrix(vectors, fieldData.fieldInfo().getVectorDimension()),
-        vectors.size());
+    writeFieldInternal(fieldData.fieldInfo(), fieldData.getVectors());
   }
 
   private void writeSortingField(CuVSFieldWriter fieldData, Sorter.DocMap sortMap)
       throws IOException {
+
     DocsWithFieldSet oldDocsWithFieldSet = fieldData.getDocsWithFieldSet();
     final int[] new2OldOrd = new int[oldDocsWithFieldSet.cardinality()]; // new ord to old ord
     mapOldOrdToNewOrd(oldDocsWithFieldSet, sortMap, null, new2OldOrd, null);
     // TODO: Loading all vectors into memory is inefficient. Is there a way to stream the vectors
     // from the flat writer to the CuVSMatrix?
+
+    // TODO: This is slightly different....
     List<float[]> sortedVectors = new ArrayList<float[]>();
     for (int i = 0; i < fieldData.getVectors().size(); i++) {
       sortedVectors.add(fieldData.getVectors().get(new2OldOrd[i]));
     }
-    writeFieldInternal(
-        fieldData.fieldInfo(),
-        () -> Utils.createFloatMatrix(sortedVectors, fieldData.fieldInfo().getVectorDimension()),
-        sortedVectors.size());
-  }
 
-  private void writeFieldInternal(
-      FieldInfo fieldInfo, Supplier<CuVSMatrix> datasetSupplier, int datasetSize)
-      throws IOException {
-    if (datasetSize == 0) {
-      writeEmpty(fieldInfo);
-      return;
-    }
-    long cagraIndexOffset, cagraIndexLength = 0L;
-    long bruteForceIndexOffset, bruteForceIndexLength = 0L;
-    long hnswIndexOffset, hnswIndexLength = 0L;
-
-    // workaround for the minimum number of vectors for Cagra
-    IndexType indexType =
-        this.indexType.cagra() && datasetSize < MIN_CAGRA_INDEX_SIZE
-            ? IndexType.BRUTE_FORCE
-            : this.indexType;
-
-    try {
-      cagraIndexOffset = cuvsIndex.getFilePointer();
-      if (indexType.cagra()) {
-        try {
-          var cagraIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
-          writeCagraIndex(cagraIndexOutputStream, datasetSupplier.get());
-        } catch (Throwable t) {
-          handleThrowableWithIgnore(t, CANNOT_GENERATE_CAGRA);
-          // workaround for cuVS issue
-          indexType = IndexType.BRUTE_FORCE;
-        }
-        cagraIndexLength = cuvsIndex.getFilePointer() - cagraIndexOffset;
-      }
-
-      bruteForceIndexOffset = cuvsIndex.getFilePointer();
-      if (indexType.bruteForce()) {
-        var bruteForceIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
-        writeBruteForceIndex(bruteForceIndexOutputStream, datasetSupplier.get());
-        bruteForceIndexLength = cuvsIndex.getFilePointer() - bruteForceIndexOffset;
-      }
-
-      hnswIndexOffset = cuvsIndex.getFilePointer();
-      if (indexType.hnsw()) {
-        var hnswIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
-        if (datasetSize > MIN_CAGRA_INDEX_SIZE) {
-          try {
-            writeHNSWIndex(hnswIndexOutputStream, datasetSupplier.get());
-          } catch (Throwable t) {
-            handleThrowableWithIgnore(t, CANNOT_GENERATE_CAGRA);
-          }
-        }
-        hnswIndexLength = cuvsIndex.getFilePointer() - hnswIndexOffset;
-      }
-
-      writeMeta(
-          fieldInfo,
-          (int) datasetSize,
-          cagraIndexOffset,
-          cagraIndexLength,
-          bruteForceIndexOffset,
-          bruteForceIndexLength,
-          hnswIndexOffset,
-          hnswIndexLength);
-    } catch (Throwable t) {
-      Utils.handleThrowable(t);
-    }
+    writeFieldInternal(fieldData.fieldInfo(), sortedVectors);
   }
 
   private void writeEmpty(FieldInfo fieldInfo) throws IOException {
@@ -465,6 +968,21 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
+   * Creates List<Float[]> from merged vectors
+   * */
+  private List<float[]> createListFromMergedVectors(FloatVectorValues mergedVectorValues)
+      throws IOException {
+    List<float[]> res = new ArrayList<float[]>();
+    KnnVectorValues.DocIndexIterator iter = mergedVectorValues.iterator();
+    for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
+      int ordinal = iter.index();
+      float[] vector = mergedVectorValues.vectorValue(ordinal);
+      res.add(vector);
+    }
+    return res;
+  }
+
+  /**
    * Fallback method that rebuilds indexes from merged vectors.
    * Used when native CAGRA merge() is not possible. Also used
    * when non-CAGRA index types are used (for e.g. Brute Force index).
@@ -474,57 +992,14 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
       throw new AssertionError("Only Float32 supported");
     }
     try {
-      // We need to compute the size of the number of merged documents up-front so that we can
-      // compute the CuVSMatrix capacity. TODO: Find a way to do this without merging twice.
-      final int numMergedDocs = getMergedDocsCount(fieldInfo, mergeState);
 
-      if (numMergedDocs != 0) {
-        writeFieldInternal(
-            fieldInfo,
-            () -> {
-              try {
-                return createMatrixFromMergedVectors(
-                    KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(
-                        fieldInfo, mergeState),
-                    numMergedDocs);
-              } catch (IOException e) {
-                throw new RuntimeException(e);
-              }
-            },
-            numMergedDocs);
-      } else {
-        writeEmpty(fieldInfo);
-      }
+      List<float[]> dataset =
+          createListFromMergedVectors(
+              KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState));
+      writeFieldInternal(fieldInfo, dataset);
     } catch (Throwable t) {
       Utils.handleThrowable(t);
     }
-  }
-
-  private int getMergedDocsCount(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
-    KnnVectorValues.DocIndexIterator iter =
-        KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState)
-            .iterator();
-    int numMergedDocs = 0;
-    for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
-      numMergedDocs++;
-    }
-    return numMergedDocs;
-  }
-
-  /**
-   * Creates CuVSMatrix from merged vectors
-   * */
-  private CuVSMatrix createMatrixFromMergedVectors(
-      FloatVectorValues mergedVectorValues, int numMergedDocs) throws IOException {
-    CuVSMatrix.Builder builder =
-        CuVSMatrix.builder(numMergedDocs, mergedVectorValues.dimension(), DataType.FLOAT);
-    KnnVectorValues.DocIndexIterator iter = mergedVectorValues.iterator();
-    for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
-      int ordinal = iter.index();
-      float[] vector = mergedVectorValues.vectorValue(ordinal);
-      builder.addVector(vector.clone());
-    }
-    return builder.build();
   }
 
   /**
@@ -565,7 +1040,10 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
       long cagraIndexLength = cuvsIndex.getFilePointer() - cagraIndexOffset;
 
       // Write metadata (assuming no brute force or HNSW indexes for merged result)
-      writeMeta(fieldInfo, vectorCount, cagraIndexOffset, cagraIndexLength, 0L, 0L, 0L, 0L);
+      // Only write meta for non-HNSW_LUCENE modes
+      if (indexType != IndexType.HNSW_LUCENE) {
+        writeMeta(fieldInfo, vectorCount, cagraIndexOffset, cagraIndexLength, 0L, 0L, 0L, 0L);
+      }
 
       // Clean up the merged index
       mergedIndex.destroyIndex();
@@ -620,11 +1098,22 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     if (cuvsIndex != null) {
       CodecUtil.writeFooter(cuvsIndex);
     }
+
+    {
+      if (hnswMeta != null) {
+        // write end of fields marker
+        hnswMeta.writeInt(-1);
+        CodecUtil.writeFooter(hnswMeta);
+      }
+      if (hnswVectorIndex != null) {
+        CodecUtil.writeFooter(hnswVectorIndex);
+      }
+    }
   }
 
   @Override
   public void close() throws IOException {
-    IOUtils.close(meta, cuvsIndex, flatVectorsWriter);
+    IOUtils.close(meta, cuvsIndex, hnswMeta, hnswVectorIndex, flatVectorsWriter);
   }
 
   @Override

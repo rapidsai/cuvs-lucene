@@ -17,6 +17,7 @@ package com.nvidia.cuvs.lucene;
 
 import com.nvidia.cuvs.CuVSMatrix;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 
 public class Utils {
@@ -47,5 +48,9 @@ public class Utils {
       builder.addVector(vector);
     }
     return builder.build();
+  }
+
+  static long nanosToMillis(long nanos) {
+    return Duration.ofNanos(nanos).toMillis();
   }
 }
