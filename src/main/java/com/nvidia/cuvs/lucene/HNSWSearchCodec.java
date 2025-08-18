@@ -16,7 +16,6 @@
 package com.nvidia.cuvs.lucene;
 
 import com.nvidia.cuvs.LibraryException;
-import com.nvidia.cuvs.lucene.CuVSVectorsWriter.IndexType;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.FilterCodec;
@@ -24,49 +23,57 @@ import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.lucene101.Lucene101Codec;
 
 /** CuVS based codec for GPU based vector search */
-public class CuVSCPUSearchCodec extends FilterCodec {
+public class HNSWSearchCodec extends FilterCodec {
 
-  public CuVSCPUSearchCodec() {
-    this("CuVSCPUSearchCodec", new Lucene101Codec());
+  private static final Logger log = Logger.getLogger(HNSWSearchCodec.class.getName());
+
+  private static final int DEFAULT_CUVS_WRITER_THREADS = 1;
+  private static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
+  private static final int DEFAULT_GRAPH_DEGREE = 64;
+  private static final int DEFAULT_HNSW_LAYERS = 1;
+  private static final String CLASS_NAME = "HNSWSearchCodec";
+
+  private KnnVectorsFormat format;
+
+  public HNSWSearchCodec() {
+    this(CLASS_NAME, new Lucene101Codec());
   }
 
-  public CuVSCPUSearchCodec(String name, Codec delegate) {
+  public HNSWSearchCodec(String name, Codec delegate) {
     super(name, delegate);
-    initializeFormat();
+    initializeFormatDefaultValues();
   }
 
-  public CuVSCPUSearchCodec(
+  public HNSWSearchCodec(
       int cuvsWriterThreads, int intGraphDegree, int graphDegree, int hnswLayers) {
-    this("CuVSCPUSearchCodec", new Lucene101Codec());
+    this(CLASS_NAME, new Lucene101Codec());
     initializeFormat(cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers);
   }
 
-  private void initializeFormat() {
-    initializeFormat(1, 128, 64, 1); // Default values
+  private void initializeFormatDefaultValues() {
+    initializeFormat(
+        DEFAULT_CUVS_WRITER_THREADS,
+        DEFAULT_INTERMEDIATE_GRAPH_DEGREE,
+        DEFAULT_GRAPH_DEGREE,
+        DEFAULT_HNSW_LAYERS);
   }
 
   private void initializeFormat(
       int cuvsWriterThreads, int intGraphDegree, int graphDegree, int hnswLayers) {
-    KnnVectorsFormat format;
     try {
-      format =
-          new CuVSVectorsFormat(
-              cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers, IndexType.HNSW_LUCENE);
+      format = new HNSWVectorsFormat(cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers);
       setKnnFormat(format);
     } catch (LibraryException ex) {
-      Logger log = Logger.getLogger(CuVSCodec.class.getName());
       log.severe("Couldn't load native library, possible classloader issue. " + ex.getMessage());
     }
   }
 
-  KnnVectorsFormat knnFormat = null;
-
   @Override
   public KnnVectorsFormat knnVectorsFormat() {
-    return knnFormat;
+    return format;
   }
 
   public void setKnnFormat(KnnVectorsFormat format) {
-    this.knnFormat = format;
+    this.format = format;
   }
 }

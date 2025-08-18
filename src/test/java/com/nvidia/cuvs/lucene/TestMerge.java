@@ -17,7 +17,7 @@ package com.nvidia.cuvs.lucene;
 
 import static org.apache.lucene.tests.util.TestUtil.alwaysKnnVectorsFormat;
 
-import com.nvidia.cuvs.lucene.CuVSVectorsWriter.IndexType;
+import com.nvidia.cuvs.lucene.GPUVectorsWriter.IndexType;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -70,7 +70,7 @@ public class TestMerge extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() {
-    assumeTrue("cuVS is not supported", CuVSVectorsFormat.supported());
+    assumeTrue("cuVS is not supported", GPUVectorsFormat.supported());
   }
 
   private Directory directory;
@@ -128,7 +128,7 @@ public class TestMerge extends LuceneTestCase {
 
     IndexWriterConfig config =
         new IndexWriterConfig()
-            .setCodec(alwaysKnnVectorsFormat(new CuVSVectorsFormat()))
+            .setCodec(alwaysKnnVectorsFormat(new GPUVectorsFormat()))
             .setMaxBufferedDocs(maxBufferedDocs) // Randomized buffer size
             .setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
 
@@ -252,7 +252,7 @@ public class TestMerge extends LuceneTestCase {
 
     IndexWriterConfig config =
         new IndexWriterConfig()
-            .setCodec(alwaysKnnVectorsFormat(new CuVSVectorsFormat()))
+            .setCodec(alwaysKnnVectorsFormat(new GPUVectorsFormat()))
             .setIndexSort(indexSort) // This automatically enables sorting during merges
             .setMergePolicy(mergePolicy)
             .setMaxBufferedDocs(maxBufferedDocs)
@@ -458,7 +458,7 @@ public class TestMerge extends LuceneTestCase {
 
     IndexWriterConfig config =
         new IndexWriterConfig()
-            .setCodec(alwaysKnnVectorsFormat(new CuVSVectorsFormat()))
+            .setCodec(alwaysKnnVectorsFormat(new GPUVectorsFormat()))
             .setMaxBufferedDocs(maxBufferedDocs)
             .setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
 
@@ -597,7 +597,7 @@ public class TestMerge extends LuceneTestCase {
 
     IndexWriterConfig config =
         new IndexWriterConfig()
-            .setCodec(alwaysKnnVectorsFormat(new CuVSVectorsFormat()))
+            .setCodec(alwaysKnnVectorsFormat(new GPUVectorsFormat()))
             .setMaxBufferedDocs(maxBufferedDocs)
             .setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
 
@@ -730,8 +730,8 @@ public class TestMerge extends LuceneTestCase {
             + vectorProbability);
 
     // Configure with brute force index type
-    CuVSVectorsFormat bruteForceFormat =
-        new CuVSVectorsFormat(
+    GPUVectorsFormat bruteForceFormat =
+        new GPUVectorsFormat(
             32, // writer threads
             128, // intermediate graph degree
             64, // graph degree
@@ -882,8 +882,8 @@ public class TestMerge extends LuceneTestCase {
             + vectorProbability);
 
     // Configure with CAGRA + brute force combined index type
-    CuVSVectorsFormat combinedFormat =
-        new CuVSVectorsFormat(
+    GPUVectorsFormat combinedFormat =
+        new GPUVectorsFormat(
             32, // writer threads
             128, // intermediate graph degree
             64, // graph degree
@@ -1058,7 +1058,7 @@ public class TestMerge extends LuceneTestCase {
 
     IndexWriterConfig config =
         new IndexWriterConfig()
-            .setCodec(alwaysKnnVectorsFormat(new CuVSVectorsFormat()))
+            .setCodec(alwaysKnnVectorsFormat(new GPUVectorsFormat()))
             .setMaxBufferedDocs(maxBufferedDocs)
             .setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
 

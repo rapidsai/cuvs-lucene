@@ -22,7 +22,7 @@ import java.util.List;
 import org.apache.lucene.util.hnsw.HnswGraph;
 import org.apache.lucene.util.hnsw.NeighborArray;
 
-public class OnHeapHnswGraph extends HnswGraph {
+public class GPUBuiltHnswGraph extends HnswGraph {
 
   private final int size;
   private final int dimensions;
@@ -36,7 +36,7 @@ public class OnHeapHnswGraph extends HnswGraph {
   private final NeighborArray[] layer0Neighbors;
 
   // Multi-layer constructor that supports arbitrary number of layers
-  public OnHeapHnswGraph(
+  public GPUBuiltHnswGraph(
       int size, int dimensions, List<int[]> layerNodes, List<int[][]> layerAdjacencies) {
 
     this.size = size;

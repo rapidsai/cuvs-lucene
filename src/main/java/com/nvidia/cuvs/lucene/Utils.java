@@ -16,6 +16,7 @@
 package com.nvidia.cuvs.lucene;
 
 import com.nvidia.cuvs.CuVSMatrix;
+import com.nvidia.cuvs.CuVSResources;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
@@ -52,5 +53,28 @@ public class Utils {
 
   static long nanosToMillis(long nanos) {
     return Duration.ofNanos(nanos).toMillis();
+  }
+
+  static CuVSResources cuVSResourcesOrNull() {
+    try {
+      GPUVectorsFormat.resources = CuVSResources.create();
+      return GPUVectorsFormat.resources;
+    } catch (UnsupportedOperationException uoe) {
+      GPUVectorsFormat.log.warning(
+          "cuvs is not supported on this platform or java version: " + uoe.getMessage());
+    } catch (Throwable t) {
+      if (t instanceof ExceptionInInitializerError ex) {
+        t = ex.getCause();
+      }
+      GPUVectorsFormat.log.warning("Exception occurred during creation of cuvs resources. " + t);
+    }
+    return null;
+  }
+
+  static void handleThrowableWithIgnore(Throwable t, String msg) throws IOException {
+    if (t.getMessage().contains(msg)) {
+      return;
+    }
+    handleThrowable(t);
   }
 }

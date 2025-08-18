@@ -41,12 +41,12 @@ public class TestCuVSVectorsFormat extends BaseKnnVectorsFormatTestCase {
 
   @BeforeClass
   public static void beforeClass() {
-    assumeTrue("cuvs is not supported", CuVSVectorsFormat.supported());
+    assumeTrue("cuvs is not supported", GPUVectorsFormat.supported());
   }
 
   @Override
   protected Codec getCodec() {
-    return TestUtil.alwaysKnnVectorsFormat(new CuVSVectorsFormat());
+    return TestUtil.alwaysKnnVectorsFormat(new GPUVectorsFormat());
   }
 
   public void testMergeTwoSegsWithASingleDocPerSeg() throws Exception {

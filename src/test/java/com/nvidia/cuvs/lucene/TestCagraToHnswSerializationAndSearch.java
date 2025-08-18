@@ -21,7 +21,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -59,20 +61,22 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuVS not supported", CuVSVectorsFormat.supported());
+    assumeTrue("cuVS not supported", GPUVectorsFormat.supported());
     random = new Random();
+    // Fixed seed so that we can validate against the same result.
+    random.setSeed(222);
     indexDirPath = Paths.get(UUID.randomUUID().toString());
   }
 
   @Test
   public void testCagraToHnswSerializationAndSearch() throws IOException {
 
-    Codec codec = new CuVSCPUSearchCodec();
+    Codec codec = new HNSWSearchCodec();
     IndexWriterConfig config = new IndexWriterConfig().setCodec(codec).setUseCompoundFile(false);
 
-    int numDocs = random.nextInt(100, 1000);
-    int dimension = random.nextInt(8, 1024);
-    int topK = random.nextInt(5, 60);
+    int numDocs = 2000; // random.nextInt(100, 1000);
+    int dimension = 32; // random.nextInt(8, 1024);
+    int topK = 100; // random.nextInt(5, 60);
     final int COMMIT_FREQ = Math.min(numDocs, random.nextInt(100, 1000));
     int count = COMMIT_FREQ;
     final String VECTOR_FIELD = "knn1";
@@ -126,6 +130,9 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
         TopDocs results = searcher.search(query, topK);
 
         log.info("\nknn1 search results (" + results.totalHits + " total hits):");
+        int[] expected = {1803, 1869, 554, 1824, 1982, 1302, 320, 351, 707, 549};
+        List<Integer> res = new ArrayList<Integer>();
+
         for (int i = 0; i < results.scoreDocs.length; i++) {
           ScoreDoc scoreDoc = results.scoreDocs[i];
           Document doc = searcher.storedFields().document(scoreDoc.doc);
@@ -138,10 +145,14 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
                   + doc.get("id")
                   + "), score="
                   + scoreDoc.score);
+          res.add(Integer.valueOf(doc.get("id")));
         }
 
         assertTrue("TopK results not returned", results.scoreDocs.length == topK);
         // TODO: make this test a bit more meaningful like checking the quality of search results.
+        for (int i : expected) {
+          assertTrue("Expected doc id is missing:" + i, res.contains(i));
+        }
 
       } catch (Exception e) {
         e.printStackTrace();
