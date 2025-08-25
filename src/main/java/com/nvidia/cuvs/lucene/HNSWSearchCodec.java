@@ -31,12 +31,12 @@ public class HNSWSearchCodec extends FilterCodec {
   private static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
   private static final int DEFAULT_GRAPH_DEGREE = 64;
   private static final int DEFAULT_HNSW_LAYERS = 1;
-  private static final String CLASS_NAME = "HNSWSearchCodec";
+  private static final String NAME = "HNSWSearchCodec";
 
   private KnnVectorsFormat format;
 
   public HNSWSearchCodec() {
-    this(CLASS_NAME, new Lucene101Codec());
+    this(NAME, new Lucene101Codec());
   }
 
   public HNSWSearchCodec(String name, Codec delegate) {
@@ -46,7 +46,7 @@ public class HNSWSearchCodec extends FilterCodec {
 
   public HNSWSearchCodec(
       int cuvsWriterThreads, int intGraphDegree, int graphDegree, int hnswLayers) {
-    this(CLASS_NAME, new Lucene101Codec());
+    this(NAME, new Lucene101Codec());
     initializeFormat(cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers);
   }
 

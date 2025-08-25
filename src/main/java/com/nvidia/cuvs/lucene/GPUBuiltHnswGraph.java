@@ -17,6 +17,8 @@ package com.nvidia.cuvs.lucene;
 
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 
+import com.nvidia.cuvs.CuVSMatrix;
+import com.nvidia.cuvs.RowView;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.lucene.util.hnsw.HnswGraph;
@@ -37,7 +39,7 @@ public class GPUBuiltHnswGraph extends HnswGraph {
 
   // Multi-layer constructor that supports arbitrary number of layers
   public GPUBuiltHnswGraph(
-      int size, int dimensions, List<int[]> layerNodes, List<int[][]> layerAdjacencies) {
+      int size, int dimensions, List<int[]> layerNodes, List<CuVSMatrix> layerAdjacencies) {
 
     this.size = size;
     this.dimensions = dimensions;
@@ -46,59 +48,42 @@ public class GPUBuiltHnswGraph extends HnswGraph {
     this.layerNeighbors = new ArrayList<>();
 
     // Process Layer 0 (base layer with all nodes)
-    int[][] layer0Adjacency = layerAdjacencies.get(0);
-    this.layer0Neighbors = new NeighborArray[size];
-
-    for (int i = 0; i < size; i++) {
-      if (layer0Adjacency[i] != null && layer0Adjacency[i].length > 0) {
-        layer0Neighbors[i] = new NeighborArray(layer0Adjacency[i].length, true);
-        for (int j = 0; j < layer0Adjacency[i].length; j++) {
-          layer0Neighbors[i].addInOrder(layer0Adjacency[i][j], 1.0f - (j * 0.001f));
-        }
-      } else {
-        layer0Neighbors[i] = new NeighborArray(0, true);
-      }
-    }
+    CuVSMatrix layer0Adjacency = layerAdjacencies.get(0);
+    this.layer0Neighbors = fillNeighborArray(layer0Adjacency, size);
 
     // Process higher layers (1 to numLevels-1)
     for (int level = 1; level < numLevels; level++) {
       int[] nodes = layerNodes.get(level);
-      int[][] adjacency = layerAdjacencies.get(level);
-
+      CuVSMatrix adjacency = layerAdjacencies.get(level);
       this.layerNodes.add(nodes);
-      NeighborArray[] neighbors = new NeighborArray[nodes.length];
-
-      for (int i = 0; i < nodes.length; i++) {
-        if (adjacency[i] != null && adjacency[i].length > 0) {
-          neighbors[i] = new NeighborArray(adjacency[i].length, true);
-          for (int j = 0; j < adjacency[i].length; j++) {
-            neighbors[i].addInOrder(adjacency[i][j], 1.0f - (j * 0.001f));
-          }
-        } else {
-          neighbors[i] = new NeighborArray(0, true);
-        }
-      }
-
-      this.layerNeighbors.add(neighbors);
+      this.layerNeighbors.add(fillNeighborArray(adjacency, nodes.length));
     }
   }
 
-  public int size() {
-    return size;
-  }
-
-  public int numLevels() {
-    return numLevels;
+  private NeighborArray[] fillNeighborArray(CuVSMatrix adjacency, int size) {
+    NeighborArray[] neighbors = new NeighborArray[size];
+    for (int i = 0; i < size; i++) {
+      RowView rv = adjacency.getRow(i);
+      if (rv != null && rv.size() > 0) {
+        neighbors[i] = new NeighborArray((int) rv.size(), true);
+        for (int j = 0; j < rv.size(); j++) {
+          neighbors[i].addInOrder(rv.getAsInt(j), 1.0f - (j * 0.001f));
+        }
+      } else {
+        neighbors[i] = new NeighborArray(0, true);
+      }
+    }
+    return neighbors;
   }
 
   public NodesIterator getNodesOnLevel(int level) {
     if (level == 0) {
-      return new ArrayNodesIterator(size);
+      return new Level0NodesIterator(size);
     } else if (level > 0 && level < numLevels) {
       int[] nodes = layerNodes.get(level - 1);
-      return new SpecificNodesIterator(nodes);
+      return new HigherLevelNodesIterator(nodes);
     } else {
-      return new ArrayNodesIterator(0);
+      return new Level0NodesIterator(0);
     }
   }
 
@@ -201,11 +186,11 @@ public class GPUBuiltHnswGraph extends HnswGraph {
     return 0;
   }
 
-  // Simple implementation of NodesIterator for level 0
-  private static class ArrayNodesIterator extends NodesIterator {
+  // NodesIterator for level 0
+  private static class Level0NodesIterator extends NodesIterator {
     private int current = -1;
 
-    ArrayNodesIterator(int size) {
+    Level0NodesIterator(int size) {
       super(size);
     }
 
@@ -229,12 +214,12 @@ public class GPUBuiltHnswGraph extends HnswGraph {
     }
   }
 
-  // NodesIterator for specific nodes in higher layers
-  private static class SpecificNodesIterator extends NodesIterator {
+  // NodesIterator for higher layers
+  private static class HigherLevelNodesIterator extends NodesIterator {
     private final int[] nodeIds;
     private int current = -1;
 
-    SpecificNodesIterator(int[] nodeIds) {
+    HigherLevelNodesIterator(int[] nodeIds) {
       super(nodeIds.length);
       this.nodeIds = nodeIds;
     }
@@ -257,5 +242,17 @@ public class GPUBuiltHnswGraph extends HnswGraph {
       }
       return numToCopy;
     }
+  }
+
+  public int size() {
+    return size;
+  }
+
+  public int numLevels() {
+    return numLevels;
+  }
+
+  public int dimensions() {
+    return dimensions;
   }
 }

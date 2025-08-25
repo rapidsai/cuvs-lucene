@@ -33,19 +33,15 @@ public class HNSWVectorsFormat extends KnnVectorsFormat {
 
   private static final Logger log = Logger.getLogger(HNSWVectorsFormat.class.getName());
 
-  // TODO: fix Lucene version in name, to the final targeted release, if any
-  static final String CUVS_META_CODEC_NAME = "Lucene102CuVSVectorsFormatMeta";
-  static final String CUVS_META_CODEC_EXT = "vemc";
-  static final String CUVS_INDEX_CODEC_NAME = "Lucene102CuVSVectorsFormatIndex";
-  static final String CUVS_INDEX_EXT = "vcag";
-
-  static final int VERSION_START = 0;
-  static final int VERSION_CURRENT = VERSION_START;
-
   static final int DEFAULT_WRITER_THREADS = 32;
   static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
   static final int DEFAULT_GRAPH_DEGREE = 64;
   static final int HNSW_GRAPH_LAYERS = 1;
+
+  static final String HNSW_META_CODEC_NAME = "Lucene99HnswVectorsFormatMeta";
+  static final String HNSW_META_CODEC_EXT = "vem";
+  static final String HNSW_INDEX_CODEC_NAME = "Lucene99HnswVectorsFormatIndex";
+  static final String HNSW_INDEX_EXT = "vex";
 
   static CuVSResources resources = cuVSResourcesOrNull();
 

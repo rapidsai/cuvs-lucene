@@ -305,7 +305,7 @@ public class GPUVectorsWriter extends KnnVectorsWriter {
     info("Cagra index created in " + elapsedMillis + "ms, with " + dataset.size() + " vectors");
     Path tmpFile = Files.createTempFile(resources.tempDirectory(), "tmpindex", "cag");
     index.serialize(os, tmpFile);
-    index.destroyIndex();
+    index.close();
   }
 
   private void writeBruteForceIndex(OutputStream os, CuVSMatrix dataset) throws Throwable {
@@ -319,7 +319,7 @@ public class GPUVectorsWriter extends KnnVectorsWriter {
     long elapsedMillis = Utils.nanosToMillis(System.nanoTime() - startTime);
     info("bf index created in " + elapsedMillis + "ms, with " + dataset.size() + " vectors");
     index.serialize(os);
-    index.destroyIndex();
+    index.close();
   }
 
   private void writeHNSWIndex(OutputStream os, CuVSMatrix dataset) throws Throwable {
@@ -334,7 +334,7 @@ public class GPUVectorsWriter extends KnnVectorsWriter {
     info("HNSW index created in " + elapsedMillis + "ms, with " + dataset.size() + " vectors");
     Path tmpFile = Files.createTempFile("tmpindex", "hnsw");
     index.serializeToHNSW(os, tmpFile);
-    index.destroyIndex();
+    index.close();
   }
 
   @Override
@@ -526,7 +526,7 @@ public class GPUVectorsWriter extends KnnVectorsWriter {
       writeMeta(fieldInfo, vectorCount, cagraIndexOffset, cagraIndexLength, 0L, 0L, 0L, 0L);
 
       // Clean up the merged index
-      mergedIndex.destroyIndex();
+      mergedIndex.close();
     } catch (Throwable t) {
       Utils.handleThrowable(t);
     }

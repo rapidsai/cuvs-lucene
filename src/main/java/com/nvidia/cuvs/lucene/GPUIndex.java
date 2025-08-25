@@ -47,7 +47,7 @@ public class GPUIndex implements Closeable {
       throw new IllegalArgumentException("negative maxDocs:" + maxDocs);
     }
     this.maxDocs = maxDocs;
-    this.hnswIndex = null; // TODO:
+    this.hnswIndex = null; // TODO: remove hnswlib logic in a subsequent PR
   }
 
   public GPUIndex(CagraIndex cagraIndex, BruteForceIndex bruteforceIndex, HnswIndex hnswIndex) {
@@ -101,13 +101,13 @@ public class GPUIndex implements Closeable {
   private void destroyIndices() throws IOException {
     try {
       if (cagraIndex != null) {
-        cagraIndex.destroyIndex();
+        cagraIndex.close();
       }
       if (bruteforceIndex != null) {
-        bruteforceIndex.destroyIndex();
+        bruteforceIndex.close();
       }
       if (hnswIndex != null) {
-        hnswIndex.destroyIndex();
+        hnswIndex.close();
       }
     } catch (Throwable t) {
       Utils.handleThrowable(t);

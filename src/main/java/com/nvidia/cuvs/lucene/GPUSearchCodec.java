@@ -27,7 +27,7 @@ import org.apache.lucene.codecs.lucene101.Lucene101Codec;
 public class GPUSearchCodec extends FilterCodec {
 
   private static final Logger log = Logger.getLogger(GPUSearchCodec.class.getName());
-  private static final String CLASS_NAME = "GPUSearchCodec";
+  private static final String NAME = "GPUSearchCodec";
 
   private static final int DEFAULT_CUVS_WRITER_THREADS = 1;
   private static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
@@ -38,7 +38,7 @@ public class GPUSearchCodec extends FilterCodec {
   private KnnVectorsFormat format;
 
   public GPUSearchCodec() {
-    this(CLASS_NAME, new Lucene101Codec());
+    this(NAME, new Lucene101Codec());
   }
 
   public GPUSearchCodec(String name, Codec delegate) {
