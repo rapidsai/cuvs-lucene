@@ -1,2 +1,2 @@
-com.nvidia.cuvs.lucene.HNSWSearchCodec
-com.nvidia.cuvs.lucene.GPUSearchCodec
+com.nvidia.cuvs.lucene.Lucene101AcceleratedHNSWCodec
+com.nvidia.cuvs.lucene.CuVS2510GPUSearchCodec

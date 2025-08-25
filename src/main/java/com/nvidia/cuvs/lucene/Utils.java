@@ -57,16 +57,17 @@ public class Utils {
 
   static CuVSResources cuVSResourcesOrNull() {
     try {
-      GPUVectorsFormat.resources = CuVSResources.create();
-      return GPUVectorsFormat.resources;
+      CuVS2510GPUVectorsFormat.resources = CuVSResources.create();
+      return CuVS2510GPUVectorsFormat.resources;
     } catch (UnsupportedOperationException uoe) {
-      GPUVectorsFormat.log.warning(
+      CuVS2510GPUVectorsFormat.log.warning(
           "cuvs is not supported on this platform or java version: " + uoe.getMessage());
     } catch (Throwable t) {
       if (t instanceof ExceptionInInitializerError ex) {
         t = ex.getCause();
       }
-      GPUVectorsFormat.log.warning("Exception occurred during creation of cuvs resources. " + t);
+      CuVS2510GPUVectorsFormat.log.warning(
+          "Exception occurred during creation of cuvs resources. " + t);
     }
     return null;
   }

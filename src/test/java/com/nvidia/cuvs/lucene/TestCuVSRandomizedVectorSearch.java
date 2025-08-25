@@ -56,7 +56,7 @@ public class TestCuVSRandomizedVectorSearch extends LuceneTestCase {
 
   protected static Logger log = Logger.getLogger(TestCuVSRandomizedVectorSearch.class.getName());
 
-  static final Codec codec = TestUtil.alwaysKnnVectorsFormat(new GPUVectorsFormat());
+  static final Codec codec = TestUtil.alwaysKnnVectorsFormat(new CuVS2510GPUVectorsFormat());
   static IndexSearcher searcher;
   static IndexReader reader;
   static Directory directory;
@@ -69,7 +69,7 @@ public class TestCuVSRandomizedVectorSearch extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuvs not supported", GPUVectorsFormat.supported());
+    assumeTrue("cuvs not supported", CuVS2510GPUVectorsFormat.supported());
     directory = newDirectory();
 
     RandomIndexWriter writer =
@@ -184,7 +184,7 @@ public class TestCuVSRandomizedVectorSearch extends LuceneTestCase {
 
   @Test
   public void testVectorSearchWithFilter() throws IOException {
-    assumeTrue("cuvs not supported", GPUVectorsFormat.supported());
+    assumeTrue("cuvs not supported", CuVS2510GPUVectorsFormat.supported());
 
     Random random = random();
     int topK = Math.min(random.nextInt(TOP_K_LIMIT) + 1, dataset.length);

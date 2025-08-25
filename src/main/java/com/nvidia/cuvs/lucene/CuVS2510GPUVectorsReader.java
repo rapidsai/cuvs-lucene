@@ -15,12 +15,12 @@
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.GPUVectorsFormat.CUVS_INDEX_CODEC_NAME;
-import static com.nvidia.cuvs.lucene.GPUVectorsFormat.CUVS_INDEX_EXT;
-import static com.nvidia.cuvs.lucene.GPUVectorsFormat.CUVS_META_CODEC_EXT;
-import static com.nvidia.cuvs.lucene.GPUVectorsFormat.CUVS_META_CODEC_NAME;
-import static com.nvidia.cuvs.lucene.GPUVectorsFormat.VERSION_CURRENT;
-import static com.nvidia.cuvs.lucene.GPUVectorsFormat.VERSION_START;
+import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_INDEX_CODEC_NAME;
+import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_INDEX_EXT;
+import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_META_CODEC_EXT;
+import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_META_CODEC_NAME;
+import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.VERSION_CURRENT;
+import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.VERSION_START;
 
 import com.nvidia.cuvs.BruteForceIndex;
 import com.nvidia.cuvs.BruteForceQuery;
@@ -62,10 +62,10 @@ import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.hnsw.IntToIntFunction;
 
 /** KnnVectorsReader instance associated with CuVS format */
-public class GPUVectorsReader extends KnnVectorsReader {
+public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
 
   @SuppressWarnings("unused")
-  private static final Logger log = Logger.getLogger(GPUVectorsReader.class.getName());
+  private static final Logger log = Logger.getLogger(CuVS2510GPUVectorsReader.class.getName());
 
   private final CuVSResources resources;
   private final FlatVectorsReader flatVectorsReader; // for reading the raw vectors
@@ -74,7 +74,7 @@ public class GPUVectorsReader extends KnnVectorsReader {
   private final IntObjectHashMap<GPUIndex> cuvsIndices;
   private final IndexInput cuvsIndexInput;
 
-  public GPUVectorsReader(
+  public CuVS2510GPUVectorsReader(
       SegmentReadState state, CuVSResources resources, FlatVectorsReader flatReader)
       throws IOException {
     this.resources = resources;

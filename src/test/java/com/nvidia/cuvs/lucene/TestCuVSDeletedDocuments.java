@@ -56,12 +56,12 @@ public class TestCuVSDeletedDocuments extends LuceneTestCase {
 
   protected static Logger log = Logger.getLogger(TestCuVSDeletedDocuments.class.getName());
 
-  static final Codec codec = TestUtil.alwaysKnnVectorsFormat(new GPUVectorsFormat());
+  static final Codec codec = TestUtil.alwaysKnnVectorsFormat(new CuVS2510GPUVectorsFormat());
   private static Random random;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuvs not supported", GPUVectorsFormat.supported());
+    assumeTrue("cuvs not supported", CuVS2510GPUVectorsFormat.supported());
     random = random();
   }
 

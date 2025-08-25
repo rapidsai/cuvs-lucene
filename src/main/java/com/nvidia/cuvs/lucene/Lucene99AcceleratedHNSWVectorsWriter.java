@@ -15,10 +15,10 @@
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.HNSWVectorsFormat.HNSW_INDEX_CODEC_NAME;
-import static com.nvidia.cuvs.lucene.HNSWVectorsFormat.HNSW_INDEX_EXT;
-import static com.nvidia.cuvs.lucene.HNSWVectorsFormat.HNSW_META_CODEC_EXT;
-import static com.nvidia.cuvs.lucene.HNSWVectorsFormat.HNSW_META_CODEC_NAME;
+import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_INDEX_CODEC_NAME;
+import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_INDEX_EXT;
+import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_META_CODEC_EXT;
+import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_META_CODEC_NAME;
 import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader.SIMILARITY_FUNCTIONS;
 import static org.apache.lucene.index.VectorEncoding.FLOAT32;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
@@ -72,12 +72,14 @@ import org.apache.lucene.util.packed.DirectMonotonicWriter;
  * KnnVectorsWriter for CuVS, responsible for merge and flush of vectors into
  * GPU
  */
-public class HNSWVectorsWriter extends KnnVectorsWriter {
+public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
 
-  private static final long SHALLOW_RAM_BYTES_USED = shallowSizeOfInstance(HNSWVectorsWriter.class);
+  private static final long SHALLOW_RAM_BYTES_USED =
+      shallowSizeOfInstance(Lucene99AcceleratedHNSWVectorsWriter.class);
 
   @SuppressWarnings("unused")
-  private static final Logger log = Logger.getLogger(HNSWVectorsWriter.class.getName());
+  private static final Logger log =
+      Logger.getLogger(Lucene99AcceleratedHNSWVectorsWriter.class.getName());
 
   /** The name of the CUVS component for the info-stream * */
   private static final String CUVS_COMPONENT = "CUVS";
@@ -96,7 +98,7 @@ public class HNSWVectorsWriter extends KnnVectorsWriter {
   private String vemFileName;
   private String vexFileName;
 
-  public HNSWVectorsWriter(
+  public Lucene99AcceleratedHNSWVectorsWriter(
       SegmentWriteState state,
       int cuvsWriterThreads,
       int intGraphDegree,
@@ -516,7 +518,7 @@ public class HNSWVectorsWriter extends KnnVectorsWriter {
         // Access the CAGRA index for this field from the reader
 
         if (knnReader != null) {
-          if (knnReader instanceof GPUVectorsReader cvr) {
+          if (knnReader instanceof CuVS2510GPUVectorsReader cvr) {
             if (cvr != null) {
               totalVectorCount += cvr.getFieldEntries().get(fieldInfo.number).count();
               CagraIndex cagraIndex = getCagraIndexFromReader(cvr, fieldInfo.name);
@@ -579,7 +581,7 @@ public class HNSWVectorsWriter extends KnnVectorsWriter {
   /**
    * Extracts the CAGRA index for a specific field from a CuVSVectorsReader.
    */
-  private CagraIndex getCagraIndexFromReader(GPUVectorsReader reader, String fieldName) {
+  private CagraIndex getCagraIndexFromReader(CuVS2510GPUVectorsReader reader, String fieldName) {
     try {
       IntObjectHashMap<GPUIndex> cuvsIndices = reader.getCuvsIndexes();
       FieldInfos fieldInfos = reader.getFieldInfos();

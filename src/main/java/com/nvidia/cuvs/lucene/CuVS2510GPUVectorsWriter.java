@@ -15,11 +15,11 @@
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.GPUVectorsFormat.CUVS_INDEX_CODEC_NAME;
-import static com.nvidia.cuvs.lucene.GPUVectorsFormat.CUVS_INDEX_EXT;
-import static com.nvidia.cuvs.lucene.GPUVectorsFormat.CUVS_META_CODEC_EXT;
-import static com.nvidia.cuvs.lucene.GPUVectorsFormat.CUVS_META_CODEC_NAME;
-import static com.nvidia.cuvs.lucene.GPUVectorsFormat.VERSION_CURRENT;
+import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_INDEX_CODEC_NAME;
+import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_INDEX_EXT;
+import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_META_CODEC_EXT;
+import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_META_CODEC_NAME;
+import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.VERSION_CURRENT;
 import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader.SIMILARITY_FUNCTIONS;
 import static org.apache.lucene.index.VectorEncoding.FLOAT32;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
@@ -67,12 +67,13 @@ import org.apache.lucene.util.InfoStream;
  * KnnVectorsWriter for CuVS, responsible for merge and flush of vectors into
  * GPU
  */
-public class GPUVectorsWriter extends KnnVectorsWriter {
+public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
 
-  private static final long SHALLOW_RAM_BYTES_USED = shallowSizeOfInstance(GPUVectorsWriter.class);
+  private static final long SHALLOW_RAM_BYTES_USED =
+      shallowSizeOfInstance(CuVS2510GPUVectorsWriter.class);
 
   @SuppressWarnings("unused")
-  private static final Logger log = Logger.getLogger(GPUVectorsWriter.class.getName());
+  private static final Logger log = Logger.getLogger(CuVS2510GPUVectorsWriter.class.getName());
 
   /** The name of the CUVS component for the info-stream * */
   private static final String CUVS_COMPONENT = "CUVS";
@@ -130,7 +131,7 @@ public class GPUVectorsWriter extends KnnVectorsWriter {
     }
   }
 
-  public GPUVectorsWriter(
+  public CuVS2510GPUVectorsWriter(
       SegmentWriteState state,
       int cuvsWriterThreads,
       int intGraphDegree,
@@ -425,7 +426,7 @@ public class GPUVectorsWriter extends KnnVectorsWriter {
         // Access the CAGRA index for this field from the reader
 
         if (knnReader != null) {
-          if (knnReader instanceof GPUVectorsReader cvr) {
+          if (knnReader instanceof CuVS2510GPUVectorsReader cvr) {
             if (cvr != null) {
               totalVectorCount += cvr.getFieldEntries().get(fieldInfo.number).count();
               CagraIndex cagraIndex = getCagraIndexFromReader(cvr, fieldInfo.name);
@@ -489,7 +490,7 @@ public class GPUVectorsWriter extends KnnVectorsWriter {
   /**
    * Extracts the CAGRA index for a specific field from a CuVSVectorsReader.
    */
-  private CagraIndex getCagraIndexFromReader(GPUVectorsReader reader, String fieldName) {
+  private CagraIndex getCagraIndexFromReader(CuVS2510GPUVectorsReader reader, String fieldName) {
     try {
       IntObjectHashMap<GPUIndex> cuvsIndices = reader.getCuvsIndexes();
       FieldInfos fieldInfos = reader.getFieldInfos();

@@ -61,7 +61,7 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuVS not supported", GPUVectorsFormat.supported());
+    assumeTrue("cuVS not supported", CuVS2510GPUVectorsFormat.supported());
     random = new Random();
     // Fixed seed so that we can validate against the same result.
     random.setSeed(222);
@@ -71,7 +71,7 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
   @Test
   public void testCagraToHnswSerializationAndSearch() throws IOException {
 
-    Codec codec = new HNSWSearchCodec();
+    Codec codec = new Lucene101AcceleratedHNSWCodec();
     IndexWriterConfig config = new IndexWriterConfig().setCodec(codec).setUseCompoundFile(false);
 
     int numDocs = 2000; // random.nextInt(100, 1000);

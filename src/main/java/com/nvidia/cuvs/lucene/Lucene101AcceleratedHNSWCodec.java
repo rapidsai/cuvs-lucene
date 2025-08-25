@@ -23,28 +23,28 @@ import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.lucene101.Lucene101Codec;
 
 /** CuVS based codec for GPU based vector search */
-public class HNSWSearchCodec extends FilterCodec {
+public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
 
-  private static final Logger log = Logger.getLogger(HNSWSearchCodec.class.getName());
+  private static final Logger log = Logger.getLogger(Lucene101AcceleratedHNSWCodec.class.getName());
 
   private static final int DEFAULT_CUVS_WRITER_THREADS = 1;
   private static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
   private static final int DEFAULT_GRAPH_DEGREE = 64;
   private static final int DEFAULT_HNSW_LAYERS = 1;
-  private static final String NAME = "HNSWSearchCodec";
+  private static final String NAME = "Lucene101AcceleratedHNSWCodec";
 
   private KnnVectorsFormat format;
 
-  public HNSWSearchCodec() {
+  public Lucene101AcceleratedHNSWCodec() {
     this(NAME, new Lucene101Codec());
   }
 
-  public HNSWSearchCodec(String name, Codec delegate) {
+  public Lucene101AcceleratedHNSWCodec(String name, Codec delegate) {
     super(name, delegate);
     initializeFormatDefaultValues();
   }
 
-  public HNSWSearchCodec(
+  public Lucene101AcceleratedHNSWCodec(
       int cuvsWriterThreads, int intGraphDegree, int graphDegree, int hnswLayers) {
     this(NAME, new Lucene101Codec());
     initializeFormat(cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers);
@@ -61,7 +61,9 @@ public class HNSWSearchCodec extends FilterCodec {
   private void initializeFormat(
       int cuvsWriterThreads, int intGraphDegree, int graphDegree, int hnswLayers) {
     try {
-      format = new HNSWVectorsFormat(cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers);
+      format =
+          new Lucene99AcceleratedHNSWVectorsFormat(
+              cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers);
       setKnnFormat(format);
     } catch (LibraryException ex) {
       log.severe("Couldn't load native library, possible classloader issue. " + ex.getMessage());

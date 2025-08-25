@@ -16,18 +16,22 @@
 package com.nvidia.cuvs.lucene;
 
 import com.nvidia.cuvs.LibraryException;
-import com.nvidia.cuvs.lucene.GPUVectorsWriter.IndexType;
+import com.nvidia.cuvs.lucene.CuVS2510GPUVectorsWriter.IndexType;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.FilterCodec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.lucene101.Lucene101Codec;
 
-/** CuVS based codec for GPU based vector search */
-public class GPUSearchCodec extends FilterCodec {
+/** CuVS based codec for GPU based vector search
+ *
+ * @apiNote cuVS serialization formats are in experimental phase and hence backward compatibility cannot be guaranteed.
+ *
+ * */
+public class CuVS2510GPUSearchCodec extends FilterCodec {
 
-  private static final Logger log = Logger.getLogger(GPUSearchCodec.class.getName());
-  private static final String NAME = "GPUSearchCodec";
+  private static final Logger log = Logger.getLogger(CuVS2510GPUSearchCodec.class.getName());
+  private static final String NAME = "CuVS2510GPUSearchCodec";
 
   private static final int DEFAULT_CUVS_WRITER_THREADS = 1;
   private static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
@@ -37,15 +41,15 @@ public class GPUSearchCodec extends FilterCodec {
 
   private KnnVectorsFormat format;
 
-  public GPUSearchCodec() {
+  public CuVS2510GPUSearchCodec() {
     this(NAME, new Lucene101Codec());
   }
 
-  public GPUSearchCodec(String name, Codec delegate) {
+  public CuVS2510GPUSearchCodec(String name, Codec delegate) {
     super(name, delegate);
     try {
       format =
-          new GPUVectorsFormat(
+          new CuVS2510GPUVectorsFormat(
               DEFAULT_CUVS_WRITER_THREADS,
               DEFAULT_INTERMEDIATE_GRAPH_DEGREE,
               DEFAULT_GRAPH_DEGREE,

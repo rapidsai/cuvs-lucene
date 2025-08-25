@@ -17,7 +17,6 @@ package com.nvidia.cuvs.lucene;
 
 import com.nvidia.cuvs.CuVSResources;
 import com.nvidia.cuvs.LibraryException;
-import com.nvidia.cuvs.lucene.GPUVectorsWriter.IndexType;
 import java.io.IOException;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.KnnVectorsFormat;
@@ -25,30 +24,27 @@ import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.hnsw.DefaultFlatVectorScorer;
 import org.apache.lucene.codecs.hnsw.FlatVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99FlatVectorsFormat;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 
 /** CuVS based KnnVectorsFormat for GPU acceleration */
-public class GPUVectorsFormat extends KnnVectorsFormat {
+public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
 
-  static final Logger log = Logger.getLogger(GPUVectorsFormat.class.getName());
-
-  // TODO: fix Lucene version in name, to the final targeted release, if any
-  static final String CUVS_META_CODEC_NAME = "Lucene102CuVSVectorsFormatMeta";
-  static final String CUVS_META_CODEC_EXT = "vemc"; // ""cagmf";
-  static final String CUVS_INDEX_CODEC_NAME = "Lucene102CuVSVectorsFormatIndex";
-  static final String CUVS_INDEX_EXT = "vcag";
-
-  static final int VERSION_START = 0;
-  static final int VERSION_CURRENT = VERSION_START;
+  private static final Logger log =
+      Logger.getLogger(Lucene99AcceleratedHNSWVectorsFormat.class.getName());
 
   static final int DEFAULT_WRITER_THREADS = 32;
   static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
   static final int DEFAULT_GRAPH_DEGREE = 64;
-  static final IndexType DEFAULT_INDEX_TYPE = IndexType.CAGRA;
   static final int HNSW_GRAPH_LAYERS = 1;
 
-  static CuVSResources resources = Utils.cuVSResourcesOrNull();
+  static final String HNSW_META_CODEC_NAME = "Lucene99HnswVectorsFormatMeta";
+  static final String HNSW_META_CODEC_EXT = "vem";
+  static final String HNSW_INDEX_CODEC_NAME = "Lucene99HnswVectorsFormatIndex";
+  static final String HNSW_INDEX_EXT = "vex";
+
+  static CuVSResources resources = cuVSResourcesOrNull();
 
   /** The format for storing, reading, and merging raw vectors on disk. */
   private static final FlatVectorsFormat flatVectorsFormat =
@@ -59,20 +55,18 @@ public class GPUVectorsFormat extends KnnVectorsFormat {
   final int intGraphDegree;
   final int graphDegree;
   final int hnswLayers; // Number of layers to create in CAGRA->HNSW conversion
-  final GPUVectorsWriter.IndexType indexType; // the index type to build, when writing
 
   /**
    * Creates a CuVSVectorsFormat, with default values.
    *
    * @throws LibraryException if the native library fails to load
    */
-  public GPUVectorsFormat() {
+  public Lucene99AcceleratedHNSWVectorsFormat() {
     this(
         DEFAULT_WRITER_THREADS,
         DEFAULT_INTERMEDIATE_GRAPH_DEGREE,
         DEFAULT_GRAPH_DEGREE,
-        HNSW_GRAPH_LAYERS,
-        DEFAULT_INDEX_TYPE);
+        HNSW_GRAPH_LAYERS);
   }
 
   /**
@@ -80,18 +74,28 @@ public class GPUVectorsFormat extends KnnVectorsFormat {
    *
    * @throws LibraryException if the native library fails to load
    */
-  public GPUVectorsFormat(
-      int cuvsWriterThreads,
-      int intGraphDegree,
-      int graphDegree,
-      int hnswLayers,
-      IndexType indexType) {
+  public Lucene99AcceleratedHNSWVectorsFormat(
+      int cuvsWriterThreads, int intGraphDegree, int graphDegree, int hnswLayers) {
     super("CuVSVectorsFormat");
     this.cuvsWriterThreads = cuvsWriterThreads;
     this.intGraphDegree = intGraphDegree;
     this.graphDegree = graphDegree;
     this.hnswLayers = hnswLayers;
-    this.indexType = indexType;
+  }
+
+  private static CuVSResources cuVSResourcesOrNull() {
+    try {
+      resources = CuVSResources.create();
+      return resources;
+    } catch (UnsupportedOperationException uoe) {
+      log.warning("cuvs is not supported on this platform or java version: " + uoe.getMessage());
+    } catch (Throwable t) {
+      if (t instanceof ExceptionInInitializerError ex) {
+        t = ex.getCause();
+      }
+      log.warning("Exception occurred during creation of cuvs resources. " + t);
+    }
+    return null;
   }
 
   /** Tells whether the platform supports cuvs. */
@@ -106,24 +110,17 @@ public class GPUVectorsFormat extends KnnVectorsFormat {
   }
 
   @Override
-  public GPUVectorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
+  public Lucene99AcceleratedHNSWVectorsWriter fieldsWriter(SegmentWriteState state)
+      throws IOException {
     checkSupported();
     var flatWriter = flatVectorsFormat.fieldsWriter(state);
-    return new GPUVectorsWriter(
-        state,
-        cuvsWriterThreads,
-        intGraphDegree,
-        graphDegree,
-        hnswLayers,
-        indexType,
-        resources,
-        flatWriter);
+    return new Lucene99AcceleratedHNSWVectorsWriter(
+        state, cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers, resources, flatWriter);
   }
 
   @Override
   public KnnVectorsReader fieldsReader(SegmentReadState state) throws IOException {
-    checkSupported();
-    return new GPUVectorsReader(state, resources, flatVectorsFormat.fieldsReader(state));
+    return new Lucene99HnswVectorsReader(state, flatVectorsFormat.fieldsReader(state));
   }
 
   @Override

@@ -53,7 +53,7 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   protected static Logger log = Logger.getLogger(TestCuVSGaps.class.getName());
 
-  static final Codec codec = TestUtil.alwaysKnnVectorsFormat(new GPUVectorsFormat());
+  static final Codec codec = TestUtil.alwaysKnnVectorsFormat(new CuVS2510GPUVectorsFormat());
   static IndexSearcher searcher;
   static IndexReader reader;
   static Directory directory;
@@ -70,7 +70,7 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuvs not supported", GPUVectorsFormat.supported());
+    assumeTrue("cuvs not supported", CuVS2510GPUVectorsFormat.supported());
     directory = newDirectory();
     random = random();
 
@@ -120,7 +120,7 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   @Test
   public void testVectorSearchWithAlternatingDocuments() throws IOException {
-    assumeTrue("cuvs not supported", GPUVectorsFormat.supported());
+    assumeTrue("cuvs not supported", CuVS2510GPUVectorsFormat.supported());
 
     // Use the first vector (from document 0) as query
     float[] queryVector = dataset[0];
@@ -153,7 +153,7 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   @Test
   public void testVectorSearchWithFilterAndAlternatingDocuments() throws IOException {
-    assumeTrue("cuvs not supported", GPUVectorsFormat.supported());
+    assumeTrue("cuvs not supported", CuVS2510GPUVectorsFormat.supported());
 
     // Use the first vector (from document 0) as query
     float[] queryVector = dataset[0];
