@@ -1,9 +1,10 @@
 #!/bin/bash
-# Copyright (c) 2020-2023, NVIDIA CORPORATION.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION.
 
 set -euo pipefail
 
 rapids-logger "Create checks conda environment"
+# shellcheck disable=SC1091
 . /opt/conda/etc/profile.d/conda.sh
 
 rapids-dependency-file-generator \
