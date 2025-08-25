@@ -18,13 +18,6 @@ repos:
                   CMakeLists[.]txt$|
                   CMakeLists_standalone[.]txt$|
                   meta[.]yaml$
-            exclude: |
-              (?x)
-                  docs/source/sphinxext/github_link\.py|
-                  cpp/cmake/modules/FindAVX\.cmake
-          - id: verify-alpha-spec
-          - id: verify-codeowners
-            args: [--fix, --project-prefix=lucene-cuvs]
       - repo: https://github.com/shellcheck-py/shellcheck-py
         rev: v0.10.0.1
         hooks:
