@@ -162,9 +162,11 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
 
   @AfterClass
   public static void afterClass() throws Exception {
-    File indexDirPathFile = indexDirPath.toFile();
-    if (indexDirPathFile.exists() && indexDirPathFile.isDirectory()) {
-      FileUtils.deleteDirectory(indexDirPathFile);
+    if (indexDirPath != null) {
+      File indexDirPathFile = indexDirPath.toFile();
+      if (indexDirPathFile.exists() && indexDirPathFile.isDirectory()) {
+        FileUtils.deleteDirectory(indexDirPathFile);
+      }
     }
   }
 
