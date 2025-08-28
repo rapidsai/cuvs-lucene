@@ -1,4 +1,4 @@
-/bin/bash
+#!/bin/bash
 # Copyright (c) 2025, NVIDIA CORPORATION.
 
 set -euo pipefail
@@ -11,6 +11,7 @@ if [[ "${1:-}" == "--run-java-tests" ]]; then
   EXTRA_BUILD_ARGS+=("--run-java-tests")
 fi
 
+# shellcheck disable=SC1091
 . /opt/conda/etc/profile.d/conda.sh
 
 rapids-logger "Generate Java testing dependencies"
@@ -31,13 +32,6 @@ set -u
 
 rapids-print-env
 
-EXITCODE=0
-trap "EXITCODE=1" ERR
-set +e
-
 rapids-logger "Run Java build"
 
-bash ./build.sh ${EXTRA_BUILD_ARGS[@]}"
-
-rapids-logger "Build script exiting with value: $EXITCODE"
-exit ${EXITCODE}
+bash ./build.sh "${EXTRA_BUILD_ARGS[@]}"
