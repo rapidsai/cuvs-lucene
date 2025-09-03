@@ -29,6 +29,7 @@ import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.CuVSMatrix;
 import com.nvidia.cuvs.CuVSResources;
+import com.nvidia.cuvs.RowView;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -279,8 +280,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
 
     while (layerIndex < hnswLayers && currentLayerSize > 1) {
       // Calculate size for next layer (1/M of current layer)
-      int nextLayerSize = Math.max(1, currentLayerSize / M);
-
+      int nextLayerSize = Math.max(2, currentLayerSize / M);
       // Select nodes for this layer
       SortedSet<Integer> selectedNodesSet = new TreeSet<>();
 
@@ -311,7 +311,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
       }
 
       // Build CAGRA graph for this layer
-      layerAdjacencies.add(buildCagraGraphForSubset(selectedVectors));
+      layerAdjacencies.add(buildCagraGraphForSubset(selectedVectors, selectedNodes));
 
       // Update for next iteration
       currentLayerSize = nextLayerSize;
@@ -328,8 +328,8 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   /**
    * Builds a CAGRA graph for a subset of vectors
    */
-  private CuVSMatrix buildCagraGraphForSubset(float[][] vectors) throws Throwable {
-
+  private CuVSMatrix buildCagraGraphForSubset(float[][] vectors, int[] selectedNodes)
+      throws Throwable {
     // Create CuVSMatrix from the subset vectors
     CuVSMatrix subsetDataset = CuVSMatrix.ofArray(vectors);
 
@@ -341,8 +341,28 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
     // Get adjacency list from subset CAGRA index
     CuVSMatrix cagraGraph = subsetIndex.getGraph();
 
+    long numNodes = cagraGraph.size();
+    long degree = cagraGraph.columns();
+
+    // Create a re-mapped adjacency list
+    int[][] remappedAdjacency = new int[(int) numNodes][(int) degree];
+
+    for (int i = 0; i < numNodes; i++) {
+      RowView rv = cagraGraph.getRow(i);
+      for (int j = 0; j < degree && j < rv.size(); j++) {
+        int subsetIndex1 = rv.getAsInt(j);
+        // Map subset index to original node ID
+        if (subsetIndex1 >= 0 && subsetIndex1 < selectedNodes.length) {
+          remappedAdjacency[i][j] = selectedNodes[subsetIndex1];
+        } else {
+          // Invalid index, use self-reference
+          remappedAdjacency[i][j] = selectedNodes[i];
+        }
+      }
+    }
+
     subsetIndex.close();
-    return cagraGraph;
+    return CuVSMatrix.ofArray(remappedAdjacency);
   }
 
   private void writeMeta(

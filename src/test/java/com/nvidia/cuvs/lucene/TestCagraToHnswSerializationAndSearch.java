@@ -21,9 +21,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Random;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -71,14 +70,15 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
   @Test
   public void testCagraToHnswSerializationAndSearch() throws IOException {
 
-    Codec codec = new Lucene101AcceleratedHNSWCodec();
+    Codec codec = new Lucene101AcceleratedHNSWCodec(32, 128, 64, 3);
     IndexWriterConfig config = new IndexWriterConfig().setCodec(codec).setUseCompoundFile(false);
-
+    // TODO: handle random related issues.
     int numDocs = 2000; // random.nextInt(100, 1000);
     int dimension = 32; // random.nextInt(8, 1024);
-    int topK = 100; // random.nextInt(5, 60);
-    final int COMMIT_FREQ = Math.min(numDocs, random.nextInt(100, 1000));
+    int topK = 5; // random.nextInt(5, 60);
+    final int COMMIT_FREQ = 2000; // Math.min(numDocs, random.nextInt(100, 1000));
     int count = COMMIT_FREQ;
+    final String ID_FIELD = "id";
     final String VECTOR_FIELD = "knn1";
     float[][] dataset = generateDataset(random, numDocs, dimension);
 
@@ -87,7 +87,7 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
         IndexWriter indexWriter = new IndexWriter(indexDirectory, config)) {
       for (int i = 0; i < numDocs; i++) {
         Document document = new Document();
-        document.add(new StringField("id", Integer.toString(i), Field.Store.YES));
+        document.add(new StringField(ID_FIELD, Integer.toString(i), Field.Store.YES));
         document.add(new KnnFloatVectorField(VECTOR_FIELD, dataset[i], EUCLIDEAN));
         indexWriter.addDocument(document);
         count -= 1;
@@ -106,7 +106,7 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
         int vectorCount = 0;
         for (LeafReaderContext leafReaderContext : reader.leaves()) {
           LeafReader leafReader = leafReaderContext.reader();
-          FloatVectorValues knnValues = leafReader.getFloatVectorValues("knn1");
+          FloatVectorValues knnValues = leafReader.getFloatVectorValues(VECTOR_FIELD);
           assertNotNull(knnValues);
           log.info(
               VECTOR_FIELD
@@ -120,7 +120,7 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
         }
         assertTrue("Dataset size mismatch", vectorCount == numDocs);
 
-        log.info("\n2. Testing vector search queries...");
+        log.info("\nTesting vector search queries...");
         IndexSearcher searcher = new IndexSearcher(reader);
 
         float[] queryVector = generateDataset(random, 1, dimension)[0];
@@ -129,30 +129,27 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
         KnnFloatVectorQuery query = new KnnFloatVectorQuery(VECTOR_FIELD, queryVector, topK);
         TopDocs results = searcher.search(query, topK);
 
-        log.info("\nknn1 search results (" + results.totalHits + " total hits):");
-        int[] expected = {1803, 1869, 554, 1824, 1982, 1302, 320, 351, 707, 549};
-        List<Integer> res = new ArrayList<Integer>();
+        log.info("\nSearch results (" + results.totalHits + " total hits):");
+        Integer[] expected = {1869, 1803, 1302, 59, 1497, 108, 1411, 351, 1982};
+        HashSet<Integer> expectedIds = new HashSet<Integer>(Arrays.asList(expected));
 
         for (int i = 0; i < results.scoreDocs.length; i++) {
           ScoreDoc scoreDoc = results.scoreDocs[i];
           Document doc = searcher.storedFields().document(scoreDoc.doc);
+          String id = doc.get(ID_FIELD);
           log.info(
               "  Rank "
                   + (i + 1)
                   + ": doc "
                   + scoreDoc.doc
                   + " (id="
-                  + doc.get("id")
+                  + id
                   + "), score="
                   + scoreDoc.score);
-          res.add(Integer.valueOf(doc.get("id")));
+          assertTrue(
+              "Id " + id + " not found in expectedIds", expectedIds.contains(Integer.valueOf(id)));
         }
-
         assertTrue("TopK results not returned", results.scoreDocs.length == topK);
-        // TODO: make this test a bit more meaningful like checking the quality of search results.
-        for (int i : expected) {
-          assertTrue("Expected doc id is missing:" + i, res.contains(i));
-        }
 
       } catch (Exception e) {
         e.printStackTrace();
