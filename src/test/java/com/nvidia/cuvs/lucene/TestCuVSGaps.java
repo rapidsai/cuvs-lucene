@@ -70,7 +70,7 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuvs not supported", CuVSVectorsFormat.supported());
+    assertTrue("cuvs not supported", CuVSVectorsFormat.supported());
     directory = newDirectory();
     random = random();
 
@@ -120,7 +120,7 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   @Test
   public void testVectorSearchWithAlternatingDocuments() throws IOException {
-    assumeTrue("cuvs not supported", CuVSVectorsFormat.supported());
+    assertTrue("cuvs not supported", CuVSVectorsFormat.supported());
 
     // Use the first vector (from document 0) as query
     float[] queryVector = dataset[0];

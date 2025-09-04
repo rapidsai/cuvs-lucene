@@ -70,7 +70,7 @@ public class TestMerge extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() {
-    assumeTrue("cuVS is not supported", CuVSVectorsFormat.supported());
+    assertTrue("cuVS is not supported", CuVSVectorsFormat.supported());
   }
 
   private Directory directory;

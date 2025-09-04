@@ -69,7 +69,7 @@ public class TestCuVSRandomizedVectorSearch extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuvs not supported", CuVSVectorsFormat.supported());
+    assertTrue("cuvs not supported", CuVSVectorsFormat.supported());
     directory = newDirectory();
 
     RandomIndexWriter writer =
@@ -184,7 +184,7 @@ public class TestCuVSRandomizedVectorSearch extends LuceneTestCase {
 
   @Test
   public void testVectorSearchWithFilter() throws IOException {
-    assumeTrue("cuvs not supported", CuVSVectorsFormat.supported());
+    assertTrue("cuvs not supported", CuVSVectorsFormat.supported());
 
     Random random = random();
     int topK = Math.min(random.nextInt(TOP_K_LIMIT) + 1, dataset.length);
