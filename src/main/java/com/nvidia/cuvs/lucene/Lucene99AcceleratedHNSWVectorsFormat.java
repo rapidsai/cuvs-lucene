@@ -57,7 +57,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   final int hnswLayers; // Number of layers to create in CAGRA->HNSW conversion
 
   /**
-   * Creates a CuVSVectorsFormat, with default values.
+   * Creates a Lucene99AcceleratedHNSWVectorsFormat, with default values.
    *
    * @throws LibraryException if the native library fails to load
    */
@@ -70,13 +70,13 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   }
 
   /**
-   * Creates a CuVSVectorsFormat, with the given threads, graph degree, etc.
+   * Creates a Lucene99AcceleratedHNSWVectorsFormat, with the given threads, graph degree, etc.
    *
    * @throws LibraryException if the native library fails to load
    */
   public Lucene99AcceleratedHNSWVectorsFormat(
       int cuvsWriterThreads, int intGraphDegree, int graphDegree, int hnswLayers) {
-    super("CuVSVectorsFormat");
+    super("Lucene99AcceleratedHNSWVectorsFormat");
     this.cuvsWriterThreads = cuvsWriterThreads;
     this.intGraphDegree = intGraphDegree;
     this.graphDegree = graphDegree;

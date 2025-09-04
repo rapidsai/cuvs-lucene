@@ -62,7 +62,7 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
   final CuVS2510GPUVectorsWriter.IndexType indexType; // the index type to build, when writing
 
   /**
-   * Creates a CuVSVectorsFormat, with default values.
+   * Creates a CuVS2510GPUVectorsFormat, with default values.
    *
    * @throws LibraryException if the native library fails to load
    */
@@ -76,7 +76,7 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
   }
 
   /**
-   * Creates a CuVSVectorsFormat, with the given threads, graph degree, etc.
+   * Creates a CuVS2510GPUVectorsFormat, with the given threads, graph degree, etc.
    *
    * @throws LibraryException if the native library fails to load
    */
@@ -86,7 +86,7 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
       int graphDegree,
       int hnswLayers,
       IndexType indexType) {
-    super("CuVSVectorsFormat");
+    super("CuVS2510GPUVectorsFormat");
     this.cuvsWriterThreads = cuvsWriterThreads;
     this.intGraphDegree = intGraphDegree;
     this.graphDegree = graphDegree;
