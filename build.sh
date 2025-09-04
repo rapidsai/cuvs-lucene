@@ -19,11 +19,6 @@ if ! hasArg --run-java-tests; then
   MAVEN_VERIFY_ARGS=("-DskipTests")
 fi
 
-# Debugging on CI to see where to find libcuvs_c.so
-echo "----- Debugging on CI to see where to find libcuvs_c.so: Start ------"
-find / -name libcuvs_c.so
-echo "----- Debugging on CI to see where to find libcuvs_c.so: End ------"
-
 mvn verify "${MAVEN_VERIFY_ARGS[@]}" \
   && mvn install:install-file -Dfile=./target/cuvs-lucene-$VERSION.jar -DgroupId=$GROUP_ID -DartifactId=cuvs-lucene -Dversion=$VERSION -Dpackaging=jar \
   && cp pom.xml ./target/
