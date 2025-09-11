@@ -21,10 +21,10 @@ function setup_cuvs_from_nightly {
     fi
     source libcuvs-env/bin/activate
     echo "Installing libcuvs-cu13>=$VERSION via pip..."
-    export NEXT_MINOR_VERSION=$(echo "$VERSION" | awk -F. '{if($2>12) print $1+1".1"; else print $1"."$2+1}')
-    pip install libcuvs-cu13\<$NEXT_MINOR_VERSION --pre --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple/
+    NEXT_MINOR_VERSION=$(echo "$VERSION" | awk -F. '{if($2>12) print $1+1".1"; else print $1"."$2+1}')
+    pip install libcuvs-cu13\<"$NEXT_MINOR_VERSION" --pre --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple/
     echo "Done pip install!"
-    export SITE_PACKAGES_PATH=`find libcuvs-env -name site-packages`
+    SITE_PACKAGES_PATH=$(find libcuvs-env -name site-packages)
     export VENV_LIB=$SITE_PACKAGES_PATH/libcuvs/lib64:$SITE_PACKAGES_PATH/librmm/lib64:$SITE_PACKAGES_PATH/rapids_logger/lib64
     if [ -z ${LD_LIBRARY_PATH+x} ]
        then export LD_LIBRARY_PATH=/usr/local/cuda-13/targets/x86_64-linux/lib:$VENV_LIB
