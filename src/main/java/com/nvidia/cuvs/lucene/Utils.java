@@ -41,11 +41,8 @@ public class Utils {
    * @return an instance of {@link CuVSMatrix}
    */
   static CuVSMatrix createFloatMatrix(List<float[]> data, int dimensions) {
-    CuVSMatrix.Builder builder =
-        CuVSMatrix.builder(data.size(), dimensions, CuVSMatrix.DataType.FLOAT);
-    for (float[] vector : data) {
-      builder.addVector(vector);
-    }
-    return builder.build();
+    // Convert List<float[]> to float[][] for the ofArray method
+    float[][] vectors = data.toArray(new float[0][]);
+    return CuVSMatrix.ofArray(vectors);
   }
 }

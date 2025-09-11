@@ -31,7 +31,6 @@ import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.CuVSMatrix;
-import com.nvidia.cuvs.CuVSMatrix.DataType;
 import com.nvidia.cuvs.CuVSResources;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -236,7 +235,7 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     info("Cagra index created in " + elapsedMillis + "ms, with " + dataset.size() + " vectors");
     Path tmpFile = Files.createTempFile(resources.tempDirectory(), "tmpindex", "cag");
     index.serialize(os, tmpFile);
-    index.destroyIndex();
+    index.close();
   }
 
   private void writeBruteForceIndex(OutputStream os, CuVSMatrix dataset) throws Throwable {
@@ -251,7 +250,7 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     long elapsedMillis = nanosToMillis(System.nanoTime() - startTime);
     info("bf index created in " + elapsedMillis + "ms, with " + dataset.size() + " vectors");
     index.serialize(os);
-    index.destroyIndex();
+    index.close();
   }
 
   private void writeHNSWIndex(OutputStream os, CuVSMatrix dataset) throws Throwable {
@@ -266,7 +265,7 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
     info("HNSW index created in " + elapsedMillis + "ms, with " + dataset.size() + " vectors");
     Path tmpFile = Files.createTempFile("tmpindex", "hnsw");
     index.serializeToHNSW(os, tmpFile);
-    index.destroyIndex();
+    index.close();
   }
 
   @Override
@@ -516,15 +515,14 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
    * */
   private CuVSMatrix createMatrixFromMergedVectors(
       FloatVectorValues mergedVectorValues, int numMergedDocs) throws IOException {
-    CuVSMatrix.Builder builder =
-        CuVSMatrix.builder(numMergedDocs, mergedVectorValues.dimension(), DataType.FLOAT);
+    List<float[]> vectors = new ArrayList<>(numMergedDocs);
     KnnVectorValues.DocIndexIterator iter = mergedVectorValues.iterator();
     for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
       int ordinal = iter.index();
       float[] vector = mergedVectorValues.vectorValue(ordinal);
-      builder.addVector(vector.clone());
+      vectors.add(vector.clone());
     }
-    return builder.build();
+    return Utils.createFloatMatrix(vectors, mergedVectorValues.dimension());
   }
 
   /**
@@ -568,7 +566,7 @@ public class CuVSVectorsWriter extends KnnVectorsWriter {
       writeMeta(fieldInfo, vectorCount, cagraIndexOffset, cagraIndexLength, 0L, 0L, 0L, 0L);
 
       // Clean up the merged index
-      mergedIndex.destroyIndex();
+      mergedIndex.close();
     } catch (Throwable t) {
       Utils.handleThrowable(t);
     }

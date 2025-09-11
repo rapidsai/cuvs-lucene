@@ -101,13 +101,13 @@ public class CuVSIndex implements Closeable {
   private void destroyIndices() throws IOException {
     try {
       if (cagraIndex != null) {
-        cagraIndex.destroyIndex();
+        cagraIndex.close();
       }
       if (bruteforceIndex != null) {
-        bruteforceIndex.destroyIndex();
+        bruteforceIndex.close();
       }
       if (hnswIndex != null) {
-        hnswIndex.destroyIndex();
+        hnswIndex.close();
       }
     } catch (Throwable t) {
       Utils.handleThrowable(t);
