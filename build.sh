@@ -21,6 +21,9 @@ function setup_cuvs_from_nightly {
     fi
     # shellcheck disable=SC1091
     source libcuvs-env/bin/activate
+
+    echo "DEBUG: Finding libcudart.so to be added to LD_LIBRARY_PATH"
+    find / -name libcudart.so
     echo "Installing libcuvs-cu13>=$VERSION via pip..."
     NEXT_MINOR_VERSION=$(echo "$VERSION" | awk -F. '{if($2>12) print $1+1".1"; else print $1"."$2+1}')
     pip install libcuvs-cu13\<"$NEXT_MINOR_VERSION" --pre --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple/
