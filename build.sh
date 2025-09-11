@@ -42,7 +42,7 @@ fi
 echo "Checking for libcuvs_c.so..."
 # Check if LD_LIBRARY_PATH is not empty and not just spaces
 if [ -n "$LD_LIBRARY_PATH" ] && [ -n "$(echo "$LD_LIBRARY_PATH" | tr -d '[:space:]')" ]; then
-    FOUND_LIB=$(find ${LD_LIBRARY_PATH//:/ } -maxdepth 1 -name "libcuvs_c.so" 2>/dev/null | head -1)
+    FOUND_LIB=$(find "${LD_LIBRARY_PATH//:/ }" -maxdepth 1 -name "libcuvs_c.so" 2>/dev/null | head -1)
     if [ -n "$FOUND_LIB" ]; then
         echo "libcuvs_c.so was found in $(dirname "$FOUND_LIB")"
     else
