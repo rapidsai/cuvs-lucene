@@ -41,6 +41,7 @@ fi
 
 # Verify libcuvs_c.so is available
 echo "Checking for libcuvs_c.so..."
+echo "DEBUG: LD_LIBRARY_PATH is ${LD_LIBRARY_PATH}."
 # Check if LD_LIBRARY_PATH is not empty and not just spaces
 if [ -n "$LD_LIBRARY_PATH" ] && [ -n "$(echo "$LD_LIBRARY_PATH" | tr -d '[:space:]')" ]; then
     FOUND_LIB=$(find "${LD_LIBRARY_PATH//:/ }" -maxdepth 1 -name "libcuvs_c.so" 2>/dev/null | head -1)
