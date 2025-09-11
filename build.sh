@@ -19,6 +19,7 @@ function setup_cuvs_from_nightly {
     if [ ! -d "libcuvs-env" ]; then
         python3 -m venv libcuvs-env
     fi
+    # shellcheck disable=SC1091
     source libcuvs-env/bin/activate
     echo "Installing libcuvs-cu13>=$VERSION via pip..."
     NEXT_MINOR_VERSION=$(echo "$VERSION" | awk -F. '{if($2>12) print $1+1".1"; else print $1"."$2+1}')
