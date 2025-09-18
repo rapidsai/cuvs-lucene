@@ -15,8 +15,8 @@
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.cuVSResourcesOrNull;
 import static com.nvidia.cuvs.lucene.TestUtils.generateDataset;
+import static com.nvidia.cuvs.lucene.Utils.cuVSResourcesOrNull;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
 import java.io.File;
@@ -75,25 +75,19 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
 
   @Test
   public void testCagraToHnswSerializationAndSearch() throws IOException {
-    log.info("Test Scenario 1 - cuvs supported");
-    test(
-        false,
-        new Integer[] {1869, 1803, 1302, 59, 1497, 108, 1411, 351, 1982},
-        indexDirPath.get(0));
+    log.info("Test Scenario 1 - cuVS supported");
+    test(new Integer[] {1869, 1803, 1302, 59, 1497, 108, 1411, 351, 1982}, indexDirPath.get(0));
 
-    log.info("Test Scenario 2 - cuvs NOT supported");
-    test(true, new Integer[] {885, 612, 1795, 1806, 1665}, indexDirPath.get(1));
+    log.info("Test Scenario 2 - cuVS NOT supported");
+    // Set resources to null to simulate that cuVS is not supported.
+    Lucene99AcceleratedHNSWVectorsFormat.setResources(null);
+    test(new Integer[] {885, 612, 1795, 1806, 1665}, indexDirPath.get(1));
   }
 
-  private void test(boolean disableResources, Integer[] expected, Path indexDirPath)
-      throws IOException {
+  private void test(Integer[] expected, Path indexDirPath) throws IOException {
 
     Lucene101AcceleratedHNSWCodec codec =
         new Lucene101AcceleratedHNSWCodec(32, 128, 64, 3, 16, 100);
-
-    if (disableResources) {
-      Lucene99AcceleratedHNSWVectorsFormat.resources = null;
-    }
 
     IndexWriterConfig config = new IndexWriterConfig().setCodec(codec).setUseCompoundFile(false);
     // TODO: handle random related issues.
@@ -103,7 +97,7 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
     final int COMMIT_FREQ = 2000; // Math.min(numDocs, random.nextInt(100, 1000));
     int count = COMMIT_FREQ;
     final String ID_FIELD = "id";
-    final String VECTOR_FIELD = "knn1";
+    final String VECTOR_FIELD = "vector_field";
     float[][] dataset = generateDataset(random, numDocs, dimension);
 
     // Indexing
@@ -183,7 +177,7 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
   @AfterClass
   public static void afterClass() throws Exception {
     // Reset resources.
-    Lucene99AcceleratedHNSWVectorsFormat.resources = cuVSResourcesOrNull();
+    Lucene99AcceleratedHNSWVectorsFormat.setResources(cuVSResourcesOrNull());
     // Cleanup.
     for (Path p : indexDirPath) {
       File indexDirPathFile = p.toFile();

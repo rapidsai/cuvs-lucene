@@ -51,7 +51,7 @@ import org.apache.lucene.tests.util.TestUtil;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-@SuppressSysoutChecks(bugUrl = "prints info from within cuvs")
+@SuppressSysoutChecks(bugUrl = "prints info from within cuVS")
 public class TestCuVSDeletedDocuments extends LuceneTestCase {
 
   protected static Logger log = Logger.getLogger(TestCuVSDeletedDocuments.class.getName());
@@ -61,7 +61,7 @@ public class TestCuVSDeletedDocuments extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuvs not supported", CuVS2510GPUVectorsFormat.supported());
+    assumeTrue("cuVS not supported", Lucene99AcceleratedHNSWVectorsFormat.supported());
     random = random();
   }
 

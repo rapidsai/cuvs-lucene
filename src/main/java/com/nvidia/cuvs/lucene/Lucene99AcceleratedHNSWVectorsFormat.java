@@ -15,6 +15,7 @@
  */
 package com.nvidia.cuvs.lucene;
 
+import static com.nvidia.cuvs.lucene.Utils.cuVSResourcesOrNull;
 import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH;
 import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN;
 import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat.DEFAULT_NUM_MERGE_WORKER;
@@ -50,9 +51,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   static final String HNSW_INDEX_CODEC_NAME = "Lucene99HnswVectorsFormatIndex";
   static final String HNSW_INDEX_EXT = "vex";
 
-  // Needed to make this public for a test as mocking/env variable manuplation is complicated.
-  // TODO: Maybe explore a better solution later.
-  public static CuVSResources resources = cuVSResourcesOrNull();
+  private static CuVSResources resources = cuVSResourcesOrNull();
 
   /** The format for storing, reading, and merging raw vectors on disk. */
   private static final FlatVectorsFormat flatVectorsFormat =
@@ -103,36 +102,11 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
     this.beamWidth = beamWidth;
   }
 
-  public static CuVSResources cuVSResourcesOrNull() {
-    try {
-      resources = CuVSResources.create();
-      return resources;
-    } catch (UnsupportedOperationException uoe) {
-      log.warning("cuvs is not supported on this platform or java version: " + uoe.getMessage());
-    } catch (Throwable t) {
-      if (t instanceof ExceptionInInitializerError ex) {
-        t = ex.getCause();
-      }
-      log.warning("Exception occurred during creation of cuvs resources. " + t);
-    }
-    return null;
-  }
-
-  /** Tells whether the platform supports cuvs. */
-  public static boolean supported() {
-    return resources != null;
-  }
-
-  private static void checkSupported() {
-    if (!supported()) {
-      throw new UnsupportedOperationException();
-    }
-  }
-
   @Override
   public KnnVectorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
     var flatWriter = flatVectorsFormat.fieldsWriter(state);
     if (supported()) {
+      log.info("cuVS is supported so using the Lucene99AcceleratedHNSWVectorsWriter");
       return new Lucene99AcceleratedHNSWVectorsWriter(
           state, cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers, resources, flatWriter);
     } else {
@@ -164,5 +138,24 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
     sb.append("resources=").append(resources);
     sb.append(")");
     return sb.toString();
+  }
+
+  public static CuVSResources getResources() {
+    return resources;
+  }
+
+  public static void setResources(CuVSResources resources) {
+    Lucene99AcceleratedHNSWVectorsFormat.resources = resources;
+  }
+
+  /** Tells whether the platform supports cuVS. */
+  public static boolean supported() {
+    return resources != null;
+  }
+
+  public static void checkSupported() {
+    if (!supported()) {
+      throw new UnsupportedOperationException();
+    }
   }
 }

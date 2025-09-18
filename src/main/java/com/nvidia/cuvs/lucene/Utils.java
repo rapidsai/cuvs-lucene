@@ -20,8 +20,11 @@ import com.nvidia.cuvs.CuVSResources;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class Utils {
+
+  static final Logger log = Logger.getLogger(Utils.class.getName());
 
   static void handleThrowable(Throwable t) throws IOException {
     switch (t) {
@@ -54,17 +57,14 @@ public class Utils {
 
   static CuVSResources cuVSResourcesOrNull() {
     try {
-      CuVS2510GPUVectorsFormat.resources = CuVSResources.create();
-      return CuVS2510GPUVectorsFormat.resources;
+      return CuVSResources.create();
     } catch (UnsupportedOperationException uoe) {
-      CuVS2510GPUVectorsFormat.log.warning(
-          "cuvs is not supported on this platform or java version: " + uoe.getMessage());
+      log.warning("cuVS is not supported on this platform or java version: " + uoe.getMessage());
     } catch (Throwable t) {
       if (t instanceof ExceptionInInitializerError ex) {
         t = ex.getCause();
       }
-      CuVS2510GPUVectorsFormat.log.warning(
-          "Exception occurred during creation of cuvs resources. " + t);
+      log.warning("Exception occurred during creation of cuVS resources. " + t);
     }
     return null;
   }

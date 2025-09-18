@@ -15,6 +15,8 @@
  */
 package com.nvidia.cuvs.lucene;
 
+import static com.nvidia.cuvs.lucene.Utils.cuVSResourcesOrNull;
+
 import com.nvidia.cuvs.CuVSResources;
 import com.nvidia.cuvs.LibraryException;
 import com.nvidia.cuvs.lucene.CuVS2510GPUVectorsWriter.IndexType;
@@ -35,7 +37,7 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
 
   // TODO: fix Lucene version in name, to the final targeted release, if any
   static final String CUVS_META_CODEC_NAME = "Lucene102CuVSVectorsFormatMeta";
-  static final String CUVS_META_CODEC_EXT = "vemc"; // ""cagmf";
+  static final String CUVS_META_CODEC_EXT = "vemc";
   static final String CUVS_INDEX_CODEC_NAME = "Lucene102CuVSVectorsFormatIndex";
   static final String CUVS_INDEX_EXT = "vcag";
 
@@ -48,7 +50,7 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
   static final IndexType DEFAULT_INDEX_TYPE = IndexType.CAGRA;
   static final int HNSW_GRAPH_LAYERS = 1;
 
-  static CuVSResources resources = Utils.cuVSResourcesOrNull();
+  static CuVSResources resources = cuVSResourcesOrNull();
 
   /** The format for storing, reading, and merging raw vectors on disk. */
   private static final FlatVectorsFormat flatVectorsFormat =
@@ -94,17 +96,6 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
     this.indexType = indexType;
   }
 
-  /** Tells whether the platform supports cuvs. */
-  public static boolean supported() {
-    return resources != null;
-  }
-
-  private static void checkSupported() {
-    if (!supported()) {
-      throw new UnsupportedOperationException();
-    }
-  }
-
   @Override
   public CuVS2510GPUVectorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
     checkSupported();
@@ -141,5 +132,16 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
     sb.append("resources=").append(resources);
     sb.append(")");
     return sb.toString();
+  }
+
+  /** Tells whether the platform supports cuVS. */
+  public static boolean supported() {
+    return resources != null;
+  }
+
+  public static void checkSupported() {
+    if (!supported()) {
+      throw new UnsupportedOperationException();
+    }
   }
 }

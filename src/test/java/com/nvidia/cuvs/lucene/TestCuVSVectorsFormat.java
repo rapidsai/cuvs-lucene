@@ -41,7 +41,7 @@ public class TestCuVSVectorsFormat extends BaseKnnVectorsFormatTestCase {
 
   @BeforeClass
   public static void beforeClass() {
-    assumeTrue("cuvs is not supported", CuVS2510GPUVectorsFormat.supported());
+    assumeTrue("cuVS is not supported", CuVS2510GPUVectorsFormat.supported());
   }
 
   @Override

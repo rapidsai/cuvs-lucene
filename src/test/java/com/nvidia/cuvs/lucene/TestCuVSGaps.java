@@ -48,7 +48,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-@SuppressSysoutChecks(bugUrl = "prints info from within cuvs")
+@SuppressSysoutChecks(bugUrl = "prints info from within cuVS")
 public class TestCuVSGaps extends LuceneTestCase {
 
   protected static Logger log = Logger.getLogger(TestCuVSGaps.class.getName());
@@ -70,7 +70,7 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuvs not supported", CuVS2510GPUVectorsFormat.supported());
+    assumeTrue("cuVS not supported", CuVS2510GPUVectorsFormat.supported());
     directory = newDirectory();
     random = random();
 
@@ -120,7 +120,7 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   @Test
   public void testVectorSearchWithAlternatingDocuments() throws IOException {
-    assumeTrue("cuvs not supported", CuVS2510GPUVectorsFormat.supported());
+    assumeTrue("cuVS not supported", CuVS2510GPUVectorsFormat.supported());
 
     // Use the first vector (from document 0) as query
     float[] queryVector = dataset[0];
@@ -153,7 +153,7 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   @Test
   public void testVectorSearchWithFilterAndAlternatingDocuments() throws IOException {
-    assumeTrue("cuvs not supported", CuVS2510GPUVectorsFormat.supported());
+    assumeTrue("cuVS not supported", CuVS2510GPUVectorsFormat.supported());
 
     // Use the first vector (from document 0) as query
     float[] queryVector = dataset[0];
