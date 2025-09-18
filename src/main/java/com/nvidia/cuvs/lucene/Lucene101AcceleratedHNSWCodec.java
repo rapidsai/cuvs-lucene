@@ -15,6 +15,9 @@
  */
 package com.nvidia.cuvs.lucene;
 
+import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH;
+import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN;
+
 import com.nvidia.cuvs.LibraryException;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.Codec;
@@ -45,9 +48,15 @@ public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
   }
 
   public Lucene101AcceleratedHNSWCodec(
-      int cuvsWriterThreads, int intGraphDegree, int graphDegree, int hnswLayers) {
+      int cuvsWriterThreads,
+      int intGraphDegree,
+      int graphDegree,
+      int hnswLayers,
+      int maxConn,
+      int beamWidth) {
     this(NAME, new Lucene101Codec());
-    initializeFormat(cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers);
+    initializeFormat(
+        cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers, maxConn, beamWidth);
   }
 
   private void initializeFormatDefaultValues() {
@@ -55,15 +64,22 @@ public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
         DEFAULT_CUVS_WRITER_THREADS,
         DEFAULT_INTERMEDIATE_GRAPH_DEGREE,
         DEFAULT_GRAPH_DEGREE,
-        DEFAULT_HNSW_LAYERS);
+        DEFAULT_HNSW_LAYERS,
+        DEFAULT_MAX_CONN,
+        DEFAULT_BEAM_WIDTH);
   }
 
   private void initializeFormat(
-      int cuvsWriterThreads, int intGraphDegree, int graphDegree, int hnswLayers) {
+      int cuvsWriterThreads,
+      int intGraphDegree,
+      int graphDegree,
+      int hnswLayers,
+      int maxConn,
+      int beamWidth) {
     try {
       format =
           new Lucene99AcceleratedHNSWVectorsFormat(
-              cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers);
+              cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers, maxConn, beamWidth);
       setKnnFormat(format);
     } catch (LibraryException ex) {
       log.severe("Couldn't load native library, possible classloader issue. " + ex.getMessage());

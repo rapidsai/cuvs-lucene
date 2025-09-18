@@ -15,19 +15,22 @@
  */
 package com.nvidia.cuvs.lucene;
 
+import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.cuVSResourcesOrNull;
+import static com.nvidia.cuvs.lucene.TestUtils.generateDataset;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.logging.Logger;
 import org.apache.commons.io.FileUtils;
-import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.KnnFloatVectorField;
@@ -56,21 +59,42 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
   protected static Logger log =
       Logger.getLogger(TestCagraToHnswSerializationAndSearch.class.getName());
   private static Random random;
-  private static Path indexDirPath;
+  private static List<Path> indexDirPath;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuVS not supported", CuVS2510GPUVectorsFormat.supported());
+    assumeTrue("cuVS not supported", Lucene99AcceleratedHNSWVectorsFormat.supported());
     random = new Random();
     // Fixed seed so that we can validate against the same result.
     random.setSeed(222);
-    indexDirPath = Paths.get(UUID.randomUUID().toString());
+    indexDirPath = new ArrayList<Path>();
+    for (int i = 0; i < 2; i++) {
+      indexDirPath.add(Paths.get(UUID.randomUUID().toString()));
+    }
   }
 
   @Test
   public void testCagraToHnswSerializationAndSearch() throws IOException {
+    log.info("Test Scenario 1 - cuvs supported");
+    test(
+        false,
+        new Integer[] {1869, 1803, 1302, 59, 1497, 108, 1411, 351, 1982},
+        indexDirPath.get(0));
 
-    Codec codec = new Lucene101AcceleratedHNSWCodec(32, 128, 64, 3);
+    log.info("Test Scenario 2 - cuvs NOT supported");
+    test(true, new Integer[] {885, 612, 1795, 1806, 1665}, indexDirPath.get(1));
+  }
+
+  private void test(boolean disableResources, Integer[] expected, Path indexDirPath)
+      throws IOException {
+
+    Lucene101AcceleratedHNSWCodec codec =
+        new Lucene101AcceleratedHNSWCodec(32, 128, 64, 3, 16, 100);
+
+    if (disableResources) {
+      Lucene99AcceleratedHNSWVectorsFormat.resources = null;
+    }
+
     IndexWriterConfig config = new IndexWriterConfig().setCodec(codec).setUseCompoundFile(false);
     // TODO: handle random related issues.
     int numDocs = 2000; // random.nextInt(100, 1000);
@@ -120,7 +144,7 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
         }
         assertTrue("Dataset size mismatch", vectorCount == numDocs);
 
-        log.info("\nTesting vector search queries...");
+        log.info("Testing vector search queries...");
         IndexSearcher searcher = new IndexSearcher(reader);
 
         float[] queryVector = generateDataset(random, 1, dimension)[0];
@@ -129,8 +153,7 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
         KnnFloatVectorQuery query = new KnnFloatVectorQuery(VECTOR_FIELD, queryVector, topK);
         TopDocs results = searcher.search(query, topK);
 
-        log.info("\nSearch results (" + results.totalHits + " total hits):");
-        Integer[] expected = {1869, 1803, 1302, 59, 1497, 108, 1411, 351, 1982};
+        log.info("Search results (" + results.totalHits + " total hits):");
         HashSet<Integer> expectedIds = new HashSet<Integer>(Arrays.asList(expected));
 
         for (int i = 0; i < results.scoreDocs.length; i++) {
@@ -159,21 +182,14 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
 
   @AfterClass
   public static void afterClass() throws Exception {
-    if (indexDirPath != null) {
-      File indexDirPathFile = indexDirPath.toFile();
+    // Reset resources.
+    Lucene99AcceleratedHNSWVectorsFormat.resources = cuVSResourcesOrNull();
+    // Cleanup.
+    for (Path p : indexDirPath) {
+      File indexDirPathFile = p.toFile();
       if (indexDirPathFile.exists() && indexDirPathFile.isDirectory()) {
         FileUtils.deleteDirectory(indexDirPathFile);
       }
     }
-  }
-
-  private static float[][] generateDataset(Random random, int datasetSize, int dimensions) {
-    float[][] dataset = new float[datasetSize][dimensions];
-    for (int i = 0; i < datasetSize; i++) {
-      for (int j = 0; j < dimensions; j++) {
-        dataset[i][j] = random.nextFloat() * 100;
-      }
-    }
-    return dataset;
   }
 }
