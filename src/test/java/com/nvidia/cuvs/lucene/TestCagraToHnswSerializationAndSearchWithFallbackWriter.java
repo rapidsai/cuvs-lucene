@@ -16,6 +16,7 @@
 package com.nvidia.cuvs.lucene;
 
 import static com.nvidia.cuvs.lucene.TestUtils.generateDataset;
+import static com.nvidia.cuvs.lucene.Utils.cuVSResourcesOrNull;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
 import java.io.File;
@@ -52,23 +53,26 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 @SuppressSysoutChecks(bugUrl = "")
-public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
+public class TestCagraToHnswSerializationAndSearchWithFallbackWriter extends LuceneTestCase {
 
   private static Logger log =
-      Logger.getLogger(TestCagraToHnswSerializationAndSearch.class.getName());
+      Logger.getLogger(TestCagraToHnswSerializationAndSearchWithFallbackWriter.class.getName());
+
   private static Random random;
   private static Path indexDirPath;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
     assumeTrue("cuVS not supported", Lucene99AcceleratedHNSWVectorsFormat.supported());
+    // Set resources to null to simulate that cuVS is not supported.
+    Lucene99AcceleratedHNSWVectorsFormat.setResources(null);
     // Fixed seed so that we can validate against the same result.
     random = new Random(222);
     indexDirPath = Paths.get(UUID.randomUUID().toString());
   }
 
   @Test
-  public void testCagraToHnswSerializationAndSearch() throws IOException {
+  public void testCagraToHnswSerializationAndSearchWithFallbackWriter() throws IOException {
     Codec codec = new Lucene101AcceleratedHNSWCodec(32, 128, 64, 3, 16, 100);
     IndexWriterConfig config = new IndexWriterConfig().setCodec(codec).setUseCompoundFile(false);
 
@@ -130,7 +134,7 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
         TopDocs results = searcher.search(query, topK);
 
         log.info("Search results (" + results.totalHits + " total hits):");
-        Integer[] expected = new Integer[] {1869, 1803, 1302, 59, 1497, 108, 1411, 351, 1982};
+        Integer[] expected = new Integer[] {1869, 1411, 1497, 351, 554};
         HashSet<Integer> expectedIds = new HashSet<Integer>(Arrays.asList(expected));
 
         for (int i = 0; i < results.scoreDocs.length; i++) {
@@ -159,6 +163,8 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
 
   @AfterClass
   public static void afterClass() throws Exception {
+    // Reset resources for other tests to work
+    Lucene99AcceleratedHNSWVectorsFormat.setResources(cuVSResourcesOrNull());
     File indexDirPathFile = indexDirPath.toFile();
     if (indexDirPathFile.exists() && indexDirPathFile.isDirectory()) {
       FileUtils.deleteDirectory(indexDirPathFile);
