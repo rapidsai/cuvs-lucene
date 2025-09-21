@@ -16,7 +16,7 @@ function hasArg {
 
 if hasArg --build-cuvs-from-source; then
     unset LD_LIBRARY_PATH
-    CUVS_REPO="git@github.com:rapidsai/cuvs.git"
+    CUVS_REPO="https://github.com/rapidsai/cuvs.git"
     CUVS_DIR="cuvs"
     BUILD_DIR=$CUVS_DIR/cpp/build
     CUR_DIR=$(pwd)
