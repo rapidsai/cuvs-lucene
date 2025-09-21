@@ -15,11 +15,23 @@ function hasArg {
 }
 
 if hasArg --build-cuvs-from-source; then
+
+    CUR_DIR=$(pwd)
+    # Get cmake locally if not found
+    if ! cmake; then
+        echo "==> cmake not found. Downloading..."
+        CMAKE_URL="https://github.com/Kitware/CMake/releases/download/v4.1.1/cmake-4.1.1-linux-x86_64.tar.gz"
+        wget $CMAKE_URL
+        tar -xvf cmake-4.1.1-linux-x86_64.tar.gz
+        CMAKE_HOME="cmake-4.1.1-linux-x86_64"
+        export PATH="$CUR_DIR/$CMAKE_HOME/bin:$PATH"
+        echo "PATH: $PATH"
+    fi
+
     unset LD_LIBRARY_PATH
     CUVS_REPO="https://github.com/rapidsai/cuvs.git"
     CUVS_DIR="cuvs"
     BUILD_DIR=$CUVS_DIR/cpp/build
-    CUR_DIR=$(pwd)
 
     # checkout cuvs
     if [ ! -d "$CUVS_DIR" ]; then
