@@ -14,41 +14,33 @@ function hasArg {
     (( NUMARGS != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
-if [ -z "${LD_LIBRARY_PATH:-}" ]; then
-    echo "==> LD_LIBRARY_PATH not set or is empty so cloning cuvs repository and building it"
+if hasArg --build-cuvs-from-source; then
+    unset LD_LIBRARY_PATH
     CUVS_REPO="git@github.com:rapidsai/cuvs.git"
     CUVS_DIR="cuvs"
     BUILD_DIR=$CUVS_DIR/cpp/build
-    LIBCUVS_SO_FILE=$BUILD_DIR/libcuvs_c.so
     CUR_DIR=$(pwd)
-    if [ -e "$LIBCUVS_SO_FILE" ]; then
-        export LD_LIBRARY_PATH="$CUR_DIR/$BUILD_DIR"
-        echo "==> LD_LIBRARY_PATH is set to: $LD_LIBRARY_PATH (skipping build step as so file is already present)"
-    else
+
+    # checkout cuvs
+    if [ ! -d "$CUVS_DIR" ]; then
         echo "==> Current working directory is: $CUR_DIR, checking out cuvs repository into $CUR_DIR..."
-        # checkout cuvs
         RV=$(git clone $CUVS_REPO $CUVS_DIR)
         if [ "$RV" -ne 0 ]; then
             echo "==> cuvs checkout failed."
             exit "$RV"
-        else
-            # build cuvs
-            echo "==> cuvs checkout succeeded, building libcuvs"
-            if ! ./$CUVS_DIR/build.sh libcuvs; then
-                echo "==> cuvs build.sh returned non-zero."
-                exit "$RV"
-            fi
-            if [ -e "$LIBCUVS_SO_FILE" ]; then
-                export LD_LIBRARY_PATH="$CUR_DIR/$BUILD_DIR"
-                echo "==> LD_LIBRARY_PATH is set to: $LD_LIBRARY_PATH"
-            else
-                echo "==> Not setting LD_LIBRARY_PATH as libcuvs_c.so not found."
-                exit 1
-            fi
         fi
     fi
-else
-    echo "==> LD_LIBRARY_PATH is set and non-empty, skipping the cuvs build step."
+
+    # build cuvs
+    echo "==> Building cuvs"
+    if ! ./$CUVS_DIR/build.sh libcuvs; then
+        echo "==> cuvs build.sh returned non-zero."
+        exit "$RV"
+    fi
+
+    # set LD_LIBRARY_PATH variable
+    export LD_LIBRARY_PATH="$CUR_DIR/$BUILD_DIR"
+    echo "==> LD_LIBRARY_PATH is set to: $LD_LIBRARY_PATH"
 fi
 
 MAVEN_VERIFY_ARGS=()
