@@ -15,7 +15,7 @@ function hasArg {
 }
 
 echo "###################################"
-find ~ -name "libcuvs.so"
+find /opt/conda/pkgs -name "libcuvs.so"
 echo "###################################"
 
 function setup_cuvs_from_nightly {
