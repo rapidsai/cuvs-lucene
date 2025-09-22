@@ -7,14 +7,9 @@ set -euo pipefail
 #       and test_java.sh no longer calls build_java.sh
 #       ref: https://github.com/rapidsai/cuvs/issues/868
 EXTRA_BUILD_ARGS=()
-for arg in "$@"; do
-  if [[ "$arg" == "--run-java-tests" ]]; then
-    EXTRA_BUILD_ARGS+=("--run-java-tests")
-  fi
-  if [[ "$arg" == "--build-cuvs-from-source" ]]; then
-    EXTRA_BUILD_ARGS+=("--build-cuvs-from-source")
-  fi
-done
+if [[ "${1:-}" == "--run-java-tests" ]]; then
+  EXTRA_BUILD_ARGS+=("--run-java-tests")
+fi
 
 # shellcheck disable=SC1091
 . /opt/conda/etc/profile.d/conda.sh
