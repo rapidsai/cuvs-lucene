@@ -14,6 +14,10 @@ function hasArg {
     (( NUMARGS != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
+echo "###################################"
+find ~ -name "libcuvs.so"
+echo "###################################"
+
 function setup_cuvs_from_nightly {
     echo "Trying to pull from a nightly"
     if [ ! -d "libcuvs-env" ]; then
