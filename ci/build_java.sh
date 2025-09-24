@@ -33,7 +33,7 @@ set -u
 rapids-print-env
 
 # Locates the libcuvs.so file path and appends it to LD_LIBRARY_PATH
-rapids-logger "Find libcuvs so file and append paths to LD_LIBRARY_PATH"
+rapids-logger "Find libcuvs so file and prepend paths to LD_LIBRARY_PATH"
 
 CONDA_PKG_CACHE_DIR="/opt/conda/pkgs" # comes from `conda info`. Dont know if this ever changes.
 if [ -d "$CONDA_PKG_CACHE_DIR" ]; then
