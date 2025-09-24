@@ -57,6 +57,11 @@ public class Utils {
 
   static CuVSResources cuVSResourcesOrNull() {
     try {
+      System.loadLibrary("cudart");
+    } catch (UnsatisfiedLinkError e) {
+      log.warning("Could not load CUDA runtime library: " + e.getMessage());
+    }
+    try {
       return CuVSResources.create();
     } catch (UnsupportedOperationException uoe) {
       log.warning("cuVS is not supported on this platform or java version: " + uoe.getMessage());
