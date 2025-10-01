@@ -133,6 +133,7 @@
           <trimStackTrace>false</trimStackTrace>
           <redirectTestOutputToFile>false</redirectTestOutputToFile>
           <useFile>false</useFile>
+          <rerunFailingTestsCount>0</rerunFailingTestsCount>
         </configuration>
       </plugin>
     </plugins>
