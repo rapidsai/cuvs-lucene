@@ -24,6 +24,11 @@ import java.util.List;
 import org.apache.lucene.util.hnsw.HnswGraph;
 import org.apache.lucene.util.hnsw.NeighborArray;
 
+/**
+ * This class holds the in-memory representation of the HNSW graph
+ *
+ * @since 25.10
+ */
 public class GPUBuiltHnswGraph extends HnswGraph {
 
   private final int size;
@@ -37,7 +42,14 @@ public class GPUBuiltHnswGraph extends HnswGraph {
   // Layer 0 is special - it contains all nodes
   private final NeighborArray[] layer0Neighbors;
 
-  // Multi-layer constructor that supports arbitrary number of layers
+  /**
+   * Multi-layer constructor that supports arbitrary number of layers
+   *
+   * @param size
+   * @param dimensions
+   * @param layerNodes
+   * @param layerAdjacencies
+   */
   public GPUBuiltHnswGraph(
       int size, int dimensions, List<int[]> layerNodes, List<CuVSMatrix> layerAdjacencies) {
 

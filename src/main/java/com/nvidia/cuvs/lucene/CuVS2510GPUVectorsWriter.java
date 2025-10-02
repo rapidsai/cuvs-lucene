@@ -64,8 +64,10 @@ import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.InfoStream;
 
 /**
- * KnnVectorsWriter for CuVS, responsible for merge and flush of vectors into
+ * KnnVectorsWriter for cuVS, responsible for merge and flush of vectors into
  * GPU
+ *
+ * @since 25.10
  */
 public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
 
@@ -113,15 +115,38 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
       this.bruteForce = bruteForce;
     }
 
+    /**
+     * Check if cagra is set
+     *
+     * @return is cagra set
+     */
     public boolean cagra() {
       return cagra;
     }
 
+    /**
+     * Check if bruteforce is set
+     *
+     * @return is bruteforce set
+     */
     public boolean bruteForce() {
       return bruteForce;
     }
   }
 
+  /**
+   * Constructor for {@link CuVS2510GPUVectorsWriter}
+   *
+   * @param state instance of the {@link SegmentWriteState}
+   * @param cuvsWriterThreads the number of cuVS writer threads
+   * @param intGraphDegree the intermediate graph degree (for building the CAGRA index)
+   * @param graphDegree the graph degree (for building the CAGRA index)
+   * @param indexType the {@link IndexType}
+   * @param resources instance of the {@link CuVSResources}
+   * @param flatVectorsWriter instance of {@link FlatVectorsWriter}
+   *
+   * @throws IOException I/O exceptions
+   */
   public CuVS2510GPUVectorsWriter(
       SegmentWriteState state,
       int cuvsWriterThreads,

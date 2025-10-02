@@ -21,7 +21,11 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Objects;
 
-/** This class holds references to the actual CuVS Index (Cagra, Brute force, etc.) */
+/**
+ * This class holds references to the actual cuVS Index (Cagra, Brute force, etc.)
+ *
+ * @since 25.10
+ */
 public class GPUIndex implements Closeable {
   private final CagraIndex cagraIndex;
   private final BruteForceIndex bruteforceIndex;

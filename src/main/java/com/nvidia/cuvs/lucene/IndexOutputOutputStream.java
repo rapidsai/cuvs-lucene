@@ -19,7 +19,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 import org.apache.lucene.store.IndexOutput;
 
-/** OutputStream for writing into an IndexOutput */
+/**
+ * OutputStream for writing into an IndexOutput
+ *
+ * @since 25.10
+ */
 final class IndexOutputOutputStream extends OutputStream {
 
   static final int DEFAULT_BUFFER_SIZE = 8192;

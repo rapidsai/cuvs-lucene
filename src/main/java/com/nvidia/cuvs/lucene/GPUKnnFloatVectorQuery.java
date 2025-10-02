@@ -25,7 +25,11 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.knn.KnnCollectorManager;
 import org.apache.lucene.util.Bits;
 
-/** Query on GPU only */
+/**
+ * Query on GPU only
+ *
+ * @since 25.10
+ */
 public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
 
   private final int iTopK;

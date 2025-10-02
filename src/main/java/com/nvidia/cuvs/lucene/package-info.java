@@ -14,5 +14,9 @@
  * limitations under the License.
  */
 
-/** CuVS based fast vector search */
+/**
+ * CuVS based fast vector search
+ *
+ * @since 25.10
+ */
 package com.nvidia.cuvs.lucene;

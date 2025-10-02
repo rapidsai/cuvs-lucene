@@ -70,8 +70,10 @@ import org.apache.lucene.util.hnsw.NeighborArray;
 import org.apache.lucene.util.packed.DirectMonotonicWriter;
 
 /**
- * KnnVectorsWriter for CuVS, responsible for merge and flush of vectors into
+ * KnnVectorsWriter for cuVS, responsible for merge and flush of vectors into
  * GPU
+ *
+ * @since 25.10
  */
 public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
 

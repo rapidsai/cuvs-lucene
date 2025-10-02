@@ -18,7 +18,11 @@ package com.nvidia.cuvs.lucene;
 import com.nvidia.cuvs.spi.CuVSProvider;
 import com.nvidia.cuvs.spi.CuVSServiceProvider;
 
-/** A provider that creates instances of FilterCuVSProvider. */
+/**
+ * A provider that creates instances of FilterCuVSProvider.
+ *
+ * @since 25.10
+ */
 public class FilterCuVSServiceProvider extends CuVSServiceProvider {
   @Override
   public CuVSProvider get(CuVSProvider builtinProvider) {

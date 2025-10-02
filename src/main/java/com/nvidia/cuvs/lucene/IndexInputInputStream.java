@@ -19,7 +19,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import org.apache.lucene.store.IndexInput;
 
-/** InputStream for reading from an IndexInput. */
+/**
+ * InputStream for reading from an IndexInput.
+ *
+ * @since 25.10
+ */
 final class IndexInputInputStream extends InputStream {
 
   final IndexInput in;

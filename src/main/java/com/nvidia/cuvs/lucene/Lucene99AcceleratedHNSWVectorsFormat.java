@@ -35,7 +35,11 @@ import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsWriter;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 
-/** CuVS based KnnVectorsFormat for GPU acceleration */
+/**
+ * cuVS based KnnVectorsFormat for GPU acceleration
+ *
+ * @since 25.10
+ */
 public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
 
   private static final Logger log =

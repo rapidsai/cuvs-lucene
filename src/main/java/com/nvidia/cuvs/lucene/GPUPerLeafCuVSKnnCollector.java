@@ -23,7 +23,11 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.knn.KnnSearchStrategy;
 
-/** KnnCollector for CuVS */
+/**
+ * KnnCollector for cuVS
+ *
+ * @since 25.10
+ */
 /*package-private*/ class GPUPerLeafCuVSKnnCollector implements KnnCollector {
 
   public List<ScoreDoc> scoreDocs;

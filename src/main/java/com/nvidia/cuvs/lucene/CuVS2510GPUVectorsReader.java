@@ -59,7 +59,11 @@ import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.hnsw.IntToIntFunction;
 
-/** KnnVectorsReader instance associated with CuVS format */
+/**
+ * KnnVectorsReader instance associated with cuVS format
+ *
+ * @since 25.10
+ */
 public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
 
   @SuppressWarnings("unused")
@@ -72,6 +76,15 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   private final IntObjectHashMap<GPUIndex> cuvsIndices;
   private final IndexInput cuvsIndexInput;
 
+  /**
+   * Constructor for {@link CuVS2510GPUVectorsReader}
+   *
+   * @param state instance of the {@link org.apache.lucene.index.SegmentReadState}
+   * @param resources instance of the {@link com.nvidia.cuvs.CuVSResources}
+   * @param flatReader instance of the {@link org.apache.lucene.codecs.hnsw.FlatVectorsReader}
+   *
+   * @throws IOException I/O exception
+   */
   public CuVS2510GPUVectorsReader(
       SegmentReadState state, CuVSResources resources, FlatVectorsReader flatReader)
       throws IOException {
@@ -453,14 +466,29 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
     }
   }
 
+  /**
+   * Gets the instance of {@link FieldInfos}
+   *
+   * @return the instance of {@link FieldInfos}
+   */
   public FieldInfos getFieldInfos() {
     return fieldInfos;
   }
 
+  /**
+   * Get the {@link GPUIndex} map
+   *
+   * @return the map of gpu indexes
+   */
   public IntObjectHashMap<GPUIndex> getCuvsIndexes() {
     return cuvsIndices;
   }
 
+  /**
+   * Get the map of {@link FieldEntry}
+   *
+   * @return the map of {@link FieldEntry}
+   */
   public IntObjectHashMap<FieldEntry> getFieldEntries() {
     return fields;
   }

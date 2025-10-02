@@ -22,6 +22,11 @@ import java.time.Duration;
 import java.util.List;
 import java.util.logging.Logger;
 
+/**
+ * This class provides common static utility methods
+ *
+ * @since 25.10
+ */
 public class Utils {
 
   static final Logger log = Logger.getLogger(Utils.class.getName());

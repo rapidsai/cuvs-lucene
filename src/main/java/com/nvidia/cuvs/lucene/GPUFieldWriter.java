@@ -23,7 +23,11 @@ import org.apache.lucene.index.DocsWithFieldSet;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.util.RamUsageEstimator;
 
-/** CuVS based fields writer */
+/**
+ * cuVS based fields writer
+ *
+ * @since 25.10
+ */
 /*package-private*/ class GPUFieldWriter extends KnnFieldVectorsWriter<float[]> {
 
   private static final long SHALLOW_SIZE =
