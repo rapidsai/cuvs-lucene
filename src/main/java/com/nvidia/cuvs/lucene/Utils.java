@@ -15,6 +15,7 @@
  */
 package com.nvidia.cuvs.lucene;
 
+import com.nvidia.cuvs.CuVSHostMatrix;
 import com.nvidia.cuvs.CuVSMatrix;
 import com.nvidia.cuvs.CuVSResources;
 import java.io.IOException;
@@ -38,17 +39,28 @@ public class Utils {
   /**
    * A method to build a {@link CuVSMatrix} from a list of float vectors.
    *
-   * Note: This could be a memory-intensive operation and should therefore be avoided.
-   * Consider using this {@link CuVSMatrix.Builder} instead for copying the vectors without loading them in heap.
+   * Uses {@link CuVSMatrix.Builder} to copy vectors directly to native memory
+   * without creating intermediate heap arrays.
    *
    * @param data The float vectors
    * @param dimensions The number float elements in each vector
    * @return an instance of {@link CuVSMatrix}
    */
   static CuVSMatrix createFloatMatrix(List<float[]> data, int dimensions) {
-    // Convert List<float[]> to float[][] for the ofArray method
-    float[][] vectors = data.toArray(new float[0][]);
-    return CuVSMatrix.ofArray(vectors);
+    // Use Builder pattern to avoid intermediate float[][] allocation
+    // and copy directly from List to native memory
+    CuVSMatrix.Builder<CuVSHostMatrix> builder =
+        CuVSMatrix.hostBuilder(
+            data.size(), // rows (number of vectors)
+            dimensions, // columns (vector dimension)
+            CuVSMatrix.DataType.FLOAT);
+
+    // Add vectors one by one - builder copies directly to native memory
+    for (float[] vector : data) {
+      builder.addVector(vector);
+    }
+
+    return builder.build();
   }
 
   static long nanosToMillis(long nanos) {
