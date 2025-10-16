@@ -4,7 +4,7 @@ This is a project for using [cuVS](https://github.com/rapidsai/cuvs), NVIDIA's G
 
 ## Overview
 
-The cuVS library provides a new `KnnVectorFormat` which can be plugged into a Lucene codec.
+This library provides a new [KnnVectorFormat](https://lucene.apache.org/core/10_3_1/core/org/apache/lucene/codecs/KnnVectorsFormat.html) which can be plugged into a Lucene codec.
 
 > [!CAUTION]
 > This is not production ready yet.
