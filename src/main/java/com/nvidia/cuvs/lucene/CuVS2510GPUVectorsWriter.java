@@ -261,7 +261,8 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
       if (indexType.cagra()) {
         try {
           var cagraIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
-          CuVSMatrix dataset = Utils.createFloatMatrix(vectors, fieldInfo.getVectorDimension());
+          CuVSMatrix dataset =
+              Utils.createFloatMatrix(vectors, fieldInfo.getVectorDimension(), resources);
           writeCagraIndex(cagraIndexOutputStream, dataset);
         } catch (Throwable t) {
           Utils.handleThrowableWithIgnore(t, CANNOT_GENERATE_CAGRA);
@@ -274,7 +275,8 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
       bruteForceIndexOffset = cuvsIndex.getFilePointer();
       if (indexType.bruteForce()) {
         var bruteForceIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
-        CuVSMatrix dataset = Utils.createFloatMatrix(vectors, fieldInfo.getVectorDimension());
+        CuVSMatrix dataset =
+            Utils.createFloatMatrix(vectors, fieldInfo.getVectorDimension(), resources);
         writeBruteForceIndex(bruteForceIndexOutputStream, dataset);
         bruteForceIndexLength = cuvsIndex.getFilePointer() - bruteForceIndexOffset;
       }
