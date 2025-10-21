@@ -40,3 +40,7 @@ sed_runner "s| CuVS [[:digit:]]\{2\}\.[[:digit:]]\{2\} | CuVS ${NEXT_SHORT_TAG} 
 for FILE in dependencies.yaml conda/environments/*.yaml; do
     sed_runner "s/libcuvs==.*/libcuvs==${NEXT_SHORT_TAG}.*/g" "${FILE}"
 done
+
+for FILE in .github/workflows/*.yaml; do
+  sed_runner "s/:[0-9]*\\.[0-9]*-/:${NEXT_SHORT_TAG}-/g" "${FILE}"
+done
