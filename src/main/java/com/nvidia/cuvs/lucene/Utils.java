@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 /**
- * This class provides common static utility methods
+ * This class provides common static utility methods.
  *
  * @since 25.10
  */
@@ -31,6 +31,12 @@ public class Utils {
 
   static final Logger log = Logger.getLogger(Utils.class.getName());
 
+  /**
+   * A utility method that throws specific types of throwable objects based on types.
+   *
+   * @param t the throwable object
+   * @throws IOException
+   */
   static void handleThrowable(Throwable t) throws IOException {
     switch (t) {
       case IOException ioe -> throw ioe;
@@ -69,10 +75,21 @@ public class Utils {
     return builder.build();
   }
 
+  /**
+   * A utility method to convert nanoseconds to milliseconds.
+   *
+   * @param nanos
+   * @return milliseconds
+   */
   static long nanosToMillis(long nanos) {
     return Duration.ofNanos(nanos).toMillis();
   }
 
+  /**
+   * Creates an instance of {@link com.nvidia.cuvs.CuVSResources}.
+   *
+   * @return an instance of {@link com.nvidia.cuvs.CuVSResources}
+   */
   static CuVSResources cuVSResourcesOrNull() {
     try {
       System.loadLibrary("cudart");
@@ -92,6 +109,13 @@ public class Utils {
     return null;
   }
 
+  /**
+   * A utility method that conditionally ignores certain throwable objects
+   *
+   * @param t the throwable object
+   * @param msg the message to check
+   * @throws IOException
+   */
   static void handleThrowableWithIgnore(Throwable t, String msg) throws IOException {
     if (t.getMessage().contains(msg)) {
       return;

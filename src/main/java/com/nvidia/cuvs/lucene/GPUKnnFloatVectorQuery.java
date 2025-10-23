@@ -26,7 +26,7 @@ import org.apache.lucene.search.knn.KnnCollectorManager;
 import org.apache.lucene.util.Bits;
 
 /**
- * Query on GPU only
+ * Extends upon {@link org.apache.lucene.search.KnnFloatVectorQuery} for GPU-only search.
  *
  * @since 25.10
  */
@@ -35,6 +35,16 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
   private final int iTopK;
   private final int searchWidth;
 
+  /**
+   * Initializes {@link GPUKnnFloatVectorQuery}
+   *
+   * @param field the vector field name
+   * @param target the vector target query
+   * @param k the topK value
+   * @param filter instance of the {@link org.apache.lucene.search.Query}
+   * @param iTopK the iTopK value
+   * @param searchWidth the search width
+   */
   public GPUKnnFloatVectorQuery(
       String field, float[] target, int k, Query filter, int iTopK, int searchWidth) {
     super(field, target, k, filter);

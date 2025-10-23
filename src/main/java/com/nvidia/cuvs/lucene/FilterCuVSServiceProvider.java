@@ -24,6 +24,10 @@ import com.nvidia.cuvs.spi.CuVSServiceProvider;
  * @since 25.10
  */
 public class FilterCuVSServiceProvider extends CuVSServiceProvider {
+
+  /**
+   * Initialize and return an CuVSProvider provided by this provider.
+   */
   @Override
   public CuVSProvider get(CuVSProvider builtinProvider) {
     return new FilterCuVSProvider(builtinProvider);

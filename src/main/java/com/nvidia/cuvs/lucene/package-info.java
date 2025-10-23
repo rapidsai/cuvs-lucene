@@ -15,7 +15,7 @@
  */
 
 /**
- * CuVS based fast vector search
+ * GPU-based fast vector search pluggable library for Apache Lucene based search platforms.
  *
  * @since 25.10
  */

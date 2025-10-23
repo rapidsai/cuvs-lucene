@@ -65,13 +65,13 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   private final int cuvsWriterThreads;
   private final int intGraphDegree;
   private final int graphDegree;
-  private final int hnswLayers; // Number of layers to create in CAGRA->HNSW conversion
+  private final int hnswLayers;
 
   private final int maxConn;
   private final int beamWidth;
 
   /**
-   * Creates a Lucene99AcceleratedHNSWVectorsFormat, with default values.
+   * Initializes {@link Lucene99AcceleratedHNSWVectorsFormat}, with default values.
    *
    * @throws LibraryException if the native library fails to load
    */
@@ -86,9 +86,14 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   }
 
   /**
-   * Creates a Lucene99AcceleratedHNSWVectorsFormat, with the given threads, graph degree, etc.
+   * Initializes {@link Lucene99AcceleratedHNSWVectorsFormat} with the given threads, graph degree, etc.
    *
-   * @throws LibraryException if the native library fails to load
+   * @param cuvsWriterThreads number of cuVS threads to use while building the CAGRA index
+   * @param intGraphDegree the intermediate graph degree while building the CAGRA index
+   * @param graphDegree the graph degree to use while building the CAGRA index
+   * @param hnswLayers the number of HNSW layers to construct in the HNSW graph
+   * @param maxConn the maximum connections for the HNSW graph
+   * @param beamWidth the beam width to use while building the HNSW graph
    */
   public Lucene99AcceleratedHNSWVectorsFormat(
       int cuvsWriterThreads,
@@ -106,6 +111,9 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
     this.beamWidth = beamWidth;
   }
 
+  /**
+   * Returns a KnnVectorsWriter to write the vectors to the index.
+   */
   @Override
   public KnnVectorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
     var flatWriter = flatVectorsFormat.fieldsWriter(state);
@@ -122,16 +130,25 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
     }
   }
 
+  /**
+   * Returns a KnnVectorsReader to read the vectors from the index.
+   */
   @Override
   public KnnVectorsReader fieldsReader(SegmentReadState state) throws IOException {
     return new Lucene99HnswVectorsReader(state, flatVectorsFormat.fieldsReader(state));
   }
 
+  /**
+   * Returns the maximum number of vector dimensions supported by this codec for the given field name
+   */
   @Override
   public int getMaxDimensions(String fieldName) {
     return maxDimensions;
   }
 
+  /**
+   * Returns a string containing the meta information like hnsw layers, graph degree etc.
+   */
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder(this.getClass().getSimpleName());
@@ -144,19 +161,36 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
     return sb.toString();
   }
 
+  /**
+   * Gets the instance of CuVSResources
+   *
+   * @return the instance of CuVSResources
+   */
   public static CuVSResources getResources() {
     return resources;
   }
 
+  /**
+   * Sets the instance of CuVSResources
+   *
+   * @param resources the instance of CuVSResources to set
+   */
   public static void setResources(CuVSResources resources) {
     Lucene99AcceleratedHNSWVectorsFormat.resources = resources;
   }
 
-  /** Tells whether the platform supports cuVS. */
+  /**
+   * Tells whether the platform supports cuVS.
+   *
+   * @return if cuVS supported or not
+   */
   public static boolean supported() {
     return resources != null;
   }
 
+  /**
+   * Check if cuVS supported and throw {@link UnsupportedOperationException}
+   */
   public static void checkSupported() {
     if (!supported()) {
       throw new UnsupportedOperationException();

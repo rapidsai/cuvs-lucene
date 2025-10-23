@@ -35,6 +35,15 @@ public class GPUIndex implements Closeable {
   private String segmentName;
   private volatile boolean closed;
 
+  /**
+   * Initializes an instance of {@link GPUIndex}
+   *
+   * @param segmentName the name of the segment
+   * @param fieldName the field name
+   * @param cagraIndex reference to the CagraIndex
+   * @param maxDocs the maximum documents
+   * @param bruteforceIndex reference to the BruteForceIndex
+   */
   public GPUIndex(
       String segmentName,
       String fieldName,
@@ -51,39 +60,71 @@ public class GPUIndex implements Closeable {
     this.maxDocs = maxDocs;
   }
 
+  /**
+   * Initializes an instance of {@link GPUIndex}
+   * @param cagraIndex reference to the CagraIndex instance
+   * @param bruteforceIndex reference to the instances of BruteForceIndex
+   */
   public GPUIndex(CagraIndex cagraIndex, BruteForceIndex bruteforceIndex) {
     this.cagraIndex = cagraIndex;
     this.bruteforceIndex = bruteforceIndex;
   }
 
+  /**
+   * Gets the reference to CAGRA index
+   * @return an instance of CagraIndex
+   */
   public CagraIndex getCagraIndex() {
     ensureOpen();
     return cagraIndex;
   }
 
+  /**
+   * Gets the reference to the Bruteforce index
+   * @return an instance of BruteForceIndex
+   */
   public BruteForceIndex getBruteforceIndex() {
     ensureOpen();
     return bruteforceIndex;
   }
 
+  /**
+   * Gets the field name
+   * @return field name
+   */
   public String getFieldName() {
     return fieldName;
   }
 
+  /**
+   * Gets the segment name
+   *
+   * @return segment name
+   */
   public String getSegmentName() {
     return segmentName;
   }
 
+  /**
+   * Gets the max docs
+   * @return the max docs
+   */
   public int getMaxDocs() {
     return maxDocs;
   }
 
+  /**
+   * Throws {@link IllegalArgumentException} if the index is closed
+   */
   private void ensureOpen() {
     if (closed) {
       throw new IllegalStateException("index is closed");
     }
   }
 
+  /**
+   * Closes this stream and releases any system resources associated with it. If the stream is already closed then invoking this method has no effect.
+   */
   @Override
   public void close() throws IOException {
     if (closed) {
@@ -93,6 +134,11 @@ public class GPUIndex implements Closeable {
     destroyIndices();
   }
 
+  /**
+   * Closes the cuVS indexes.
+   *
+   * @throws IOException
+   */
   private void destroyIndices() throws IOException {
     try {
       if (cagraIndex != null) {

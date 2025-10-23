@@ -64,8 +64,7 @@ import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.InfoStream;
 
 /**
- * KnnVectorsWriter for cuVS, responsible for merge and flush of vectors into
- * GPU
+ * extends upon KnnVectorsWriter and has implementation for critical methods like flush, merge etc.
  *
  * @since 25.10
  */
@@ -97,7 +96,9 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   private final InfoStream infoStream;
   private boolean finished;
 
-  /** The CuVS index Type. */
+  /**
+   * The CuVS index Types.
+   */
   public enum IndexType {
 
     /** Builds a Cagra index. */
@@ -135,7 +136,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * Constructor for {@link CuVS2510GPUVectorsWriter}
+   * Initializes {@link CuVS2510GPUVectorsWriter}.
    *
    * @param state instance of the {@link SegmentWriteState}
    * @param cuvsWriterThreads the number of cuVS writer threads
@@ -197,6 +198,9 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     }
   }
 
+  /**
+   * Add new field for indexing.
+   */
   @Override
   public KnnFieldVectorsWriter<?> addField(FieldInfo fieldInfo) throws IOException {
     var encoding = fieldInfo.getVectorEncoding();
@@ -211,6 +215,13 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     return writer;
   }
 
+  /**
+   * Returns a string containing meta information like graphDegree etc.
+   *
+   * @param size index size
+   * @param args other parameters like graph degree, Intermediate graph degree, etc.
+   * @return the string containing the meta information
+   */
   static String indexMsg(int size, int... args) {
     StringBuilder sb = new StringBuilder("cagra index params");
     sb.append(": size=").append(size);
@@ -221,6 +232,12 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     return sb.toString();
   }
 
+  /**
+   * Builds and returns an instance of CagraIndexParams.
+   *
+   * @param size the size of the index
+   * @return an instance of CagraIndexParams
+   */
   private CagraIndexParams cagraIndexParams(int size) {
     if (size < 2) {
       // https://github.com/rapidsai/cuvs/issues/666
@@ -235,12 +252,24 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
         .build();
   }
 
+  /**
+   * Utility to print info/debug messages via InfoStream.
+   *
+   * @param msg
+   */
   private void info(String msg) {
     if (infoStream.isEnabled(CUVS_COMPONENT)) {
       infoStream.message(CUVS_COMPONENT, msg);
     }
   }
 
+  /**
+   * Creates CAGRA and/or Bruteforce indexes and writes them.
+   *
+   * @param fieldInfo Instance of the FieldInFo to use
+   * @param vectors list of float vectors to index
+   * @throws IOException
+   */
   private void writeFieldInternal(FieldInfo fieldInfo, List<float[]> vectors) throws IOException {
     if (vectors.size() == 0) {
       writeEmpty(fieldInfo);
@@ -293,6 +322,13 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     }
   }
 
+  /**
+   * Builds and writes the CAGRA index.
+   *
+   * @param os Instance of the OutputStream
+   * @param dataset The instance of CuVSMatrix holding the dataset
+   * @throws Throwable
+   */
   private void writeCagraIndex(OutputStream os, CuVSMatrix dataset) throws Throwable {
     if (dataset.size() < 2) {
       throw new IllegalArgumentException(dataset.size() + " vectors, less than min [2] required");
@@ -308,6 +344,13 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     index.close();
   }
 
+  /**
+   * Builds and writes the Bruteforce index.
+   *
+   * @param os Instance of OutputStream to write the index to
+   * @param dataset Instance of CuVSMatrix that holds the dataset
+   * @throws Throwable
+   */
   private void writeBruteForceIndex(OutputStream os, CuVSMatrix dataset) throws Throwable {
     BruteForceIndexParams params =
         new BruteForceIndexParams.Builder()
@@ -322,6 +365,9 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     index.close();
   }
 
+  /**
+   * Flush all buffered data on the disk.
+   */
   @Override
   public void flush(int maxDoc, DocMap sortMap) throws IOException {
     flatVectorsWriter.flush(maxDoc, sortMap);
@@ -334,10 +380,21 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     }
   }
 
+  /**
+   * Calls the method that builds indexes and writes them.
+   *
+   * @param fieldData reference to the {@link GPUFieldWriter}
+   * @throws IOException
+   */
   private void writeField(GPUFieldWriter fieldData) throws IOException {
     writeFieldInternal(fieldData.fieldInfo(), fieldData.getVectors());
   }
 
+  /**
+   * @param fieldData reference to the {@link GPUFieldWriter}
+   * @param sortMap reference to DocMap
+   * @throws IOException
+   */
   private void writeSortingField(GPUFieldWriter fieldData, Sorter.DocMap sortMap)
       throws IOException {
 
@@ -353,10 +410,27 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     writeFieldInternal(fieldData.fieldInfo(), sortedVectors);
   }
 
+  /**
+   * Writes empty meta information.
+   *
+   * @param fieldInfo instance of the FieldInfo
+   * @throws IOException
+   */
   private void writeEmpty(FieldInfo fieldInfo) throws IOException {
     writeMeta(fieldInfo, 0, 0L, 0L, 0L, 0L);
   }
 
+  /**
+   * Writes the meta information for the segment.
+   *
+   * @param field instance of FieldInfo
+   * @param count number of vectors
+   * @param cagraIndexOffset CAGRA index offset
+   * @param cagraIndexLength CAGRA index length
+   * @param bruteForceIndexOffset Bruteforce index offset
+   * @param bruteForceIndexLength Bruteforce index length
+   * @throws IOException IOException
+   */
   private void writeMeta(
       FieldInfo field,
       int count,
@@ -394,6 +468,13 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
       during the norm computation between the dataset vectors\
       """;
 
+  /**
+   * Uses the cuVS API to merge CAGRA indexes.
+   *
+   * @param fieldInfo instance of the FieldInfo
+   * @param mergeState instance of the MergeState
+   * @throws IOException IOException
+   */
   private void mergeCagraIndexes(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
     try {
 
@@ -434,8 +515,8 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * Creates List<Float[]> from merged vectors
-   * */
+   * Creates List<Float[]> from merged vectors.
+   */
   private List<float[]> createListFromMergedVectors(FloatVectorValues mergedVectorValues)
       throws IOException {
     List<float[]> res = new ArrayList<float[]>();
@@ -513,6 +594,9 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     }
   }
 
+  /**
+   * Write field for merging.
+   */
   @Override
   public void mergeOneField(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
     flatVectorsWriter.mergeOneField(fieldInfo, mergeState);
@@ -543,6 +627,9 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     }
   }
 
+  /**
+   * Called once at the end before close.
+   */
   @Override
   public void finish() throws IOException {
     if (finished) {
@@ -561,11 +648,17 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     }
   }
 
+  /**
+   * Close the applicable resources.
+   */
   @Override
   public void close() throws IOException {
     IOUtils.close(meta, cuvsIndex, flatVectorsWriter);
   }
 
+  /**
+   * Returns the memory usage of this object in bytes.
+   */
   @Override
   public long ramBytesUsed() {
     long total = SHALLOW_RAM_BYTES_USED;

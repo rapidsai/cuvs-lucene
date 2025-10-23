@@ -43,6 +43,9 @@ import org.apache.lucene.util.RamUsageEstimator;
     this.flatFieldVectorsWriter = flatFieldVectorsWriter;
   }
 
+  /**
+   * Add new docID with its vector value to the given field for indexing. Doc IDs must be added in increasing order.
+   */
   @Override
   public void addValue(int docID, float[] vectorValue) throws IOException {
     if (docID == lastDocID) {
@@ -66,16 +69,25 @@ import org.apache.lucene.util.RamUsageEstimator;
     return flatFieldVectorsWriter.getDocsWithFieldSet();
   }
 
+  /**
+   * Used to copy values being indexed to internal storage.
+   */
   @Override
   public float[] copyValue(float[] vectorValue) {
     throw new UnsupportedOperationException();
   }
 
+  /**
+   * Returns the memory usage of this object in bytes.
+   */
   @Override
   public long ramBytesUsed() {
     return SHALLOW_SIZE + flatFieldVectorsWriter.ramBytesUsed();
   }
 
+  /**
+   * Returns a string containing the field name and number.
+   */
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder(this.getClass().getSimpleName());
