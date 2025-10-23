@@ -36,7 +36,7 @@ import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 
 /**
- * cuVS based KnnVectorsFormat for GPU acceleration
+ * cuVS based KnnVectorsFormat for indexing on GPU and searching on the CPU.
  *
  * @since 25.10
  */
@@ -71,7 +71,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   private final int beamWidth;
 
   /**
-   * Initializes {@link Lucene99AcceleratedHNSWVectorsFormat}, with default values.
+   * Initializes {@link Lucene99AcceleratedHNSWVectorsFormat} with default values.
    *
    * @throws LibraryException if the native library fails to load
    */
@@ -139,7 +139,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   }
 
   /**
-   * Returns the maximum number of vector dimensions supported by this codec for the given field name
+   * Returns the maximum number of vector dimensions supported by this codec for the given field name.
    */
   @Override
   public int getMaxDimensions(String fieldName) {
@@ -189,7 +189,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   }
 
   /**
-   * Check if cuVS supported and throw {@link UnsupportedOperationException}
+   * Checks if cuVS supported and throws {@link UnsupportedOperationException} otherwise.
    */
   public static void checkSupported() {
     if (!supported()) {

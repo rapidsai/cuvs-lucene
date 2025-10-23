@@ -288,6 +288,9 @@ public class GPUBuiltHnswGraph extends HnswGraph {
     }
   }
 
+  /**
+   * Returns the number of nodes in the graph.
+   */
   public int size() {
     return size;
   }
@@ -304,7 +307,7 @@ public class GPUBuiltHnswGraph extends HnswGraph {
   /**
    * Gets the vector dimension.
    *
-   * @return the dimension
+   * @return the vector dimension
    */
   public int dimensions() {
     return dimensions;

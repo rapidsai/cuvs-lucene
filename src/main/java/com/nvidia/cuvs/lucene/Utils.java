@@ -47,15 +47,15 @@ public class Utils {
   }
 
   /**
-   * A method to build a {@link CuVSMatrix} from a list of float vectors.
+   * A method to build a CuVSMatrix from a list of float vectors.
    *
-   * Uses {@link CuVSMatrix.Builder} to copy vectors directly to device memory
+   * Uses CuVSMatrix.Builder to copy vectors directly to device memory
    * without creating intermediate heap arrays.
    *
    * @param data The float vectors
    * @param dimensions The number float elements in each vector
    * @param resources The CuVS resources for device matrix creation
-   * @return an instance of {@link CuVSMatrix}
+   * @return an instance of CuVSMatrix
    */
   static CuVSMatrix createFloatMatrix(List<float[]> data, int dimensions, CuVSResources resources) {
     // Use Builder pattern to avoid intermediate float[][] allocation
@@ -86,9 +86,9 @@ public class Utils {
   }
 
   /**
-   * Creates an instance of {@link com.nvidia.cuvs.CuVSResources}.
+   * Creates an instance of CuVSResources.
    *
-   * @return an instance of {@link com.nvidia.cuvs.CuVSResources}
+   * @return an instance of CuVSResources
    */
   static CuVSResources cuVSResourcesOrNull() {
     try {

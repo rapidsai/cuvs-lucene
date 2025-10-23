@@ -61,7 +61,7 @@ import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.hnsw.IntToIntFunction;
 
 /**
- * KnnVectorsReader instance associated with cuVS format.
+ * KnnVectorsReader instance associated with cuVS format for reading vectors from an index.
  *
  * @since 25.10
  */
@@ -165,8 +165,8 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   /**
    * Confirms that the vector dimensions are as expected.
    *
-   * @param info instance of the FieldInfo
-   * @param fieldEntry instance of the FieldEntry
+   * @param info instance of the FieldInfo that describes document fields
+   * @param fieldEntry instance of the FieldEntry that holds the meta information for the field
    */
   private void validateFieldEntry(FieldInfo info, FieldEntry fieldEntry) {
     int dimension = info.getVectorDimension();
@@ -226,7 +226,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   }
 
   /**
-   * Reads the vector encoding from the DataInput.
+   * Reads the vector encoding (The numeric datatype of the vector values) from the DataInput.
    *
    * @param input instance of DataInput
    * @return the vector encoding
@@ -268,7 +268,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
    *
    * @param field name of the field
    * @param expectedEncoding expected encoding
-   * @return an instance of FieldEntry
+   * @return an instance of FieldEntry that Holds the meta information for the field
    */
   private FieldEntry getFieldEntry(String field, VectorEncoding expectedEncoding) {
     final FieldInfo info = fieldInfos.fieldInfo(field);
@@ -291,7 +291,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   /**
    * Invokes loadCuVSIndex for each field and returns the map of {@link GPUIndex}.
    *
-   * @return the map of {@link GPUIndex}
+   * @return the map containing {@link GPUIndex} objects
    * @throws IOException
    */
   private IntObjectHashMap<GPUIndex> loadCuVSIndices() throws IOException {
@@ -306,7 +306,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   }
 
   /**
-   * Loads the CAGRA and bruteforce (if exists) onto the GPU.
+   * Loads the CAGRA and bruteforce index (if exists) onto the GPU.
    *
    * @param fieldEntry instance of {@link FieldEntry}
    * @return return the instance of {@link GPUIndex}
@@ -341,7 +341,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   }
 
   /**
-   * Closes all given Closeable streams.
+   * Closes the resources.
    */
   @Override
   public void close() throws IOException {
@@ -375,17 +375,21 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   /**
    * Returns the FloatVectorValues for the given field.
    *
-   * This is unsupported
+   * This is not supported.
    */
   @Override
   public ByteVectorValues getByteVectorValues(String field) {
     throw new UnsupportedOperationException("byte vectors not supported");
   }
 
+  /** Native float to float function */
   public interface FloatToFloatFunction {
     float apply(float v);
   }
 
+  /**
+   * Returns a long array from bits.
+   */
   static long[] bitsToLongArray(Bits bits) {
     if (bits instanceof FixedBitSet fixedBitSet) {
       return fixedBitSet.getBits();
@@ -395,7 +399,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   }
 
   /**
-   * Get the score normalization FloatToFloatFunction function.
+   * Get the score normalization function.
    *
    * @param sim instance of VectorSimilarityFunction
    * @return an instance of the FloatToFloatFunction
@@ -409,7 +413,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   static final int FILTER_OVER_SAMPLE = 10;
 
   /**
-   * Return the k nearest neighbor documents as determined by comparison of their vector values for this field, to the given vector, by the field's similarity function.
+   * Returns the k nearest neighbor documents using cuVS's CAGRA or Bruteforce algorithm for this field, to the given vector.
    */
   @Override
   public void search(String field, float[] target, KnnCollector knnCollector, Bits acceptDocs)
@@ -500,7 +504,9 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   }
 
   /**
-   * Return the k nearest neighbor documents as determined by comparison of their vector values for this field, to the given vector, by the field's similarity function.
+   * Return the k nearest neighbor documents as determined by comparison of their vector values for this field, to the given vector.
+   *
+   * This is not supported.
    */
   @Override
   public void search(String field, byte[] target, KnnCollector knnCollector, Bits acceptDocs)
@@ -522,13 +528,13 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
       long bruteForceIndexLength) {
 
     /**
-     * Returns the instance of FieldEntry.
+     * Returns an instance of FieldEntry.
      *
      * @param input instance of IndexInput
      * @param vectorEncoding The numeric datatype of the vector values
      * @param similarityFunction Vector similarity function; used in search to return top K most similar vectors to a target vector
      * @return an instance of FieldEntry
-     * @throws IOException IOException
+     * @throws IOException I/O Exceptions
      */
     static FieldEntry readEntry(
         IndexInput input,
@@ -576,27 +582,27 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   }
 
   /**
-   * Gets the instance of {@link FieldInfos}.
+   * Gets the instance of FieldInfos.
    *
-   * @return the instance of {@link FieldInfos}
+   * @return the instance of FieldInfos
    */
   public FieldInfos getFieldInfos() {
     return fieldInfos;
   }
 
   /**
-   * Get the {@link GPUIndex} map.
+   * Gets the map of {@link GPUIndex} objects.
    *
-   * @return the map of gpu indexes
+   * @return the map of gpu index objects
    */
   public IntObjectHashMap<GPUIndex> getCuvsIndexes() {
     return cuvsIndices;
   }
 
   /**
-   * Get the map of {@link FieldEntry}.
+   * Gets the map of FieldEntry objects that hold the meta information for the field.
    *
-   * @return the map of {@link FieldEntry}
+   * @return the map of FieldEntry objects
    */
   public IntObjectHashMap<FieldEntry> getFieldEntries() {
     return fields;

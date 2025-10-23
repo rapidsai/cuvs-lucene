@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * This class holds references to the actual cuVS Index (Cagra, Brute force, etc.)
+ * This class holds references to the cuVS Index (Cagra, Brute force, etc.)
  *
  * @since 25.10
  */
@@ -62,8 +62,9 @@ public class GPUIndex implements Closeable {
 
   /**
    * Initializes an instance of {@link GPUIndex}
+   *
    * @param cagraIndex reference to the CagraIndex instance
-   * @param bruteforceIndex reference to the instances of BruteForceIndex
+   * @param bruteforceIndex reference to the BruteForceIndex instance
    */
   public GPUIndex(CagraIndex cagraIndex, BruteForceIndex bruteforceIndex) {
     this.cagraIndex = cagraIndex;
@@ -71,7 +72,8 @@ public class GPUIndex implements Closeable {
   }
 
   /**
-   * Gets the reference to CAGRA index
+   * Gets the reference to the CAGRA index
+   *
    * @return an instance of CagraIndex
    */
   public CagraIndex getCagraIndex() {
@@ -81,6 +83,7 @@ public class GPUIndex implements Closeable {
 
   /**
    * Gets the reference to the Bruteforce index
+   *
    * @return an instance of BruteForceIndex
    */
   public BruteForceIndex getBruteforceIndex() {
@@ -90,6 +93,7 @@ public class GPUIndex implements Closeable {
 
   /**
    * Gets the field name
+   *
    * @return field name
    */
   public String getFieldName() {
@@ -107,6 +111,7 @@ public class GPUIndex implements Closeable {
 
   /**
    * Gets the max docs
+   *
    * @return the max docs
    */
   public int getMaxDocs() {
@@ -123,7 +128,7 @@ public class GPUIndex implements Closeable {
   }
 
   /**
-   * Closes this stream and releases any system resources associated with it. If the stream is already closed then invoking this method has no effect.
+   * Closes this stream and releases any resources associated with it.
    */
   @Override
   public void close() throws IOException {

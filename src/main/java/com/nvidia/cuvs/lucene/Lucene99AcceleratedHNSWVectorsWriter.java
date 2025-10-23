@@ -70,7 +70,7 @@ import org.apache.lucene.util.hnsw.NeighborArray;
 import org.apache.lucene.util.packed.DirectMonotonicWriter;
 
 /**
- * This class extends upon the {@link org.apache.lucene.codecs.KnnVectorsWriter} to
+ * This class extends upon the KnnVectorsWriter to
  * enable the creation of GPU-based accelerated vector search indexes.
  *
  * @since 25.10
@@ -187,7 +187,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
    *
    * @param size index size
    * @param args additional metadata information
-   * @return the String representation of the metadata information
+   * @return the string representation of the metadata information
    */
   static String indexMsg(int size, int... args) {
     StringBuilder sb = new StringBuilder("cagra index params");
@@ -200,7 +200,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * Builds the CagraIndexParams.
+   * Builds an instance of CagraIndexParams.
    *
    * @return instance of CagraIndexParams
    */
@@ -214,7 +214,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * A utility method to print debugging messages via InfoStream.
+   * A utility method to print info/debugging messages using InfoStream.
    *
    * @param msg the debugging message to print
    */
@@ -227,7 +227,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   /**
    * Builds the intermediate CAGRA index and builds and writes the HNSW index
    *
-   * @param fieldInfo instance of FieldInfo
+   * @param fieldInfo instance of FieldInfo that has the field description
    * @param vectors vectors to index
    * @throws IOException
    */
@@ -413,15 +413,15 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   /**
    * Writes the meta information for the index.
    *
-   * @param vectorIndex
-   * @param meta
-   * @param field
-   * @param vectorIndexOffset
-   * @param vectorIndexLength
-   * @param count
-   * @param graph
-   * @param graphLevelNodeOffsets
-   * @throws IOException
+   * @param vectorIndex instance of IndexOutput
+   * @param meta instance of IndexOutput
+   * @param field instance of FieldInfo
+   * @param vectorIndexOffset vector index offset
+   * @param vectorIndexLength vector index length
+   * @param count the count of vectors
+   * @param graph instance of HnswGraph
+   * @param graphLevelNodeOffsets graph level node offsets
+   * @throws IOException I/O Exceptions
    */
   private void writeMeta(
       IndexOutput vectorIndex,
@@ -490,11 +490,12 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
+   * Returns a 2D array of offsets (information written while writing the meta info)
    *
-   * @param graph
-   * @param vectorIndex
-   * @return
-   * @throws IOException
+   * @param graph instance of GPUBuiltHnswGraph
+   * @param vectorIndex instance of IndexOutput
+   * @return a 2D array of offsets
+   * @throws IOException I/O Exceptions
    */
   private int[][] writeGraph(GPUBuiltHnswGraph graph, IndexOutput vectorIndex) throws IOException {
     // write vectors' neighbors on each level into the vectorIndex file
@@ -548,7 +549,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * Flush all buffered data on disk
+   * Build the indexes and writes it to the disk.
    */
   @Override
   public void flush(int maxDoc, DocMap sortMap) throws IOException {
@@ -563,6 +564,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
+   * Builds the index and writes it to the disk.
    *
    * @param fieldData
    * @throws IOException
@@ -572,9 +574,10 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
+   * Builds the index and writes it to the disk.
    *
-   * @param fieldData
-   * @param sortMap
+   * @param fieldData instance of GPUFieldWriter
+   * @param sortMap instance of the DocMap
    * @throws IOException
    */
   private void writeSortingField(GPUFieldWriter fieldData, Sorter.DocMap sortMap)
@@ -592,6 +595,13 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
     writeFieldInternal(fieldData.fieldInfo(), sortedVectors);
   }
 
+  /**
+   * Builds and writes a single vector graph.
+   *
+   * @param fieldInfo instance of FieldInfo
+   * @param vectors the list of float vectors
+   * @throws IOException I/O Exceptions
+   */
   private void writeSingleVectorGraph(FieldInfo fieldInfo, List<float[]> vectors)
       throws IOException {
     // Workaround for CAGRA not supporting single vector indexes
@@ -653,10 +663,10 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * Writes an empty meta information.
+   * Writes an empty meta information for the field.
    *
    * @param fieldInfo instance of FieldInfo
-   * @throws IOException IOException
+   * @throws IOException I/O Exceptions
    */
   private void writeEmpty(FieldInfo fieldInfo) throws IOException {
     writeMeta(null, hnswMeta, fieldInfo, 0, 0, 0, null, null);
@@ -672,11 +682,11 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * Uses the CAGRA api to merge the CAGRA indexes.
+   * Uses the CAGRA API to merge the CAGRA indexes.
    *
    * @param fieldInfo instance of FieldInfo
    * @param mergeState instance of MergeState
-   * @throws IOException IOException
+   * @throws IOException I/O Exceptions
    */
   private void mergeCagraIndexes(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
     try {

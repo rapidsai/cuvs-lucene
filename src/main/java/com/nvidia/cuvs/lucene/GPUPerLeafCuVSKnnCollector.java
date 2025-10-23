@@ -24,7 +24,7 @@ import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.knn.KnnSearchStrategy;
 
 /**
- * KnnCollector for cuVS
+ * KnnCollector for cuVS used for search on the GPU.
  *
  * @since 25.10
  */

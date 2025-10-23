@@ -44,7 +44,7 @@ import org.apache.lucene.util.RamUsageEstimator;
   }
 
   /**
-   * Add new docID with its vector value to the given field for indexing. Doc IDs must be added in increasing order.
+   * Add new docID with its vector value to the given field for indexing.
    */
   @Override
   public void addValue(int docID, float[] vectorValue) throws IOException {
@@ -57,14 +57,29 @@ import org.apache.lucene.util.RamUsageEstimator;
     flatFieldVectorsWriter.addValue(docID, vectorValue);
   }
 
+  /**
+   * Gets the list of float vectors.
+   *
+   * @return a list of float vectors
+   */
   List<float[]> getVectors() {
     return flatFieldVectorsWriter.getVectors();
   }
 
+  /**
+   * Gets the field info that holds the description of the field.
+   *
+   * @return an instance of FieldInfo
+   */
   FieldInfo fieldInfo() {
     return fieldInfo;
   }
 
+  /**
+   * Gets the docsWithFieldSet for the field writer.
+   *
+   * @return an instance of DocsWithFieldSet
+   */
   DocsWithFieldSet getDocsWithFieldSet() {
     return flatFieldVectorsWriter.getDocsWithFieldSet();
   }

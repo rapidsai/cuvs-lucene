@@ -15,7 +15,7 @@
  */
 
 /**
- * GPU-based fast vector search pluggable library for Apache Lucene based search platforms.
+ * GPU-based accelerated vector search pluggable library for Apache Lucene search platforms.
  *
  * @since 25.10
  */

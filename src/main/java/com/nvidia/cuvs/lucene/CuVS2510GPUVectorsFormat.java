@@ -66,7 +66,7 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
   final CuVS2510GPUVectorsWriter.IndexType indexType; // the index type to build, when writing
 
   /**
-   * Initializes {@link CuVS2510GPUVectorsFormat} with default values.
+   * Initializes the {@link CuVS2510GPUVectorsFormat} with default parameter values.
    *
    * @throws LibraryException if the native library fails to load
    */
@@ -79,11 +79,11 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
   }
 
   /**
-   * Initializes {@link CuVS2510GPUVectorsFormat},with the given threads, graph degree, etc.
+   * Initializes the {@link CuVS2510GPUVectorsFormat} with the given threads, graph degree, etc.
    *
    * @param cuvsWriterThreads the number of cuVS writer threads to use
-   * @param intGraphDegree the intermediate graph degree for building CAGRA index
-   * @param graphDegree the graph degree for building CAGRA index
+   * @param intGraphDegree the intermediate graph degree for building the CAGRA index
+   * @param graphDegree the graph degree for building the CAGRA index
    * @param indexType the {@link com.nvidia.cuvs.lucene.CuVS2510GPUVectorsWriter.IndexType}
    *
    * @throws LibraryException if the native library fails to load
@@ -149,7 +149,7 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
   }
 
   /**
-   * Checks if cuVS is supported and throws {@link UnsupportedOperationException} if cuVS not supported.
+   * Checks if cuVS is supported and throws {@link UnsupportedOperationException} otherwise.
    */
   public static void checkSupported() {
     if (!supported()) {

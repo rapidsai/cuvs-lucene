@@ -30,11 +30,19 @@ final class IndexInputInputStream extends InputStream {
   long pos = 0;
   final long limit;
 
+  /**
+   * Initializes the {@link IndexInputInputStream}
+   *
+   * @param in instance of IndexInput
+   */
   IndexInputInputStream(IndexInput in) {
     this.in = in;
     this.limit = in.length();
   }
 
+  /**
+   * Reads the next byte of data from the input stream.
+   */
   @Override
   public int read() throws IOException {
     if (pos >= limit) {
@@ -44,6 +52,9 @@ final class IndexInputInputStream extends InputStream {
     return in.readByte();
   }
 
+  /**
+   * Reads up to len bytes of data from the input stream into an array of bytes.
+   */
   @Override
   public int read(byte[] b, int off, int len) throws IOException {
     if (len <= 0) {

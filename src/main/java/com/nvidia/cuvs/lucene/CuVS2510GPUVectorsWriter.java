@@ -97,7 +97,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   private boolean finished;
 
   /**
-   * The CuVS index Types.
+   * The cuVS index Types.
    */
   public enum IndexType {
 
@@ -138,13 +138,13 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   /**
    * Initializes {@link CuVS2510GPUVectorsWriter}.
    *
-   * @param state instance of the {@link SegmentWriteState}
+   * @param state instance of the SegmentWriteState
    * @param cuvsWriterThreads the number of cuVS writer threads
-   * @param intGraphDegree the intermediate graph degree (for building the CAGRA index)
-   * @param graphDegree the graph degree (for building the CAGRA index)
-   * @param indexType the {@link IndexType}
-   * @param resources instance of the {@link CuVSResources}
-   * @param flatVectorsWriter instance of {@link FlatVectorsWriter}
+   * @param intGraphDegree the intermediate graph degree for building the CAGRA index
+   * @param graphDegree the graph degree for building the CAGRA index
+   * @param indexType the IndexType
+   * @param resources instance of the CuVSResources
+   * @param flatVectorsWriter instance of FlatVectorsWriter
    *
    * @throws IOException I/O exceptions
    */
@@ -216,7 +216,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * Returns a string containing meta information like graphDegree etc.
+   * Returns a string containing meta information like graph degree etc.
    *
    * @param size index size
    * @param args other parameters like graph degree, Intermediate graph degree, etc.
@@ -366,7 +366,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * Flush all buffered data on the disk.
+   * Creates the CAGRA and/or Bruteforce indexes and writes them to the disk.
    */
   @Override
   public void flush(int maxDoc, DocMap sortMap) throws IOException {
@@ -381,7 +381,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * Calls the method that builds indexes and writes them.
+   * Calls the method that builds indexes and writes them to the disk.
    *
    * @param fieldData reference to the {@link GPUFieldWriter}
    * @throws IOException
@@ -391,9 +391,11 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
+   * Builds indexes and writes them to the disk.
+   *
    * @param fieldData reference to the {@link GPUFieldWriter}
    * @param sortMap reference to DocMap
-   * @throws IOException
+   * @throws IOException I/O Exceptions
    */
   private void writeSortingField(GPUFieldWriter fieldData, Sorter.DocMap sortMap)
       throws IOException {
@@ -411,17 +413,17 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * Writes empty meta information.
+   * Writes empty meta information for the field.
    *
    * @param fieldInfo instance of the FieldInfo
-   * @throws IOException
+   * @throws IOException I/O Exceptions
    */
   private void writeEmpty(FieldInfo fieldInfo) throws IOException {
     writeMeta(fieldInfo, 0, 0L, 0L, 0L, 0L);
   }
 
   /**
-   * Writes the meta information for the segment.
+   * Writes the meta information for the index.
    *
    * @param field instance of FieldInfo
    * @param count number of vectors
@@ -429,7 +431,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
    * @param cagraIndexLength CAGRA index length
    * @param bruteForceIndexOffset Bruteforce index offset
    * @param bruteForceIndexLength Bruteforce index length
-   * @throws IOException IOException
+   * @throws IOException I/O Exceptions
    */
   private void writeMeta(
       FieldInfo field,
@@ -473,7 +475,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
    *
    * @param fieldInfo instance of the FieldInfo
    * @param mergeState instance of the MergeState
-   * @throws IOException IOException
+   * @throws IOException I/O Exceptions
    */
   private void mergeCagraIndexes(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
     try {
