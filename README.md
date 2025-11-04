@@ -1,17 +1,29 @@
-# Lucene CuVS Integration
+# Lucene cuVS
 
-This is a codec for connecting [CuVS](https://github.com/rapidsai/cuvs), NVIDIA's GPU accelerated vector search library, into [Apache Lucene](https://github.com/apache/lucene).
+This is a project for using [cuVS](https://github.com/rapidsai/cuvs), NVIDIA's GPU accelerated vector search library, with [Apache Lucene](https://github.com/apache/lucene).
 
 ## Overview
 
-The CuVS library is plugged in as a new KnnVectorFormat via a custom codec.
+This library provides a new [KnnVectorFormat](https://lucene.apache.org/core/10_3_1/core/org/apache/lucene/codecs/KnnVectorsFormat.html) which can be plugged into a Lucene codec.
 
-> :warning: This is not production ready yet.
+> [!CAUTION]
+> This is not production ready yet.
 
-## Building
+### Prerequisites
+- [CUDA 12.0+](https://developer.nvidia.com/cuda-toolkit-archive),
+- [Maven 3.9.6+](https://maven.apache.org/download.cgi),
+- [JDK 22](https://jdk.java.net/archive/)
 
-Install NVIDIA drivers, CUDA 12.8, Maven 3.9.6+ and JDK 22.
+### Building
+```sh
+mvn clean compile package
+```
+The artifacts would be built and available in the target / folder.
 
-    mvn clean compile package
+### Run Tests
+```sh
+export LD_LIBRARY_PATH={ PATH TO YOUR LOCAL libcuvs_c.so }:$LD_LIBRARY_PATH && mvn clean test
+```
 
-The artifacts would be built and available in target/ folder.
+> [!NOTE]
+> The code style format is automatically enforced (including the missing license header, if any) using the [Spotless maven plugin](https://github.com/diffplug/spotless/tree/main/plugin-maven). This currently happens in the maven's `validate` stage.
