@@ -1,3 +1,5 @@
 *.jar
 target
 **/.DS_Store
+bin
+.project
