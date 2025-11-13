@@ -10,9 +10,11 @@ repos:
               - id: end-of-file-fixer
               - id: check-symlinks
       - repo: https://github.com/rapidsai/pre-commit-hooks
-        rev: v0.7.0
+        rev: v1.2.0
         hooks:
           - id: verify-copyright
+            name: verify-copyright
+            args: [--fix, --spdx]
             files: |
               (?x)
                   [.](cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx|rs|java)$|
