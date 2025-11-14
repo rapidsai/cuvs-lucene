@@ -9,6 +9,7 @@ set -euo pipefail
 EXTRA_BUILD_ARGS=()
 if [[ "${1:-}" == "--run-java-tests" ]]; then
   EXTRA_BUILD_ARGS+=("--run-java-tests")
+  EXTRA_BUILD_ARGS+=("--build-cuvs-java")
 fi
 
 # shellcheck disable=SC1091

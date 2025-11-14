@@ -63,7 +63,7 @@
     <dependency>
       <groupId>com.nvidia.cuvs</groupId>
       <artifactId>cuvs-java</artifactId>
-      <!--CUVS_LUCENE#VERSION_UPDATE_MARKER_START--><version>25.10.0</version><!--CUVS_LUCENE#VERSION_UPDATE_MARKER_END-->
+      <!--CUVS_LUCENE#VERSION_UPDATE_MARKER_START--><version>25.12.0</version><!--CUVS_LUCENE#VERSION_UPDATE_MARKER_END-->
     </dependency>
   </dependencies>
 
