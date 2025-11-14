@@ -20,7 +20,9 @@ repos:
                   [.](cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx|rs|java)$|
                   CMakeLists[.]txt$|
                   CMakeLists_standalone[.]txt$|
-                  meta[.]yaml$
+                  meta[.]yaml$|
+                  dependencies[.]yaml$|
+                  ^[.]pre-commit-config[.]yaml$
       - repo: https://github.com/rapidsai/dependency-file-generator
         rev: v1.20.0
         hooks:
