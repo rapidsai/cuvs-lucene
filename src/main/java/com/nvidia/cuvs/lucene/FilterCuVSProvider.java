@@ -14,6 +14,7 @@ import com.nvidia.cuvs.CuVSMatrix.Builder;
 import com.nvidia.cuvs.CuVSMatrix.DataType;
 import com.nvidia.cuvs.CuVSResources;
 import com.nvidia.cuvs.HnswIndex;
+import com.nvidia.cuvs.HnswIndexParams;
 import com.nvidia.cuvs.spi.CuVSProvider;
 import java.lang.invoke.MethodHandle;
 import java.nio.file.Path;
@@ -135,5 +136,11 @@ import java.util.logging.Level;
   @Override
   public void setLogLevel(Level arg0) {
     // TODO Auto-generated method stub
+  }
+
+  @Override
+  public HnswIndex hnswIndexFromCagra(HnswIndexParams arg0, CagraIndex arg1) throws Throwable {
+    // TODO Auto-generated method stub
+    return null;
   }
 }

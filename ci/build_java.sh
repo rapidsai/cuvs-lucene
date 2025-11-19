@@ -11,8 +11,9 @@ set -euo pipefail
 EXTRA_BUILD_ARGS=()
 if [[ "${1:-}" == "--run-java-tests" ]]; then
   EXTRA_BUILD_ARGS+=("--run-java-tests")
-  EXTRA_BUILD_ARGS+=("--build-cuvs-java")
 fi
+
+EXTRA_BUILD_ARGS+=("--build-cuvs-java")
 
 # shellcheck disable=SC1091
 . /opt/conda/etc/profile.d/conda.sh
