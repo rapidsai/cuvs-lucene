@@ -15,6 +15,10 @@ function hasArg {
     (( NUMARGS != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
+function checkIfBranchExists () {
+  return "$(eval "git ls-remote --heads $1 refs/heads/$2")"
+}
+
 if hasArg --build-cuvs-java; then
   CUVS_WORKDIR="cuvs-workdir"
   CUVS_GIT_REPO="https://github.com/rapidsai/cuvs.git"
@@ -24,7 +28,22 @@ if hasArg --build-cuvs-java; then
     git pull
   else
     echo "Directory '$CUVS_WORKDIR' does not exist or is empty. Cloning the cuvs repository."
-    git clone --branch main $CUVS_GIT_REPO $CUVS_WORKDIR
+    # Correct branch selection is crucial to avoid version mismatch issues when testing.
+    VERSION_IN_FILE=$(cat "VERSION")
+    VERSION_SHORT=${VERSION_IN_FILE::-3}
+    # First look for a branch example: release/25.12.01 (if exists, when a patch version exists instead of just '00').
+    if [[ -n $(checkIfBranchExists $CUVS_GIT_REPO "release/$VERSION_IN_FILE") ]]; then
+      echo "The branch: release/$VERSION_IN_FILE exists"
+      git clone --branch "release/$VERSION_IN_FILE" $CUVS_GIT_REPO $CUVS_WORKDIR
+    # Else look for a branch example: release/25.12.
+    elif [[ -n $(checkIfBranchExists $CUVS_GIT_REPO "release/$VERSION_SHORT") ]]; then
+      echo "The branch: release/$VERSION_SHORT exists"
+      git clone --branch "release/$VERSION_SHORT" $CUVS_GIT_REPO $CUVS_WORKDIR
+    # Fallback to the main in the worst case, that is certain to exist.
+    else
+      echo "Falling back to the main branch for the cuvs repo."
+      git clone --branch main $CUVS_GIT_REPO $CUVS_WORKDIR
+    fi
     pushd $CUVS_WORKDIR
   fi
   if [ -n "${RAPIDS_LOGGER_INCLUDE_DIR:-}" ]; then
@@ -35,9 +54,7 @@ if hasArg --build-cuvs-java; then
     echo "Couldn't find a suitable rapids logger include directory."
     exit 1
   fi
-  LD_LIBRARY_PATH="$(pwd)/cpp/build/c"
-  export LD_LIBRARY_PATH
-  ./build.sh libcuvs java
+  ./build.sh java
   popd
 fi
 
