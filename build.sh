@@ -17,18 +17,18 @@ function hasArg {
 
 if hasArg --build-cuvs-java; then
   CUVS_WORKDIR="cuvs-workdir"
+  CUVS_GIT_REPO="https://github.com/rapidsai/cuvs.git"
   if [[ -d "$CUVS_WORKDIR" && -n "$(ls -A "$CUVS_WORKDIR")" ]]; then
     echo "Directory '$CUVS_WORKDIR' exists and is not empty."
-    cd $CUVS_WORKDIR
+    pushd $CUVS_WORKDIR
     git pull
   else
     echo "Directory '$CUVS_WORKDIR' does not exist or is empty. Cloning the cuvs repository."
-    git clone --branch main https://github.com/rapidsai/cuvs.git $CUVS_WORKDIR
-    cd $CUVS_WORKDIR
+    git clone --branch main $CUVS_GIT_REPO $CUVS_WORKDIR
+    pushd $CUVS_WORKDIR
   fi
-
   if [ -n "${RAPIDS_LOGGER_INCLUDE_DIR:-}" ]; then
-    echo "Using user-defined RAPIDS_LOGGER_INCLUDE_DIR which is: ${RAPIDS_LOGGER_INCLUDE_DIR}"
+    echo "Using user-defined RAPIDS_LOGGER_INCLUDE_DIR: ${RAPIDS_LOGGER_INCLUDE_DIR}"
   elif [ -n "${CONDA_PREFIX:-}" ]; then
     RAPIDS_LOGGER_INCLUDE_DIR="${CONDA_PREFIX}/include"
   else
@@ -38,7 +38,7 @@ if hasArg --build-cuvs-java; then
   LD_LIBRARY_PATH="$(pwd)/cpp/build/c"
   export LD_LIBRARY_PATH
   ./build.sh libcuvs java
-  cd ..
+  popd
 fi
 
 MAVEN_VERIFY_ARGS=()
