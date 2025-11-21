@@ -46,14 +46,6 @@ if hasArg --build-cuvs-java; then
     fi
     pushd $CUVS_WORKDIR
   fi
-  if [ -n "${RAPIDS_LOGGER_INCLUDE_DIR:-}" ]; then
-    echo "Using user-defined RAPIDS_LOGGER_INCLUDE_DIR: ${RAPIDS_LOGGER_INCLUDE_DIR}"
-  elif [ -n "${CONDA_PREFIX:-}" ]; then
-    RAPIDS_LOGGER_INCLUDE_DIR="${CONDA_PREFIX}/include"
-  else
-    echo "Couldn't find a suitable rapids logger include directory."
-    exit 1
-  fi
   ./build.sh java
   popd
 fi
