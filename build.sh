@@ -15,10 +15,6 @@ function hasArg {
     (( NUMARGS != 0 )) && (echo " ${ARGS} " | grep -q " $1 ")
 }
 
-function checkIfBranchExists () {
-  return "$(eval "git ls-remote --heads $1 refs/heads/$2")"
-}
-
 if hasArg --build-cuvs-java; then
   CUVS_WORKDIR="cuvs-workdir"
   CUVS_GIT_REPO="https://github.com/rapidsai/cuvs.git"
@@ -27,23 +23,10 @@ if hasArg --build-cuvs-java; then
     pushd $CUVS_WORKDIR
     git pull
   else
-    echo "Directory '$CUVS_WORKDIR' does not exist or is empty. Cloning the cuvs repository."
+    BRANCH=$(cat "RAPIDS_BRANCH")
+    echo "Directory '$CUVS_WORKDIR' does not exist or is empty. Cloning the cuvs's '$BRANCH' branch."
     # Correct branch selection is crucial to avoid version mismatch issues when testing.
-    VERSION_IN_FILE=$(cat "VERSION")
-    VERSION_SHORT=${VERSION_IN_FILE::-3}
-    # First look for a branch example: release/25.12.01 (if exists, when a patch version exists instead of just '00').
-    if [[ -n $(checkIfBranchExists $CUVS_GIT_REPO "release/$VERSION_IN_FILE") ]]; then
-      echo "The branch: release/$VERSION_IN_FILE exists"
-      git clone --branch "release/$VERSION_IN_FILE" $CUVS_GIT_REPO $CUVS_WORKDIR
-    # Else look for a branch example: release/25.12.
-    elif [[ -n $(checkIfBranchExists $CUVS_GIT_REPO "release/$VERSION_SHORT") ]]; then
-      echo "The branch: release/$VERSION_SHORT exists"
-      git clone --branch "release/$VERSION_SHORT" $CUVS_GIT_REPO $CUVS_WORKDIR
-    # Fallback to the main in the worst case, that is certain to exist.
-    else
-      echo "Falling back to the main branch for the cuvs repo."
-      git clone --branch main $CUVS_GIT_REPO $CUVS_WORKDIR
-    fi
+    git clone --branch "$BRANCH" $CUVS_GIT_REPO $CUVS_WORKDIR
     pushd $CUVS_WORKDIR
   fi
   ./build.sh java
