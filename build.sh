@@ -34,7 +34,7 @@ if hasArg --build-cuvs-java; then
 fi
 
 MAVEN_VERIFY_ARGS=()
-if ! hasArg --run-tests; then
+if ! hasArg --run-java-tests; then
   MAVEN_VERIFY_ARGS=("-DskipTests")
 fi
 
@@ -43,6 +43,6 @@ mvn clean verify "${MAVEN_VERIFY_ARGS[@]}" \
   && cp pom.xml ./target/
 
 # Generate JaCoCo code coverage reports available here: target/site/jacoco/index.html
-if hasArg --run-tests; then
+if hasArg --run-java-tests; then
   mvn jacoco:report
 fi

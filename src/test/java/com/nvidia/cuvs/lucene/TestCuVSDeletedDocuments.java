@@ -40,7 +40,7 @@ import org.apache.lucene.tests.util.TestUtil;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-@SuppressSysoutChecks(bugUrl = "prints info from within cuVS")
+@SuppressSysoutChecks(bugUrl = "")
 public class TestCuVSDeletedDocuments extends LuceneTestCase {
 
   protected static Logger log = Logger.getLogger(TestCuVSDeletedDocuments.class.getName());

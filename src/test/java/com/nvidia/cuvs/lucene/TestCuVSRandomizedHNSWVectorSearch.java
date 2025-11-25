@@ -40,7 +40,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-@SuppressSysoutChecks(bugUrl = "prints info from within cuVS")
+@SuppressSysoutChecks(bugUrl = "")
 public class TestCuVSRandomizedHNSWVectorSearch extends LuceneTestCase {
 
   protected static Logger log =

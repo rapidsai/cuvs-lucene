@@ -9,8 +9,8 @@ set -euo pipefail
 #       and test_java.sh no longer calls build_java.sh
 #       ref: https://github.com/rapidsai/cuvs/issues/868
 EXTRA_BUILD_ARGS=()
-if [[ "${1:-}" == "--run-tests" ]]; then
-  EXTRA_BUILD_ARGS+=("--run-tests")
+if [[ "${1:-}" == "--run-java-tests" ]]; then
+  EXTRA_BUILD_ARGS+=("--run-java-tests")
 fi
 
 # Always build cuvs-java when running the pipeline
