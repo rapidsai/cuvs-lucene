@@ -31,14 +31,13 @@ import java.util.TreeSet;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
-import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatFieldVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
-import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.DocsWithFieldSet;
 import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.KnnVectorValues;
 import org.apache.lucene.index.MergeState;
@@ -56,7 +55,7 @@ import org.apache.lucene.util.packed.DirectMonotonicWriter;
 
 /**
  * This class extends upon the KnnVectorsWriter to enable the creation of GPU-based accelerated
- * vector search indexes for scalar quantized vectors (7-bit signed → 8-bit unsigned).
+ * vector search indexes.
  *
  * @since 25.10
  */
@@ -77,7 +76,7 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
   private final int graphDegree;
   private final int hnswLayers; // Number of layers to create in CAGRA->HNSW conversion
   private final CuVSResources resources;
-  private final FlatVectorsWriter flatVectorsWriter; // for writing the raw quantized vectors
+  private final FlatVectorsWriter flatVectorsWriter;
   private final List<ScalarQuantizedGPUFieldWriter> fields = new ArrayList<>();
   private final InfoStream infoStream;
   private IndexOutput cuvsIndex = null;
@@ -159,14 +158,12 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
     var writer = Objects.requireNonNull(flatVectorsWriter.addField(fieldInfo));
 
     if (encoding == FLOAT32) {
-      // Accept FLOAT32 vectors - we'll quantize them ourselves
       @SuppressWarnings("unchecked")
       var flatWriter = (FlatFieldVectorsWriter<float[]>) writer;
       var cuvsFieldWriter = new ScalarQuantizedGPUFieldWriter(fieldInfo, flatWriter);
       fields.add(cuvsFieldWriter);
       return writer;
     } else if (encoding == BYTE) {
-      // Accept BYTE vectors (already quantized)
       @SuppressWarnings("unchecked")
       var flatWriter = (FlatFieldVectorsWriter<byte[]>) writer;
       var cuvsFieldWriter = new ScalarQuantizedGPUFieldWriter(fieldInfo, flatWriter);
@@ -220,24 +217,10 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
     }
   }
 
-  /**
-   * Converts 7-bit signed bytes (-64 to 63) to 8-bit unsigned bytes (0-255) for cuVS compatibility.
-   *
-   * @param signedByte 7-bit signed byte value
-   * @return 8-bit unsigned byte value
-   */
   private static byte signedToUnsignedByte(byte signedByte) {
-    // Convert signed byte (-64 to 63) to unsigned (0-255)
-    // Formula: unsigned = (signed & 0xFF) which effectively adds 128 for negative values
     return (byte) (signedByte & 0xFF);
   }
 
-  /**
-   * Converts a scalar quantized vector from 7-bit signed to 8-bit unsigned format.
-   *
-   * @param signedVector 7-bit signed byte vector
-   * @return 8-bit unsigned byte vector
-   */
   private static byte[] convertSignedToUnsigned(byte[] signedVector) {
     byte[] unsignedVector = new byte[signedVector.length];
     for (int i = 0; i < signedVector.length; i++) {
@@ -247,11 +230,10 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
   }
 
   /**
-   * Builds the intermediate CAGRA index and builds and writes the HNSW index for scalar quantized vectors.
-   * Converts 7-bit signed bytes to 8-bit unsigned bytes for cuVS compatibility.
+   * Builds the intermediate CAGRA index and builds and writes the HNSW index.
    *
    * @param fieldInfo instance of FieldInfo that has the field description
-   * @param vectors scalar quantized vectors (7-bit signed bytes, one byte per dimension)
+   * @param vectors quantized vectors
    * @throws IOException
    */
   private void writeFieldInternal(FieldInfo fieldInfo, List<byte[]> vectors) throws IOException {
@@ -274,7 +256,6 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
       CuVSMatrix dataset = Utils.createByteMatrix(unsignedVectors, dimensions, resources);
 
       if (dataset.size() < 2) {
-        // Handle single vector case by creating a dummy HNSW graph
         writeSingleVectorGraph(fieldInfo, unsignedVectors);
         return;
       }
@@ -284,12 +265,9 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
       CagraIndex cagraIndex =
           CagraIndex.newBuilder(resources).withDataset(dataset).withIndexParams(params).build();
 
-      // Get the adjacency list from CAGRA index
       CuVSMatrix adjacencyListMatrix = cagraIndex.getGraph();
 
       int size = (int) dataset.size();
-
-      // Create multi-layer HNSW graph from CAGRA
       GPUBuiltHnswGraph hnswGraph =
           createMultiLayerHnswGraph(
               fieldInfo, size, dimensions, adjacencyListMatrix, unsignedVectors, hnswLayers);
@@ -721,8 +699,8 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
   public void mergeOneField(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
     flatVectorsWriter.mergeOneField(fieldInfo, mergeState);
 
-    // For scalar quantized vectors, fallback to vector-based merge
-    // since we need to read quantized vectors, convert them, and rebuild the index
+    // Rebuild HNSW index from merged quantized vectors
+    // Similar to Lucene99AcceleratedHNSWVectorsWriter.vectorBasedMerge
     vectorBasedMerge(fieldInfo, mergeState);
   }
 
@@ -731,28 +709,57 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
    * Used when native CAGRA merge() is not possible.
    */
   private void vectorBasedMerge(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
-    if (fieldInfo.getVectorEncoding() != BYTE) {
-      throw new AssertionError("Only BYTE encoding supported for scalar quantized vectors");
-    }
     try {
-      // Read merged scalar quantized vectors (7-bit signed)
-      // Note: mergeByteVectorValues may not be available in all Lucene versions
-      // Fallback to reading from individual readers
-      List<byte[]> dataset = new ArrayList<>();
-      for (int i = 0; i < mergeState.knnVectorsReaders.length; i++) {
-        KnnVectorsReader reader = mergeState.knnVectorsReaders[i];
-        if (reader != null) {
-          ByteVectorValues byteVectorValues = reader.getByteVectorValues(fieldInfo.name);
-          if (byteVectorValues != null) {
-            KnnVectorValues.DocIndexIterator iter = byteVectorValues.iterator();
-            for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
-              byte[] vector = byteVectorValues.vectorValue(iter.index());
-              dataset.add(vector);
+      FloatVectorValues mergedVectorValues =
+          KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState);
+
+      if (mergedVectorValues != null) {
+        List<float[]> floatVectors = new ArrayList<>();
+        KnnVectorValues.DocIndexIterator iter = mergedVectorValues.iterator();
+        for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
+          float[] vector = mergedVectorValues.vectorValue(iter.index());
+          floatVectors.add(vector);
+        }
+
+        if (!floatVectors.isEmpty()) {
+          int dimensions = floatVectors.get(0).length;
+          int numVectors = floatVectors.size();
+
+          float[] minPerDim = new float[dimensions];
+          float[] maxPerDim = new float[dimensions];
+          Arrays.fill(minPerDim, Float.MAX_VALUE);
+          Arrays.fill(maxPerDim, Float.MIN_VALUE);
+
+          for (float[] vector : floatVectors) {
+            for (int d = 0; d < dimensions; d++) {
+              minPerDim[d] = Math.min(minPerDim[d], vector[d]);
+              maxPerDim[d] = Math.max(maxPerDim[d], vector[d]);
             }
           }
+
+          List<byte[]> dataset = new ArrayList<>(numVectors);
+          for (float[] vector : floatVectors) {
+            byte[] quantized = new byte[dimensions];
+            for (int d = 0; d < dimensions; d++) {
+              float value = vector[d];
+              float min = minPerDim[d];
+              float max = maxPerDim[d];
+
+              byte signedByte;
+              if (max - min == 0) {
+                signedByte = 0;
+              } else {
+                float normalized = (value - min) / (max - min);
+                signedByte = (byte) Math.round(normalized * 127 - 64);
+              }
+
+              quantized[d] = signedToUnsignedByte(signedByte);
+            }
+            dataset.add(quantized);
+          }
+          writeFieldInternal(fieldInfo, dataset);
         }
       }
-      writeFieldInternal(fieldInfo, dataset);
     } catch (Throwable t) {
       Utils.handleThrowable(t);
     }
@@ -853,7 +860,6 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
 
     List<byte[]> getVectors() {
       if (isFloatEncoding) {
-        // Quantize FLOAT32 vectors to 7-bit signed bytes, then convert to 8-bit unsigned
         @SuppressWarnings("unchecked")
         FlatFieldVectorsWriter<float[]> floatWriter =
             (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter;
@@ -867,10 +873,6 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
       }
     }
 
-    /**
-     * Quantizes FLOAT32 vectors to 7-bit signed bytes using scalar quantization.
-     * For 7-bit quantization: maps float range to [-64, 63] (signed byte range).
-     */
     private List<byte[]> quantizeFloatVectors(List<float[]> floatVectors) {
       if (floatVectors.isEmpty()) {
         return new ArrayList<>();
@@ -879,7 +881,6 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
       int dimensions = floatVectors.get(0).length;
       int numVectors = floatVectors.size();
 
-      // Calculate min/max per dimension
       float[] minPerDim = new float[dimensions];
       float[] maxPerDim = new float[dimensions];
       Arrays.fill(minPerDim, Float.MAX_VALUE);
@@ -899,12 +900,11 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
         for (int d = 0; d < dimensions; d++) {
           float range = maxPerDim[d] - minPerDim[d];
           if (range > 0) {
-            // Map [min, max] to [0, 127] (7-bit unsigned), then shift to [-64, 63] (7-bit signed)
             float normalized = (vector[d] - minPerDim[d]) / range;
             int quantizedValue = Math.round(normalized * 127.0f) - 64;
             quantized[d] = (byte) Math.max(-64, Math.min(63, quantizedValue));
           } else {
-            quantized[d] = 0; // All values are the same
+            quantized[d] = 0;
           }
         }
         quantizedVectors.add(quantized);

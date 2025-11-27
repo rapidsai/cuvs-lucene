@@ -31,14 +31,13 @@ import java.util.TreeSet;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
-import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatFieldVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
-import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.DocsWithFieldSet;
 import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.KnnVectorValues;
 import org.apache.lucene.index.MergeState;
@@ -56,7 +55,7 @@ import org.apache.lucene.util.packed.DirectMonotonicWriter;
 
 /**
  * This class extends upon the KnnVectorsWriter to enable the creation of GPU-based accelerated
- * vector search indexes for binary quantized vectors (1-bit per dimension, packed into bytes).
+ * vector search indexes.
  *
  * @since 25.10
  */
@@ -157,16 +156,14 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
   public KnnFieldVectorsWriter<?> addField(FieldInfo fieldInfo) throws IOException {
     var encoding = fieldInfo.getVectorEncoding();
     var writer = Objects.requireNonNull(flatVectorsWriter.addField(fieldInfo));
-    
+
     if (encoding == FLOAT32) {
-      // Accept FLOAT32 vectors - we'll quantize them ourselves
       @SuppressWarnings("unchecked")
       var flatWriter = (FlatFieldVectorsWriter<float[]>) writer;
       var cuvsFieldWriter = new BinaryQuantizedGPUFieldWriter(fieldInfo, flatWriter);
       fields.add(cuvsFieldWriter);
       return writer;
     } else if (encoding == BYTE) {
-      // Accept BYTE vectors (already quantized)
       @SuppressWarnings("unchecked")
       var flatWriter = (FlatFieldVectorsWriter<byte[]>) writer;
       var cuvsFieldWriter = new BinaryQuantizedGPUFieldWriter(fieldInfo, flatWriter);
@@ -236,16 +233,12 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
     }
 
     try {
-      // Binary quantized vectors are already in BYTE format (packed bits)
-      // Calculate the number of bytes per vector (dimensions / 8, rounded up)
       int dimensions = fieldInfo.getVectorDimension();
-      int bytesPerVector = (dimensions + 7) / 8; // Round up to nearest byte
+      int bytesPerVector = (dimensions + 7) / 8;
 
-      // Create CuVSMatrix with BYTE data type
       CuVSMatrix dataset = Utils.createByteMatrix(vectors, bytesPerVector, resources);
 
       if (dataset.size() < 2) {
-        // Handle single vector case by creating a dummy HNSW graph
         writeSingleVectorGraph(fieldInfo, vectors);
         return;
       }
@@ -255,7 +248,6 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
       CagraIndex cagraIndex =
           CagraIndex.newBuilder(resources).withDataset(dataset).withIndexParams(params).build();
 
-      // Get the adjacency list from CAGRA index
       CuVSMatrix adjacencyListMatrix = cagraIndex.getGraph();
 
       int size = (int) dataset.size();
@@ -284,12 +276,7 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
           graphLevelNodeOffsets);
 
       long elapsedMillis = Utils.nanosToMillis(System.nanoTime() - startTime);
-      info(
-          "HNSW graph created in "
-              + elapsedMillis
-              + "ms, with "
-              + dataset.size()
-              + " binary quantized vectors");
+      info("HNSW graph created in " + elapsedMillis + "ms, with " + dataset.size() + " vectors");
 
       cagraIndex.close();
 
@@ -693,9 +680,6 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
   @Override
   public void mergeOneField(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
     flatVectorsWriter.mergeOneField(fieldInfo, mergeState);
-
-    // For binary quantized vectors, fallback to vector-based merge
-    // since we need to read quantized vectors and rebuild the index
     vectorBasedMerge(fieldInfo, mergeState);
   }
 
@@ -704,28 +688,52 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
    * Used when native CAGRA merge() is not possible.
    */
   private void vectorBasedMerge(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
-    if (fieldInfo.getVectorEncoding() != BYTE) {
-      throw new AssertionError("Only BYTE encoding supported for binary quantized vectors");
-    }
     try {
-      // Read merged binary quantized vectors
-      // Note: mergeByteVectorValues may not be available in all Lucene versions
-      // Fallback to reading from individual readers
-      List<byte[]> dataset = new ArrayList<>();
-      for (int i = 0; i < mergeState.knnVectorsReaders.length; i++) {
-        KnnVectorsReader reader = mergeState.knnVectorsReaders[i];
-        if (reader != null) {
-          ByteVectorValues byteVectorValues = reader.getByteVectorValues(fieldInfo.name);
-          if (byteVectorValues != null) {
-            KnnVectorValues.DocIndexIterator iter = byteVectorValues.iterator();
-            for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
-              byte[] vector = byteVectorValues.vectorValue(iter.index());
-              dataset.add(vector);
+      // Read merged FLOAT32 vectors and quantize them
+      // The flat format stores them as FLOAT32, but we need BYTE (quantized) for cuVS
+      FloatVectorValues mergedVectorValues =
+          KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState);
+
+      if (mergedVectorValues != null) {
+        // Collect all float vectors
+        List<float[]> floatVectors = new ArrayList<>();
+        KnnVectorValues.DocIndexIterator iter = mergedVectorValues.iterator();
+        for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
+          float[] vector = mergedVectorValues.vectorValue(iter.index());
+          floatVectors.add(vector);
+        }
+
+        if (!floatVectors.isEmpty()) {
+          int dimensions = floatVectors.get(0).length;
+          int numVectors = floatVectors.size();
+          int bytesPerVector = (dimensions + 7) / 8;
+
+          float[] centroids = new float[dimensions];
+          for (float[] vector : floatVectors) {
+            for (int d = 0; d < dimensions; d++) {
+              centroids[d] += vector[d];
             }
           }
+          for (int d = 0; d < dimensions; d++) {
+            centroids[d] /= numVectors;
+          }
+
+          List<byte[]> dataset = new ArrayList<>(numVectors);
+          for (float[] vector : floatVectors) {
+            byte[] quantized = new byte[bytesPerVector];
+            for (int d = 0; d < dimensions; d++) {
+              boolean bit = vector[d] > centroids[d];
+              int byteIndex = d / 8;
+              int bitIndex = d % 8;
+              if (bit) {
+                quantized[byteIndex] |= (1 << bitIndex);
+              }
+            }
+            dataset.add(quantized);
+          }
+          writeFieldInternal(fieldInfo, dataset);
         }
       }
-      writeFieldInternal(fieldInfo, dataset);
     } catch (Throwable t) {
       Utils.handleThrowable(t);
     }
@@ -776,10 +784,6 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
     return total;
   }
 
-  /**
-   * Helper class for binary quantized field writer
-   * Handles both FLOAT32 (quantizes to binary) and BYTE (already quantized) encodings
-   */
   private static class BinaryQuantizedGPUFieldWriter extends KnnFieldVectorsWriter<Object> {
 
     private static final long SHALLOW_SIZE =
@@ -810,25 +814,28 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
       }
       if (isFloatEncoding) {
         @SuppressWarnings("unchecked")
-        FlatFieldVectorsWriter<float[]> floatWriter = (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter;
+        FlatFieldVectorsWriter<float[]> floatWriter =
+            (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter;
         floatWriter.addValue(docID, (float[]) vectorValue);
       } else {
         @SuppressWarnings("unchecked")
-        FlatFieldVectorsWriter<byte[]> byteWriter = (FlatFieldVectorsWriter<byte[]>) flatFieldVectorsWriter;
+        FlatFieldVectorsWriter<byte[]> byteWriter =
+            (FlatFieldVectorsWriter<byte[]>) flatFieldVectorsWriter;
         byteWriter.addValue(docID, (byte[]) vectorValue);
       }
     }
 
     List<byte[]> getVectors() {
       if (isFloatEncoding) {
-        // Quantize FLOAT32 vectors to binary (1 bit per dimension, packed into bytes)
         @SuppressWarnings("unchecked")
-        FlatFieldVectorsWriter<float[]> floatWriter = (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter;
+        FlatFieldVectorsWriter<float[]> floatWriter =
+            (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter;
         List<float[]> floatVectors = floatWriter.getVectors();
         return quantizeFloatVectorsToBinary(floatVectors);
       } else {
         @SuppressWarnings("unchecked")
-        FlatFieldVectorsWriter<byte[]> byteWriter = (FlatFieldVectorsWriter<byte[]>) flatFieldVectorsWriter;
+        FlatFieldVectorsWriter<byte[]> byteWriter =
+            (FlatFieldVectorsWriter<byte[]>) flatFieldVectorsWriter;
         return byteWriter.getVectors();
       }
     }
@@ -859,12 +866,10 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
         centroids[d] /= numVectors;
       }
 
-      // Quantize to binary and pack into bytes
       List<byte[]> quantizedVectors = new ArrayList<>(numVectors);
       for (float[] vector : floatVectors) {
         byte[] quantized = new byte[bytesPerVector];
         for (int d = 0; d < dimensions; d++) {
-          // Binary quantization: 1 if value > centroid, 0 otherwise
           boolean bit = vector[d] > centroids[d];
           int byteIndex = d / 8;
           int bitIndex = d % 8;

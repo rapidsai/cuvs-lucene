@@ -15,18 +15,13 @@ import java.util.logging.Logger;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
-import org.apache.lucene.codecs.hnsw.DefaultFlatVectorScorer;
 import org.apache.lucene.codecs.hnsw.FlatVectorsFormat;
-import org.apache.lucene.codecs.lucene99.Lucene99FlatVectorsFormat;
-// Note: These classes may not exist in Lucene 10.2.0 - using format classes directly
-// import org.apache.lucene.codecs.lucene102.Lucene102HnswBinaryQuantizedVectorsReader;
-// import org.apache.lucene.codecs.lucene102.Lucene102HnswBinaryQuantizedVectorsWriter;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 
 /**
- * cuVS based KnnVectorsFormat for binary quantized vectors (1-bit per dimension, packed into bytes).
- * Indexes on GPU and searches on CPU.
+ * cuVS based KnnVectorsFormat for indexing on GPU and searching on the CPU.
  *
  * @since 25.10
  */
@@ -129,11 +124,7 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVect
    */
   @Override
   public KnnVectorsReader fieldsReader(SegmentReadState state) throws IOException {
-    // Fallback to Lucene's format
-    org.apache.lucene.codecs.lucene102.Lucene102HnswBinaryQuantizedVectorsFormat fallbackFormat =
-        new org.apache.lucene.codecs.lucene102.Lucene102HnswBinaryQuantizedVectorsFormat(
-            maxConn, beamWidth);
-    return fallbackFormat.fieldsReader(state);
+    return new Lucene99HnswVectorsReader(state, flatVectorsFormat.fieldsReader(state));
   }
 
   /**

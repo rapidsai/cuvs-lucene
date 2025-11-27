@@ -17,15 +17,12 @@ import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsFormat;
-// Note: These classes may not exist in Lucene 10.2.0 - using format classes directly
-// import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsReader;
-// import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsWriter;
+import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 
 /**
- * cuVS based KnnVectorsFormat for scalar quantized vectors (7-bit signed → 8-bit unsigned).
- * Indexes on GPU and searches on CPU.
+ * cuVS based KnnVectorsFormat for indexing on GPU and searching on the CPU.
  *
  * @since 25.10
  */
@@ -46,7 +43,6 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsFormat extends KnnVectorsFor
 
   private static CuVSResources resources = cuVSResourcesOrNull();
 
-  /** The format for storing, reading, and merging scalar quantized vectors on disk. */
   private static final FlatVectorsFormat flatVectorsFormat =
       new org.apache.lucene.codecs.lucene99.Lucene99ScalarQuantizedVectorsFormat(null, 7, false);
 
@@ -127,11 +123,7 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsFormat extends KnnVectorsFor
    */
   @Override
   public KnnVectorsReader fieldsReader(SegmentReadState state) throws IOException {
-    // Fallback to Lucene's format
-    org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat fallbackFormat =
-        new org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat(
-            maxConn, beamWidth, DEFAULT_NUM_MERGE_WORKER, 7, false, null, null);
-    return fallbackFormat.fieldsReader(state);
+    return new Lucene99HnswVectorsReader(state, flatVectorsFormat.fieldsReader(state));
   }
 
   /**
