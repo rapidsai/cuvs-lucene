@@ -6,6 +6,7 @@ package com.nvidia.cuvs.lucene;
 
 import com.nvidia.cuvs.BruteForceIndex;
 import com.nvidia.cuvs.CagraIndex;
+import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CuVSMatrix;
 import com.nvidia.cuvs.CuVSMatrix.Builder;
 import com.nvidia.cuvs.CuVSMatrix.DataType;
@@ -113,5 +114,26 @@ import java.nio.file.Path;
   public com.nvidia.cuvs.TieredIndex.Builder newTieredIndexBuilder(CuVSResources cuVSResources)
       throws UnsupportedOperationException {
     return delegate.newTieredIndexBuilder(cuVSResources);
+  }
+
+  @Override
+  public CagraIndexParams cagraIndexParamsFromHnswParams(
+      long rows,
+      long dim,
+      int M,
+      int efConstruction,
+      CagraIndexParams.HnswHeuristicType heuristic,
+      CagraIndexParams.CuvsDistanceType metric) {
+    return delegate.cagraIndexParamsFromHnswParams(rows, dim, M, efConstruction, heuristic, metric);
+  }
+
+  @Override
+  public void setLogLevel(java.util.logging.Level level) {
+    delegate.setLogLevel(level);
+  }
+
+  @Override
+  public java.util.logging.Level getLogLevel() {
+    return delegate.getLogLevel();
   }
 }
