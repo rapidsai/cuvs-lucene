@@ -31,10 +31,12 @@ import java.util.TreeSet;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
+import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatFieldVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
+import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.DocsWithFieldSet;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FloatVectorValues;
@@ -387,7 +389,6 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
    */
   private CuVSMatrix buildCagraGraphForSubset(byte[][] vectors, int[] selectedNodes, int dimensions)
       throws Throwable {
-    // Create CuVSMatrix from the subset vectors (already converted to unsigned)
     CuVSMatrix subsetDataset = Utils.createByteMatrixFromArray(vectors, dimensions, resources);
 
     // Build CAGRA index for the subset
@@ -717,8 +718,7 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
         List<float[]> floatVectors = new ArrayList<>();
         KnnVectorValues.DocIndexIterator iter = mergedVectorValues.iterator();
         for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
-          float[] vector = mergedVectorValues.vectorValue(iter.index());
-          floatVectors.add(vector);
+          floatVectors.add(mergedVectorValues.vectorValue(iter.index()));
         }
 
         if (!floatVectors.isEmpty()) {
@@ -893,7 +893,6 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
         }
       }
 
-      // Quantize to 7-bit signed bytes (-64 to 63)
       List<byte[]> quantizedVectors = new ArrayList<>(numVectors);
       for (float[] vector : floatVectors) {
         byte[] quantized = new byte[dimensions];

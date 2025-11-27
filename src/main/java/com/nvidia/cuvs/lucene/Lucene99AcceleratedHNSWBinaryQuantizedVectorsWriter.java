@@ -31,10 +31,12 @@ import java.util.TreeSet;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
+import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatFieldVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
+import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.DocsWithFieldSet;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FloatVectorValues;
@@ -76,7 +78,7 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
   private final int graphDegree;
   private final int hnswLayers; // Number of layers to create in CAGRA->HNSW conversion
   private final CuVSResources resources;
-  private final FlatVectorsWriter flatVectorsWriter; // for writing the raw quantized vectors
+  private final FlatVectorsWriter flatVectorsWriter;
   private final List<BinaryQuantizedGPUFieldWriter> fields = new ArrayList<>();
   private final InfoStream infoStream;
   private IndexOutput cuvsIndex = null;
@@ -689,18 +691,14 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
    */
   private void vectorBasedMerge(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
     try {
-      // Read merged FLOAT32 vectors and quantize them
-      // The flat format stores them as FLOAT32, but we need BYTE (quantized) for cuVS
       FloatVectorValues mergedVectorValues =
           KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState);
 
       if (mergedVectorValues != null) {
-        // Collect all float vectors
         List<float[]> floatVectors = new ArrayList<>();
         KnnVectorValues.DocIndexIterator iter = mergedVectorValues.iterator();
         for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
-          float[] vector = mergedVectorValues.vectorValue(iter.index());
-          floatVectors.add(vector);
+          floatVectors.add(mergedVectorValues.vectorValue(iter.index()));
         }
 
         if (!floatVectors.isEmpty()) {
@@ -814,13 +812,11 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
       }
       if (isFloatEncoding) {
         @SuppressWarnings("unchecked")
-        FlatFieldVectorsWriter<float[]> floatWriter =
-            (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter;
+        FlatFieldVectorsWriter<float[]> floatWriter = (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter;
         floatWriter.addValue(docID, (float[]) vectorValue);
       } else {
         @SuppressWarnings("unchecked")
-        FlatFieldVectorsWriter<byte[]> byteWriter =
-            (FlatFieldVectorsWriter<byte[]>) flatFieldVectorsWriter;
+        FlatFieldVectorsWriter<byte[]> byteWriter = (FlatFieldVectorsWriter<byte[]>) flatFieldVectorsWriter;
         byteWriter.addValue(docID, (byte[]) vectorValue);
       }
     }
@@ -828,14 +824,12 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
     List<byte[]> getVectors() {
       if (isFloatEncoding) {
         @SuppressWarnings("unchecked")
-        FlatFieldVectorsWriter<float[]> floatWriter =
-            (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter;
+        FlatFieldVectorsWriter<float[]> floatWriter = (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter;
         List<float[]> floatVectors = floatWriter.getVectors();
         return quantizeFloatVectorsToBinary(floatVectors);
       } else {
         @SuppressWarnings("unchecked")
-        FlatFieldVectorsWriter<byte[]> byteWriter =
-            (FlatFieldVectorsWriter<byte[]>) flatFieldVectorsWriter;
+        FlatFieldVectorsWriter<byte[]> byteWriter = (FlatFieldVectorsWriter<byte[]>) flatFieldVectorsWriter;
         return byteWriter.getVectors();
       }
     }
@@ -853,9 +847,8 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
 
       int dimensions = floatVectors.get(0).length;
       int numVectors = floatVectors.size();
-      int bytesPerVector = (dimensions + 7) / 8; // Round up to nearest byte
+      int bytesPerVector = (dimensions + 7) / 8;
 
-      // Calculate centroids (mean per dimension)
       float[] centroids = new float[dimensions];
       for (float[] vector : floatVectors) {
         for (int d = 0; d < dimensions; d++) {
