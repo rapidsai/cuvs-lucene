@@ -9,8 +9,8 @@ files:
       cuda: ["12.9", "13.0"]
       arch: [x86_64, aarch64]
     includes:
-      - cuda
       - cuda_version
+      - depends_on_cuvs
       - java
   checks:
     output: none
@@ -19,8 +19,8 @@ files:
   java:
     output: none
     includes:
-      - cuda
       - cuda_version
+      - depends_on_cuvs
       - java
 channels:
   - rapidsai-nightly
@@ -28,12 +28,12 @@ channels:
 dependencies:
   checks:
     common:
-      - output_types: [conda, requirements]
+      - output_types: [conda]
         packages:
           - pre-commit
   cuda_version:
     specific:
-      - output_types: conda
+      - output_types: [conda]
         matrices:
           - matrix:
               cuda: "12.0"
@@ -59,23 +59,14 @@ dependencies:
               cuda: "13.0"
             packages:
               - cuda-version=13.0
-  cuda:
+  depends_on_cuvs:
     common:
       - output_types: [conda]
         packages:
-          - cuda-nvtx-dev
-          - cuda-cudart-dev
-          - cuda-profiler-api
-          - libcublas-dev
-          - libcurand-dev
-          - libcusolver-dev
-          - libcusparse-dev
           - libcuvs==26.02.*
   java:
     common:
-      - output_types: conda
+      - output_types: [conda]
         packages:
-          - cmake>=3.30.4
           - maven
-          - ninja
           - openjdk=22.*
