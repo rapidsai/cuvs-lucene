@@ -6,14 +6,19 @@ package com.nvidia.cuvs.lucene;
 
 import com.nvidia.cuvs.BruteForceIndex;
 import com.nvidia.cuvs.CagraIndex;
+import com.nvidia.cuvs.CagraIndexParams;
+import com.nvidia.cuvs.CagraIndexParams.CuvsDistanceType;
+import com.nvidia.cuvs.CagraIndexParams.HnswHeuristicType;
 import com.nvidia.cuvs.CuVSMatrix;
 import com.nvidia.cuvs.CuVSMatrix.Builder;
 import com.nvidia.cuvs.CuVSMatrix.DataType;
 import com.nvidia.cuvs.CuVSResources;
 import com.nvidia.cuvs.HnswIndex;
+import com.nvidia.cuvs.HnswIndexParams;
 import com.nvidia.cuvs.spi.CuVSProvider;
 import java.lang.invoke.MethodHandle;
 import java.nio.file.Path;
+import java.util.logging.Level;
 
 /*package-private*/ class FilterCuVSProvider implements CuVSProvider {
 
@@ -113,5 +118,41 @@ import java.nio.file.Path;
   public com.nvidia.cuvs.TieredIndex.Builder newTieredIndexBuilder(CuVSResources cuVSResources)
       throws UnsupportedOperationException {
     return delegate.newTieredIndexBuilder(cuVSResources);
+  }
+
+  @Override
+  public CagraIndexParams cagraIndexParamsFromHnswParams(
+      long arg0, long arg1, int arg2, int arg3, HnswHeuristicType arg4, CuvsDistanceType arg5) {
+    return delegate.cagraIndexParamsFromHnswParams(arg0, arg1, arg2, arg3, arg4, arg5);
+  }
+
+  @Override
+  public Level getLogLevel() {
+    return delegate.getLogLevel();
+  }
+
+  @Override
+  public void setLogLevel(Level arg0) {
+    delegate.setLogLevel(arg0);
+  }
+
+  @Override
+  public HnswIndex hnswIndexFromCagra(HnswIndexParams arg0, CagraIndex arg1) throws Throwable {
+    return delegate.hnswIndexFromCagra(arg0, arg1);
+  }
+
+  @Override
+  public void enableRMMManagedPooledMemory(int arg0, int arg1) {
+    delegate.enableRMMManagedPooledMemory(arg0, arg1);
+  }
+
+  @Override
+  public void enableRMMPooledMemory(int arg0, int arg1) {
+    delegate.enableRMMManagedPooledMemory(arg0, arg1);
+  }
+
+  @Override
+  public void resetRMMPooledMemory() {
+    delegate.resetRMMPooledMemory();
   }
 }

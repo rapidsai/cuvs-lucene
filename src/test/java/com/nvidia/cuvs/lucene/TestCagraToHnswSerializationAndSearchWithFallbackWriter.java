@@ -10,12 +10,14 @@ import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.UUID;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.io.FileUtils;
 import org.apache.lucene.codecs.Codec;
@@ -61,7 +63,15 @@ public class TestCagraToHnswSerializationAndSearchWithFallbackWriter extends Luc
   }
 
   @Test
-  public void testCagraToHnswSerializationAndSearchWithFallbackWriter() throws IOException {
+  public void testCagraToHnswSerializationAndSearchWithFallbackWriter()
+      throws IOException,
+          ClassNotFoundException,
+          NoSuchMethodException,
+          SecurityException,
+          InstantiationException,
+          IllegalAccessException,
+          IllegalArgumentException,
+          InvocationTargetException {
     Codec codec = new Lucene101AcceleratedHNSWCodec(32, 128, 64, 3, 16, 100);
     IndexWriterConfig config = new IndexWriterConfig().setCodec(codec).setUseCompoundFile(false);
 
@@ -94,14 +104,15 @@ public class TestCagraToHnswSerializationAndSearchWithFallbackWriter extends Luc
     // Searching
     try (Directory indexDirectory = FSDirectory.open(indexDirPath)) {
       try (DirectoryReader reader = DirectoryReader.open(indexDirectory)) {
-        log.info("Successfully opened index");
+        log.log(Level.FINE, "Successfully opened index");
 
         int vectorCount = 0;
         for (LeafReaderContext leafReaderContext : reader.leaves()) {
           LeafReader leafReader = leafReaderContext.reader();
           FloatVectorValues knnValues = leafReader.getFloatVectorValues(VECTOR_FIELD);
           assertNotNull(knnValues);
-          log.info(
+          log.log(
+              Level.FINE,
               VECTOR_FIELD
                   + " field: "
                   + knnValues.size()
@@ -113,16 +124,16 @@ public class TestCagraToHnswSerializationAndSearchWithFallbackWriter extends Luc
         }
         assertTrue("Dataset size mismatch", vectorCount == numDocs);
 
-        log.info("Testing vector search queries...");
+        log.log(Level.FINE, "Testing vector search queries...");
         IndexSearcher searcher = new IndexSearcher(reader);
 
         float[] queryVector = generateDataset(random, 1, dimension)[0];
-        log.info("Query vector: " + Arrays.toString(queryVector));
+        log.log(Level.FINE, "Query vector: " + Arrays.toString(queryVector));
 
         KnnFloatVectorQuery query = new KnnFloatVectorQuery(VECTOR_FIELD, queryVector, topK);
         TopDocs results = searcher.search(query, topK);
 
-        log.info("Search results (" + results.totalHits + " total hits):");
+        log.log(Level.FINE, "Search results (" + results.totalHits + " total hits):");
         Integer[] expected = new Integer[] {1869, 1411, 1497, 351, 554};
         HashSet<Integer> expectedIds = new HashSet<Integer>(Arrays.asList(expected));
 
@@ -130,7 +141,8 @@ public class TestCagraToHnswSerializationAndSearchWithFallbackWriter extends Luc
           ScoreDoc scoreDoc = results.scoreDocs[i];
           Document doc = searcher.storedFields().document(scoreDoc.doc);
           String id = doc.get(ID_FIELD);
-          log.info(
+          log.log(
+              Level.FINE,
               "  Rank "
                   + (i + 1)
                   + ": doc "
