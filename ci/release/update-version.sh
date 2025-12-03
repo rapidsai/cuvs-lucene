@@ -86,8 +86,10 @@ PATCH_PEP440=$(python -c "from packaging.version import Version; print(Version('
 
 # Log update context
 if [[ "${RUN_CONTEXT}" == "main" ]]; then
+    RAPIDS_BRANCH_NAME="main"
     echo "Preparing development branch update $CURRENT_TAG => $NEXT_FULL_TAG (targeting main branch)"
 elif [[ "${RUN_CONTEXT}" == "release" ]]; then
+    RAPIDS_BRANCH_NAME="release/${NEXT_SHORT_TAG}"
     echo "Preparing release branch update $CURRENT_TAG => $NEXT_FULL_TAG (targeting release/${NEXT_SHORT_TAG} branch)"
 fi
 
@@ -98,11 +100,14 @@ function sed_runner() {
 
 # Centralized version file update
 echo "${NEXT_FULL_TAG}" > VERSION
+echo "${RAPIDS_BRANCH_NAME}" > RAPIDS_BRANCH
 
 # Update Java version
 NEXT_FULL_JAVA_TAG="${NEXT_SHORT_TAG}.${PATCH_PEP440}"
 sed_runner "s/VERSION=\".*\"/VERSION=\"${NEXT_FULL_JAVA_TAG}\"/g" build.sh
-sed_runner "/<!--CUVS_LUCENE#VERSION_UPDATE_MARKER_START-->.*<!--CUVS_LUCENE#VERSION_UPDATE_MARKER_END-->/s//<!--CUVS_LUCENE#VERSION_UPDATE_MARKER_START--><version>${NEXT_FULL_JAVA_TAG}<\/version><!--CUVS_LUCENE#VERSION_UPDATE_MARKER_END-->/g" pom.xml
+for FILE in pom.xml benchmarks/pom.xml; do
+    sed_runner "/<!--CUVS_LUCENE#VERSION_UPDATE_MARKER_START-->.*<!--CUVS_LUCENE#VERSION_UPDATE_MARKER_END-->/s//<!--CUVS_LUCENE#VERSION_UPDATE_MARKER_START--><version>${NEXT_FULL_JAVA_TAG}<\/version><!--CUVS_LUCENE#VERSION_UPDATE_MARKER_END-->/g" "${FILE}"
+done
 
 sed_runner "s| CuVS [[:digit:]]\{2\}\.[[:digit:]]\{2\} | CuVS ${NEXT_SHORT_TAG} |g" README.md
 
@@ -111,5 +116,6 @@ for FILE in dependencies.yaml conda/environments/*.yaml; do
 done
 
 for FILE in .github/workflows/*.yaml; do
+  sed_runner "/shared-workflows/ s|@.*|@${RAPIDS_BRANCH_NAME}|g" "${FILE}"
   sed_runner "s/:[0-9]*\\.[0-9]*-/:${NEXT_SHORT_TAG}-/g" "${FILE}"
 done
