@@ -20,7 +20,7 @@ docker run --rm --gpus all --pull=always --volume $PWD:$PWD --workdir $PWD -it r
 
 Inside the docker container (and in the `cuvs-lucene's` root directory) do:
 ```sh
-./ci/build_java.sh && cd demo
+./ci/build_java.sh && conda activate java && cd demo
 ```
 
 To run Accelerated HNSW demo do:
