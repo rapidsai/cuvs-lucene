@@ -8,17 +8,17 @@ This maven project contains basic examples that showcase how `cuvs-lucene` can b
 
 ## Steps
 
-If you are currently in this directory do (to be in the `cuvs-lucene's` root directory):
+If you are currently in this directory (and to be in the `cuvs-lucene's` root directory) do:
 ```sh
 cd ..
 ```
 
 Then do:
 ```sh
-docker run   --rm   --gpus all   --pull=always   --volume $PWD:$PWD   --workdir $PWD   -it rapidsai/ci-conda:25.12-cuda13.0.2-ubuntu24.04-py3.13
+docker run --rm --gpus all --pull=always --volume $PWD:$PWD --workdir $PWD -it rapidsai/ci-conda:25.12-cuda13.0.2-ubuntu24.04-py3.13
 ```
 
-Inside the docker container do:
+Inside the docker container (and in the `cuvs-lucene's` root directory) do:
 ```sh
 ./ci/build_java.sh && cd demo
 ```
@@ -28,7 +28,7 @@ To run Accelerated HNSW demo do:
 mvn clean install && java -Djava.util.logging.config.file=src/main/resources/logging.properties -cp target/demo-25.12.0-jar-with-merged-services.jar com.nvidia.cuvs.lucene.demo.AcceleratedHnswDemo
 ```
 
-To run the Index and Search on GPU do:
+To run the Index and Search on GPU demo do:
 ```sh
 mvn clean install && java -Djava.util.logging.config.file=src/main/resources/logging.properties -cp target/demo-25.12.0-jar-with-merged-services.jar com.nvidia.cuvs.lucene.demo.IndexAndSearchonGPUDemo
 ```
