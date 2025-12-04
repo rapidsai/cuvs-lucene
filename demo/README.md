@@ -4,6 +4,7 @@ This maven project contains basic examples that showcase how `cuvs-lucene` can b
 
 ## Prerequisites
 - [Docker](https://www.docker.com/)
+- [CUDA 12.0+](https://developer.nvidia.com/cuda-toolkit-archive)
 - A machine with an Nvidia GPU
 
 ## Steps
