@@ -140,4 +140,19 @@ import java.util.logging.Level;
   public HnswIndex hnswIndexFromCagra(HnswIndexParams arg0, CagraIndex arg1) throws Throwable {
     return delegate.hnswIndexFromCagra(arg0, arg1);
   }
+
+  @Override
+  public void enableRMMManagedPooledMemory(int arg0, int arg1) {
+    delegate.enableRMMManagedPooledMemory(arg0, arg1);
+  }
+
+  @Override
+  public void enableRMMPooledMemory(int arg0, int arg1) {
+    delegate.enableRMMPooledMemory(arg0, arg1);
+  }
+
+  @Override
+  public void resetRMMPooledMemory() {
+    delegate.resetRMMPooledMemory();
+  }
 }
