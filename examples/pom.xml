@@ -9,10 +9,10 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.nvidia.cuvs.lucene.demo</groupId>
-  <artifactId>demo</artifactId>
+  <groupId>com.nvidia.cuvs.lucene.examples</groupId>
+  <artifactId>examples</artifactId>
   <!--CUVS_LUCENE#VERSION_UPDATE_MARKER_START--><version>26.02.0</version><!--CUVS_LUCENE#VERSION_UPDATE_MARKER_END-->
-  <name>demo</name>
+  <name>examples</name>
 
   <properties>
     <maven.compiler.target>22</maven.compiler.target>
@@ -97,7 +97,6 @@
           <archive>
               <manifest>
                   <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                  <mainClass>com.nvidia.cuvs.lucene.demo.AcceleratedHnswDemo</mainClass>
               </manifest>
               <manifestEntries>
                   <Multi-Release>true</Multi-Release>

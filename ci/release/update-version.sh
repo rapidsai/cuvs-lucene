@@ -105,7 +105,7 @@ echo "${RAPIDS_BRANCH_NAME}" > RAPIDS_BRANCH
 # Update Java version
 NEXT_FULL_JAVA_TAG="${NEXT_SHORT_TAG}.${PATCH_PEP440}"
 sed_runner "s/VERSION=\".*\"/VERSION=\"${NEXT_FULL_JAVA_TAG}\"/g" build.sh
-for FILE in pom.xml demo/pom.xml; do
+for FILE in pom.xml examples/pom.xml; do
     sed_runner "/<!--CUVS_LUCENE#VERSION_UPDATE_MARKER_START-->.*<!--CUVS_LUCENE#VERSION_UPDATE_MARKER_END-->/s//<!--CUVS_LUCENE#VERSION_UPDATE_MARKER_START--><version>${NEXT_FULL_JAVA_TAG}<\/version><!--CUVS_LUCENE#VERSION_UPDATE_MARKER_END-->/g" "${FILE}"
 done
 
@@ -120,6 +120,6 @@ for FILE in .github/workflows/*.yaml; do
   sed_runner "s/:[0-9]*\\.[0-9]*-/:${NEXT_SHORT_TAG}-/g" "${FILE}"
 done
 
-# Update versions in the demo readme file
-sed_runner "s/rapidsai\/ci-conda:[\.0-9]*-cuda/rapidsai\/ci-conda:${NEXT_SHORT_TAG}-cuda/g" "demo/README.md"
-sed_runner "s/target\/demo-[\.0-9]*-jar/target\/demo-${NEXT_FULL_JAVA_TAG}-jar/g" "demo/README.md"
+# Update versions in the examples readme file
+sed_runner "s/rapidsai\/ci-conda:[\.0-9]*-cuda/rapidsai\/ci-conda:${NEXT_SHORT_TAG}-cuda/g" "examples/README.md"
+sed_runner "s/target\/examples-[\.0-9]*-jar/target\/examples-${NEXT_FULL_JAVA_TAG}-jar/g" "examples/README.md"

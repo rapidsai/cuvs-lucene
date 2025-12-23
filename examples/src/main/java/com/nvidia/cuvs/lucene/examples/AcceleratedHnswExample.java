@@ -2,13 +2,12 @@
  * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
-package com.nvidia.cuvs.lucene.demo;
+package com.nvidia.cuvs.lucene.examples;
 
-import static com.nvidia.cuvs.lucene.demo.Utils.generateDataset;
+import static com.nvidia.cuvs.lucene.examples.Utils.generateDataset;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
-import com.nvidia.cuvs.lucene.CuVS2510GPUSearchCodec;
-import com.nvidia.cuvs.lucene.GPUKnnFloatVectorQuery;
+import com.nvidia.cuvs.lucene.Lucene101AcceleratedHNSWCodec;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -36,16 +35,16 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
-public class IndexAndSearchonGPUDemo {
+public class AcceleratedHnswExample {
 
-  private static Logger log = Logger.getLogger(IndexAndSearchonGPUDemo.class.getName());
+  private static Logger log = Logger.getLogger(AcceleratedHnswExample.class.getName());
 
   private static Random random;
   private static Path indexDirPath;
 
   public static void main(String[] args) throws Exception {
 
-    Codec codec = new CuVS2510GPUSearchCodec();
+    Codec codec = new Lucene101AcceleratedHNSWCodec(32, 128, 64, 3, 16, 100);
     IndexWriterConfig config = new IndexWriterConfig().setCodec(codec).setUseCompoundFile(false);
 
     random = new Random(222);
@@ -101,8 +100,7 @@ public class IndexAndSearchonGPUDemo {
       float[] queryVector = generateDataset(random, 1, dimension)[0];
       log.log(Level.FINE, "Query vector: " + Arrays.toString(queryVector));
 
-      KnnFloatVectorQuery query =
-          new GPUKnnFloatVectorQuery(VECTOR_FIELD, queryVector, topK, null, topK, 1);
+      KnnFloatVectorQuery query = new KnnFloatVectorQuery(VECTOR_FIELD, queryVector, topK);
       TopDocs results = searcher.search(query, topK);
 
       log.log(Level.FINE, "Search results (" + results.totalHits + " total hits):");

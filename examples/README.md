@@ -1,4 +1,4 @@
-# Demo
+# Examples
 
 This maven project contains basic examples that showcase how `cuvs-lucene` can be used.
 
@@ -21,15 +21,15 @@ docker run --rm --gpus all --pull=always --volume $PWD:$PWD --workdir $PWD -it r
 
 Inside the docker container (and in the `cuvs-lucene's` root directory) do:
 ```sh
-./ci/build_java.sh && conda activate java && cd demo
+./ci/build_java.sh && conda activate java && cd examples
 ```
 
-To run Accelerated HNSW demo do:
+To run Accelerated HNSW example do:
 ```sh
-mvn clean install && java -Djava.util.logging.config.file=src/main/resources/logging.properties -cp target/demo-26.02.0-jar-with-merged-services.jar com.nvidia.cuvs.lucene.demo.AcceleratedHnswDemo
+mvn clean install && java -Djava.util.logging.config.file=src/main/resources/logging.properties -cp target/examples-26.02.0-jar-with-merged-services.jar com.nvidia.cuvs.lucene.examples.AcceleratedHnswExample
 ```
 
-To run the Index and Search on GPU demo do:
+To run the Index and Search on GPU example do:
 ```sh
-mvn clean install && java -Djava.util.logging.config.file=src/main/resources/logging.properties -cp target/demo-26.02.0-jar-with-merged-services.jar com.nvidia.cuvs.lucene.demo.IndexAndSearchonGPUDemo
+mvn clean install && java -Djava.util.logging.config.file=src/main/resources/logging.properties -cp target/examples-26.02.0-jar-with-merged-services.jar com.nvidia.cuvs.lucene.examples.IndexAndSearchonGPUExample
 ```
