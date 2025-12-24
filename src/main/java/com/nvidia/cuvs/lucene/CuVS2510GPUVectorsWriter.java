@@ -77,6 +77,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   private final int cuvsWriterThreads;
   private final int intGraphDegree;
   private final int graphDegree;
+  private final CagraGraphBuildAlgo cagraGraphBuildAlgo;
 
   private final CuVSResources resources;
   private final IndexType indexType;
@@ -142,6 +143,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
    * @param cuvsWriterThreads the number of cuVS writer threads
    * @param intGraphDegree the intermediate graph degree for building the CAGRA index
    * @param graphDegree the graph degree for building the CAGRA index
+   * @param cagraGraphBuildAlgo the CAGRA graph build algorithm to use
    * @param indexType the IndexType
    * @param resources instance of the CuVSResources
    * @param flatVectorsWriter instance of FlatVectorsWriter
@@ -153,6 +155,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
       int cuvsWriterThreads,
       int intGraphDegree,
       int graphDegree,
+      CagraGraphBuildAlgo cagraGraphBuildAlgo,
       IndexType indexType,
       CuVSResources resources,
       FlatVectorsWriter flatVectorsWriter)
@@ -162,6 +165,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     this.cuvsWriterThreads = cuvsWriterThreads;
     this.intGraphDegree = intGraphDegree;
     this.graphDegree = graphDegree;
+    this.cagraGraphBuildAlgo = cagraGraphBuildAlgo;
     this.resources = resources;
     this.flatVectorsWriter = flatVectorsWriter;
     this.infoStream = state.infoStream;
@@ -248,7 +252,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
         .withNumWriterThreads(cuvsWriterThreads)
         .withIntermediateGraphDegree(intGraphDegree)
         .withGraphDegree(graphDegree)
-        .withCagraGraphBuildAlgo(CagraGraphBuildAlgo.NN_DESCENT)
+        .withCagraGraphBuildAlgo(cagraGraphBuildAlgo)
         .build();
   }
 

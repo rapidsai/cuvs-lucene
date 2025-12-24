@@ -4,6 +4,7 @@
  */
 package com.nvidia.cuvs.lucene;
 
+import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.LibraryException;
 import com.nvidia.cuvs.lucene.CuVS2510GPUVectorsWriter.IndexType;
 import java.lang.reflect.InvocationTargetException;
@@ -27,6 +28,8 @@ public class CuVS2510GPUSearchCodec extends FilterCodec {
   private static final int DEFAULT_CUVS_WRITER_THREADS = 1;
   private static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
   private static final int DEFAULT_GRAPH_DEGREE = 64;
+  private static final CagraGraphBuildAlgo DEFAULT_CAGRA_GRAPH_BUILD_ALGO =
+      CagraGraphBuildAlgo.NN_DESCENT;
   private static final IndexType DEFAULT_INDEX_TYPE = IndexType.CAGRA;
 
   private KnnVectorsFormat format;
@@ -60,13 +63,46 @@ public class CuVS2510GPUSearchCodec extends FilterCodec {
    */
   public CuVS2510GPUSearchCodec(String name, Codec delegate) {
     super(name, delegate);
+    initializeFormat(
+        DEFAULT_INTERMEDIATE_GRAPH_DEGREE,
+        DEFAULT_GRAPH_DEGREE,
+        DEFAULT_CUVS_WRITER_THREADS,
+        DEFAULT_CAGRA_GRAPH_BUILD_ALGO,
+        DEFAULT_INDEX_TYPE);
+  }
+
+  public CuVS2510GPUSearchCodec(
+      int cuvsWriterThreads,
+      int intermediateGraphDegree,
+      int graphDegree,
+      CagraGraphBuildAlgo cagraGraphBuildAlgo,
+      IndexType indexType)
+      throws ClassNotFoundException,
+          NoSuchMethodException,
+          SecurityException,
+          InstantiationException,
+          IllegalAccessException,
+          IllegalArgumentException,
+          InvocationTargetException {
+    this(NAME, LuceneProvider.getCodec("101"));
+    initializeFormat(
+        cuvsWriterThreads, intermediateGraphDegree, graphDegree, cagraGraphBuildAlgo, indexType);
+  }
+
+  private void initializeFormat(
+      int cuvsWriterThreads,
+      int intermediateGraphDegree,
+      int graphDegree,
+      CagraGraphBuildAlgo cagraGraphBuildAlgo,
+      IndexType indexType) {
     try {
       format =
           new CuVS2510GPUVectorsFormat(
-              DEFAULT_CUVS_WRITER_THREADS,
-              DEFAULT_INTERMEDIATE_GRAPH_DEGREE,
-              DEFAULT_GRAPH_DEGREE,
-              DEFAULT_INDEX_TYPE);
+              cuvsWriterThreads,
+              intermediateGraphDegree,
+              graphDegree,
+              cagraGraphBuildAlgo,
+              indexType);
       setKnnFormat(format);
     } catch (LibraryException ex) {
       log.log(

@@ -6,6 +6,7 @@ package com.nvidia.cuvs.lucene;
 
 import static com.nvidia.cuvs.lucene.Utils.cuVSResourcesOrNull;
 
+import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.CuVSResources;
 import com.nvidia.cuvs.LibraryException;
 import java.io.IOException;
@@ -32,6 +33,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   static final int DEFAULT_WRITER_THREADS = 32;
   static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
   static final int DEFAULT_GRAPH_DEGREE = 64;
+  static final CagraGraphBuildAlgo DEFAULT_CAGRA_GRAPH_BUILD_ALGO = CagraGraphBuildAlgo.NN_DESCENT;
   static final int DEFAULT_HNSW_GRAPH_LAYERS = 1;
 
   static final String HNSW_META_CODEC_NAME = "Lucene99HnswVectorsFormatMeta";
@@ -51,6 +53,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   private final int cuvsWriterThreads;
   private final int intGraphDegree;
   private final int graphDegree;
+  private final CagraGraphBuildAlgo cagraGraphBuildAlgo;
   private final int hnswLayers;
   private final int maxConn;
   private final int beamWidth;
@@ -78,6 +81,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
         DEFAULT_WRITER_THREADS,
         DEFAULT_INTERMEDIATE_GRAPH_DEGREE,
         DEFAULT_GRAPH_DEGREE,
+        DEFAULT_CAGRA_GRAPH_BUILD_ALGO,
         DEFAULT_HNSW_GRAPH_LAYERS,
         MAX_CONN,
         BEAM_WIDTH);
@@ -89,6 +93,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
    * @param cuvsWriterThreads number of cuVS threads to use while building the CAGRA index
    * @param intGraphDegree the intermediate graph degree while building the CAGRA index
    * @param graphDegree the graph degree to use while building the CAGRA index
+   * @param cagraGraphBuildAlgo the CAGRA graph build algorithm to use
    * @param hnswLayers the number of HNSW layers to construct in the HNSW graph
    * @param maxConn the maximum connections for the HNSW graph
    * @param beamWidth the beam width to use while building the HNSW graph
@@ -97,6 +102,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
       int cuvsWriterThreads,
       int intGraphDegree,
       int graphDegree,
+      CagraGraphBuildAlgo cagraGraphBuildAlgo,
       int hnswLayers,
       int maxConn,
       int beamWidth) {
@@ -104,6 +110,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
     this.cuvsWriterThreads = cuvsWriterThreads;
     this.intGraphDegree = intGraphDegree;
     this.graphDegree = graphDegree;
+    this.cagraGraphBuildAlgo = cagraGraphBuildAlgo;
     this.hnswLayers = hnswLayers;
     this.maxConn = maxConn;
     this.beamWidth = beamWidth;
@@ -118,7 +125,14 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
     if (supported()) {
       log.log(Level.FINE, "cuVS is supported so using the Lucene99AcceleratedHNSWVectorsWriter");
       return new Lucene99AcceleratedHNSWVectorsWriter(
-          state, cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers, resources, flatWriter);
+          state,
+          cuvsWriterThreads,
+          intGraphDegree,
+          graphDegree,
+          cagraGraphBuildAlgo,
+          hnswLayers,
+          resources,
+          flatWriter);
     } else {
       log.log(
           Level.WARNING,
@@ -165,6 +179,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
     sb.append("(cuvsWriterThreads=").append(cuvsWriterThreads);
     sb.append("intGraphDegree=").append(intGraphDegree);
     sb.append("graphDegree=").append(graphDegree);
+    sb.append("cagraGraphBuildAlgo=").append(cagraGraphBuildAlgo);
     sb.append("hnswLayers=").append(hnswLayers);
     sb.append("resources=").append(resources);
     sb.append(")");
