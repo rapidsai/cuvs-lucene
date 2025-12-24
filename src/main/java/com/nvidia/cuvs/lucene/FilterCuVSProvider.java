@@ -151,8 +151,4 @@ import java.util.logging.Level;
     delegate.enableRMMManagedPooledMemory(arg0, arg1);
   }
 
-  @Override
-  public void resetRMMPooledMemory() {
-    delegate.resetRMMPooledMemory();
-  }
 }
