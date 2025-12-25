@@ -15,7 +15,6 @@ class GPUPerLeafCuVSKnnCollector extends TopKnnCollector {
 
   public int iTopK;
   public int searchWidth;
-  public int results;
 
   /**
    * Initializes {@link GPUPerLeafCuVSKnnCollector}
