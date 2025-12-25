@@ -13,8 +13,8 @@ import org.apache.lucene.search.TopKnnCollector;
  */
 class GPUPerLeafCuVSKnnCollector extends TopKnnCollector {
 
-  public int iTopK;
-  public int searchWidth;
+  private int iTopK;
+  private int searchWidth;
 
   /**
    * Initializes {@link GPUPerLeafCuVSKnnCollector}
