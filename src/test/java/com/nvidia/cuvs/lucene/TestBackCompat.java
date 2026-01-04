@@ -13,7 +13,7 @@ import org.apache.lucene.codecs.hnsw.FlatVectorsFormat;
 import org.junit.Test;
 
 /**
- * Tests the backward compatibility mechanism.
+ * Tests the backward compatibility mechanism for {@link LuceneProvider}
  *
  * @since 25.12
  */

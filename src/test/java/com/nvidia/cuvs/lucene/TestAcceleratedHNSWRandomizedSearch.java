@@ -7,11 +7,13 @@ package com.nvidia.cuvs.lucene;
 import static com.nvidia.cuvs.lucene.TestDataProvider.ID_FIELD;
 import static com.nvidia.cuvs.lucene.TestDataProvider.TEXT_FIELD;
 import static com.nvidia.cuvs.lucene.TestDataProvider.VECTOR_FIELD1;
+import static com.nvidia.cuvs.lucene.TestDataProvider.VECTOR_FIELD2;
 import static com.nvidia.cuvs.lucene.TestUtils.createWriter;
 import static com.nvidia.cuvs.lucene.TestUtils.generateExpectedTopK;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.logging.Level;
@@ -24,6 +26,7 @@ import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
@@ -38,9 +41,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 @SuppressSysoutChecks(bugUrl = "")
-public class TestCuVSGaps extends LuceneTestCase {
+public class TestAcceleratedHNSWRandomizedSearch extends LuceneTestCase {
 
-  private static final Logger log = Logger.getLogger(TestCuVSGaps.class.getName());
+  private static final Logger log =
+      Logger.getLogger(TestAcceleratedHNSWRandomizedSearch.class.getName());
   private static Codec codec;
   private static IndexSearcher searcher;
   private static IndexReader reader;
@@ -50,25 +54,28 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuVS not supported so skipping these tests", CuVS2510GPUVectorsFormat.supported());
+    assumeTrue(
+        "cuVS not supported so skipping these tests",
+        Lucene99AcceleratedHNSWVectorsFormat.supported());
     directory = newDirectory();
     random = random();
     dataProvider = new TestDataProvider(random);
-
-    codec = TestUtil.alwaysKnnVectorsFormat(new CuVS2510GPUVectorsFormat());
+    codec = TestUtil.alwaysKnnVectorsFormat(new Lucene99AcceleratedHNSWVectorsFormat());
     RandomIndexWriter writer = createWriter(random, directory, codec);
+
     int datasetSize = dataProvider.getDatasetSize();
     float[][] dataset = dataProvider.getDataset1();
+    float[][] dataset2 = dataProvider.getDataset2();
 
-    // Create documents where only even-numbered documents have vectors
+    // Add documents
     for (int i = 0; i < datasetSize; i++) {
       Document doc = new Document();
       doc.add(new StringField(ID_FIELD, String.valueOf(i), Field.Store.YES));
       doc.add(newTextField(TEXT_FIELD, English.intToEnglish(i), Field.Store.YES));
-
-      // Only add vectors to even-numbered documents
-      if (i % 2 == 0) {
+      boolean skipVector = random.nextInt(10) < 4;
+      if (!skipVector || datasetSize < 100) {
         doc.add(new KnnFloatVectorField(VECTOR_FIELD1, dataset[i], EUCLIDEAN));
+        doc.add(new KnnFloatVectorField(VECTOR_FIELD2, dataset2[i], EUCLIDEAN));
       }
       writer.addDocument(doc);
     }
@@ -79,62 +86,69 @@ public class TestCuVSGaps extends LuceneTestCase {
   }
 
   @Test
-  public void testVectorSearchWithAlternatingDocuments() throws IOException {
+  public void testVectorSearch() throws IOException {
 
     float[][] dataset = dataProvider.getDataset1();
     int topK = dataProvider.getTopK();
-    float[] queryVector = dataProvider.getQueries(1)[0];
+    int numQueries = dataProvider.getNumQueries();
+    float[][] queries = dataProvider.getQueries(numQueries);
 
-    Query query = new GPUKnnFloatVectorQuery(VECTOR_FIELD1, queryVector, topK, null, topK, 1);
-    ScoreDoc[] hits = searcher.search(query, topK).scoreDocs;
+    // Generate queries and expected results for each
+    List<List<Integer>> expected = generateExpectedTopK(topK, dataset, queries);
 
-    // Verify we get exactly topK results
-    assertEquals("Should return exactly " + topK + " results", topK, hits.length);
+    for (int i = 0; i < numQueries; i++) {
+      log.log(Level.FINE, "Running query: " + (i + 1) + " of " + numQueries);
+      Query query = new KnnFloatVectorQuery(VECTOR_FIELD1, queries[i], topK);
 
-    // Verify all returned documents have vectors (even-numbered IDs)
-    for (ScoreDoc hit : hits) {
-      Document doc = reader.storedFields().document(hit.doc);
-      int id = Integer.parseInt(doc.get(ID_FIELD));
-      assertEquals("All results should be even-numbered (have vectors)", 0, id % 2);
-      log.log(Level.FINE, "Document ID: " + id + ", Score: " + hit.score);
+      // Perform search
+      ScoreDoc[] hits = searcher.search(query, topK).scoreDocs;
+      log.log(Level.FINE, "RESULTS: " + Arrays.toString(hits));
+      log.log(Level.FINE, "EXPECTED: " + expected.get(i));
+
+      // Iterate through the results and assert
+      for (ScoreDoc hit : hits) {
+        Document doc = reader.storedFields().document(hit.doc);
+        int docId = Integer.parseInt(doc.get(ID_FIELD));
+        log.log(Level.FINE, "\t" + doc.get(ID_FIELD) + ": " + hit.score);
+        assertTrue("Result returned was not in topk*2: " + doc, expected.get(i).contains(docId));
+      }
     }
-
-    // Verify the results match expected top-k
-    List<Integer> expectedIds =
-        generateExpectedTopK(topK, dataset, new float[][] {queryVector}).get(0);
-    for (ScoreDoc hit : hits) {
-      Document doc = reader.storedFields().document(hit.doc);
-      int id = Integer.parseInt(doc.get(ID_FIELD));
-      assertTrue("Result " + id + " should be in expected top-k results", expectedIds.contains(id));
-    }
-
-    log.log(Level.FINE, "Alternating document test passed with " + hits.length + " results");
   }
 
   @Test
-  public void testVectorSearchWithFilterAndAlternatingDocuments() throws IOException {
+  public void testVectorSearchWithFilter() throws IOException {
+    // Find a document that has a vector by doing a search first
 
-    int datasetSize = dataProvider.getDatasetSize();
     int topK = dataProvider.getTopK();
     float[] queryVector = dataProvider.getQueries(1)[0];
 
-    String randomEvenInRange = String.valueOf(random.nextInt(datasetSize / 2 + 1) * 2);
-    log.log(Level.FINE, "Randomly chosen even value is: " + randomEvenInRange);
-    Query filter = new TermQuery(new Term(ID_FIELD, randomEvenInRange));
+    Query unfiltered = new KnnFloatVectorQuery(VECTOR_FIELD1, queryVector, 1);
+    ScoreDoc[] unfilteredHits = searcher.search(unfiltered, 1).scoreDocs;
 
-    Query filteredQuery =
-        new GPUKnnFloatVectorQuery(VECTOR_FIELD1, queryVector, topK, filter, topK, 1);
+    assertTrue(
+        "Need at least one document with vector for filtering test", unfilteredHits.length > 0);
+
+    Document doc = reader.storedFields().document(unfilteredHits[0].doc);
+    String targetDocId = doc.get(ID_FIELD);
+
+    // Create a filter that matches only the document we know has a vector
+    Query filter = new TermQuery(new Term(ID_FIELD, targetDocId));
+
+    // Test the new constructor with filter
+    Query filteredQuery = new KnnFloatVectorQuery(VECTOR_FIELD1, queryVector, topK, filter);
+
     ScoreDoc[] filteredHits = searcher.search(filteredQuery, topK).scoreDocs;
 
-    // Should only get document (the only one that matches the filter and has a vector)
-    assertEquals("Should return exactly 1 result", 1, filteredHits.length);
-    Document doc = reader.storedFields().document(filteredHits[0].doc);
-    assertEquals(
-        "Should only return document " + randomEvenInRange, randomEvenInRange, doc.get(ID_FIELD));
+    // Ensure we got some results
+    assertTrue("Should have at least one result", filteredHits.length > 0);
 
-    log.log(
-        Level.FINE,
-        "Filtered alternating document test passed with " + filteredHits.length + " results");
+    // Verify that all results match the filter
+    for (ScoreDoc hit : filteredHits) {
+      String docId = reader.storedFields().document(hit.doc).get(ID_FIELD);
+      assertEquals("All results should match the filter", targetDocId, docId);
+    }
+
+    log.log(Level.FINE, "Prefiltering test passed with " + filteredHits.length + " results");
   }
 
   @AfterClass
