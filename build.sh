@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 set -e -u -o pipefail
@@ -39,10 +39,6 @@ if ! hasArg --run-java-tests; then
 fi
 
 mvn clean verify "${MAVEN_VERIFY_ARGS[@]}" \
+  && mvn jacoco:report \
   && mvn install:install-file -Dfile=./target/cuvs-lucene-$VERSION.jar -DgroupId=$GROUP_ID -DartifactId=cuvs-lucene -Dversion=$VERSION -Dpackaging=jar \
   && cp pom.xml ./target/
-
-# Generate JaCoCo code coverage reports available here: target/site/jacoco/index.html
-if hasArg --run-java-tests; then
-  mvn jacoco:report
-fi
