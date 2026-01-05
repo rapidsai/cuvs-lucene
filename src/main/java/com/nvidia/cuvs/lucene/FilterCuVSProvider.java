@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
@@ -152,7 +152,7 @@ class FilterCuVSProvider implements CuVSProvider {
 
   @Override
   public void enableRMMPooledMemory(int arg0, int arg1) {
-    delegate.enableRMMManagedPooledMemory(arg0, arg1);
+    delegate.enableRMMPooledMemory(arg0, arg1);
   }
 
   @Override
