@@ -69,7 +69,6 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
    * Initializes the {@link CuVS2510GPUVectorsReader}, checks and loads the index.
    *
    * @param state instance of the SegmentReadState
-   * @param resources instance of the CuVSResources
    * @param flatReader instance of the FlatVectorsReader
    *
    * @throws IOException I/O exception

@@ -140,7 +140,6 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
    * @param intGraphDegree the intermediate graph degree for building the CAGRA index
    * @param graphDegree the graph degree for building the CAGRA index
    * @param indexType the IndexType
-   * @param resources instance of the CuVSResources
    * @param flatVectorsWriter instance of FlatVectorsWriter
    *
    * @throws IOException I/O exceptions
