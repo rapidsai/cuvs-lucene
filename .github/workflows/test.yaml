@@ -25,7 +25,7 @@ on:
 jobs:
   conda-java-tests:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@main
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@cuda-13.1.0
     strategy:
       fail-fast: false
       matrix:
