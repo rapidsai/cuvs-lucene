@@ -9,6 +9,11 @@ import com.nvidia.cuvs.CuVSResources;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * Provides a mechanism to create ThreadLocal based CuVSResource instances.
+ *
+ * @since 26.02
+ */
 public class CuVSResourcesProvider {
 
   private static final Logger log = Logger.getLogger(CuVSResourcesProvider.class.getName());
@@ -43,6 +48,9 @@ public class CuVSResourcesProvider {
     return null;
   }
 
+  /**
+   * Attempts to close the thread's {@link CuVSResources} instance.
+   */
   public static void close() {
     CuVSResources r = cuVSResouces.get();
     if (r != null) {
@@ -52,6 +60,8 @@ public class CuVSResourcesProvider {
 
   /**
    * Checks if cuVS is supported and throws {@link UnsupportedOperationException} otherwise if asked to.
+   *
+   * @param throwUOE flag that lets this method throw {@link UnsupportedOperationException}
    *
    * @return if cuVS is supported or not
    */
