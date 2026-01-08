@@ -28,8 +28,17 @@ public class CuVSResourcesProvider {
    *
    * @return an instance of CuVSResources
    */
-  public static CuVSResources getInstance() {
+  public static CuVSResources get() {
     return cuVSResouces.get();
+  }
+
+  /**
+   * Sets the instance of CuVSResources
+   *
+   * @param resources the instance of CuVSResources to set
+   */
+  public static void set(CuVSResources resources) {
+    cuVSResouces.set(resources);
   }
 
   private static CuVSResources cuVSResourcesOrNull() {
@@ -71,14 +80,5 @@ public class CuVSResourcesProvider {
       throw new UnsupportedOperationException();
     }
     return isSupported;
-  }
-
-  /**
-   * Sets the instance of CuVSResources
-   *
-   * @param resources the instance of CuVSResources to set
-   */
-  public static void setResources(CuVSResources resources) {
-    cuVSResouces.set(resources);
   }
 }
