@@ -4,7 +4,7 @@
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.checkSupported;
+import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.isSupported;
 
 import com.nvidia.cuvs.LibraryException;
 import com.nvidia.cuvs.lucene.CuVS2510GPUVectorsWriter.IndexType;
@@ -96,7 +96,7 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
    */
   @Override
   public CuVS2510GPUVectorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
-    checkSupported();
+    isSupported(true);
     var flatWriter = FLAT_VECTORS_FORMAT.fieldsWriter(state);
     return new CuVS2510GPUVectorsWriter(
         state, cuvsWriterThreads, intGraphDegree, graphDegree, indexType, flatWriter);
@@ -107,7 +107,7 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
    */
   @Override
   public KnnVectorsReader fieldsReader(SegmentReadState state) throws IOException {
-    checkSupported();
+    isSupported(true);
     return new CuVS2510GPUVectorsReader(state, FLAT_VECTORS_FORMAT.fieldsReader(state));
   }
 

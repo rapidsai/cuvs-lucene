@@ -4,8 +4,8 @@
  */
 package com.nvidia.cuvs.lucene;
 
+import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.isSupported;
 import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.setResources;
-import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.supported;
 import static com.nvidia.cuvs.lucene.TestUtils.generateDataset;
 import static com.nvidia.cuvs.lucene.Utils.cuVSResourcesOrNull;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
@@ -56,7 +56,7 @@ public class TestCagraToHnswSerializationAndSearchWithFallbackWriter extends Luc
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuVS not supported", supported());
+    assumeTrue("cuVS not supported", isSupported(false));
     // Set resources to null to simulate that cuVS is not supported.
     setResources(null);
     // Fixed seed so that we can validate against the same result.

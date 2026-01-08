@@ -4,7 +4,7 @@
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.supported;
+import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.isSupported;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
 import java.util.List;
@@ -31,7 +31,7 @@ public class TestCuVSVectorsFormat extends BaseKnnVectorsFormatTestCase {
 
   @BeforeClass
   public static void beforeClass() {
-    assumeTrue("cuVS is not supported", supported());
+    assumeTrue("cuVS is not supported", isSupported(false));
   }
 
   @Override

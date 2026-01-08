@@ -4,7 +4,7 @@
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.supported;
+import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.isSupported;
 import static com.nvidia.cuvs.lucene.TestUtils.generateDataset;
 import static com.nvidia.cuvs.lucene.TestUtils.generateQueries;
 
@@ -62,7 +62,7 @@ public class TestCuVSRandomizedHNSWVectorSearch extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuVS not supported", supported());
+    assumeTrue("cuVS not supported", isSupported(false));
     directory = newDirectory();
 
     RandomIndexWriter writer =
@@ -178,7 +178,7 @@ public class TestCuVSRandomizedHNSWVectorSearch extends LuceneTestCase {
 
   @Test
   public void testVectorSearchWithFilter() throws IOException {
-    assumeTrue("cuVS not supported", supported());
+    assumeTrue("cuVS not supported", isSupported(false));
 
     Random random = random();
     int topK = Math.min(random.nextInt(TOP_K_LIMIT) + 1, dataset.length);

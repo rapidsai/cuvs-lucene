@@ -4,7 +4,7 @@
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.supported;
+import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.isSupported;
 import static com.nvidia.cuvs.lucene.TestUtils.generateDataset;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
@@ -53,7 +53,7 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
 
   @Before
   public void beforeTest() throws Exception {
-    assumeTrue("cuVS not supported", supported());
+    assumeTrue("cuVS not supported", isSupported(false));
     // Fixed seed so that we can validate against the same result.
     random = new Random(222);
     indexDirPath = Paths.get(UUID.randomUUID().toString());

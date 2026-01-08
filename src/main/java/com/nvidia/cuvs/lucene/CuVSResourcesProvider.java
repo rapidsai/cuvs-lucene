@@ -43,22 +43,24 @@ public class CuVSResourcesProvider {
     return null;
   }
 
-  /**
-   * Tells whether the platform supports cuVS.
-   *
-   * @return if cuVS is supported or not
-   */
-  public static boolean supported() {
-    return cuVSResouces.get() != null;
+  public static void close() {
+    CuVSResources r = cuVSResouces.get();
+    if (r != null) {
+      r.close();
+    }
   }
 
   /**
-   * Checks if cuVS is supported and throws {@link UnsupportedOperationException} otherwise.
+   * Checks if cuVS is supported and throws {@link UnsupportedOperationException} otherwise if asked to.
+   *
+   * @return if cuVS is supported or not
    */
-  public static void checkSupported() {
-    if (!supported()) {
+  public static boolean isSupported(boolean throwUOE) {
+    boolean isSupported = cuVSResouces.get() != null;
+    if (throwUOE && !isSupported) {
       throw new UnsupportedOperationException();
     }
+    return isSupported;
   }
 
   /**

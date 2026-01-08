@@ -4,7 +4,7 @@
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.supported;
+import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.isSupported;
 import static com.nvidia.cuvs.lucene.TestUtils.generateDataset;
 import static com.nvidia.cuvs.lucene.TestUtils.generateRandomVector;
 
@@ -54,7 +54,7 @@ public class TestCuVSAcceleratedHNSWDeletedDocuments extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuVS not supported", supported());
+    assumeTrue("cuVS not supported", isSupported(false));
     random = random();
   }
 

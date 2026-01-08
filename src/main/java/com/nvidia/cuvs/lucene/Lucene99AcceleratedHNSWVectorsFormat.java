@@ -4,7 +4,7 @@
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.supported;
+import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.isSupported;
 
 import com.nvidia.cuvs.LibraryException;
 import java.io.IOException;
@@ -112,7 +112,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   @Override
   public KnnVectorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
     var flatWriter = FLAT_VECTORS_FORMAT.fieldsWriter(state);
-    if (supported()) {
+    if (isSupported(false)) {
       log.log(Level.FINE, "cuVS is supported so using the Lucene99AcceleratedHNSWVectorsWriter");
       return new Lucene99AcceleratedHNSWVectorsWriter(
           state, cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers, flatWriter);
