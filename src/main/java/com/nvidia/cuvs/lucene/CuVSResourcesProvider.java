@@ -28,7 +28,7 @@ public class CuVSResourcesProvider {
    *
    * @return an instance of CuVSResources
    */
-  public static CuVSResources get() {
+  public static CuVSResources getCuVSResourcesInstance() {
     return cuVSResouces.get();
   }
 
@@ -60,11 +60,12 @@ public class CuVSResourcesProvider {
   /**
    * Attempts to close the thread's {@link CuVSResources} instance.
    */
-  public static void close() {
+  public static void closeCuVSResourcesInstance() {
     CuVSResources r = cuVSResouces.get();
     if (r != null) {
       r.close();
     }
+    cuVSResouces.remove();
   }
 
   /**

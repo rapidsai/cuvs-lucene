@@ -10,7 +10,8 @@ import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_META_CODEC_EX
 import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_META_CODEC_NAME;
 import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.VERSION_CURRENT;
 import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.VERSION_START;
-import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.get;
+import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.closeCuVSResourcesInstance;
+import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.getCuVSResourcesInstance;
 
 import com.nvidia.cuvs.BruteForceIndex;
 import com.nvidia.cuvs.BruteForceQuery;
@@ -307,7 +308,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
         long off = fieldEntry.cagraIndexOffset();
         try (var slice = cuvsIndexInput.slice("cagra index", off, len);
             var in = new IndexInputInputStream(slice)) {
-          cagraIndex = CagraIndex.newBuilder(get()).from(in).build();
+          cagraIndex = CagraIndex.newBuilder(getCuVSResourcesInstance()).from(in).build();
         }
       }
 
@@ -316,7 +317,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
         long off = fieldEntry.bruteForceIndexOffset();
         try (var slice = cuvsIndexInput.slice("bf index", off, len);
             var in = new IndexInputInputStream(slice)) {
-          bruteForceIndex = BruteForceIndex.newBuilder(get()).from(in).build();
+          bruteForceIndex = BruteForceIndex.newBuilder(getCuVSResourcesInstance()).from(in).build();
         }
       }
     } catch (Throwable t) {
@@ -335,6 +336,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
             Stream.of(flatVectorsReader, cuvsIndexInput),
             stream(cuvsIndices.values().iterator()).map(cursor -> cursor.value));
     IOUtils.close(closeableStream::iterator);
+    closeCuVSResourcesInstance();
   }
 
   static <T> Stream<T> stream(Iterator<T> iterator) {
@@ -439,7 +441,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
       }
 
       var query =
-          new CagraQuery.Builder(get())
+          new CagraQuery.Builder(getCuVSResourcesInstance())
               .withTopK(topK)
               .withSearchParams(searchParams)
               .withQueryVectors(CuVSMatrix.ofArray(new float[][] {target}))
@@ -459,7 +461,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
       BruteForceIndex bruteforceIndex = cuvsIndex.getBruteforceIndex();
       assert bruteforceIndex != null;
       var queryBuilder =
-          new BruteForceQuery.Builder(get())
+          new BruteForceQuery.Builder(getCuVSResourcesInstance())
               .withQueryVectors(new float[][] {target})
               .withTopK(topK);
       BruteForceQuery query = queryBuilder.build();
