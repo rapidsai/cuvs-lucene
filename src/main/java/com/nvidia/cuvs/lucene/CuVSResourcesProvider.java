@@ -37,7 +37,7 @@ public class CuVSResourcesProvider {
    *
    * @param resources the instance of CuVSResources to set
    */
-  public static void set(CuVSResources resources) {
+  public static void setCuVSResourcesInstance(CuVSResources resources) {
     cuVSResouces.set(resources);
   }
 
