@@ -17,7 +17,7 @@ import java.util.logging.Logger;
 public class CuVSResourcesProvider {
 
   private static final Logger log = Logger.getLogger(CuVSResourcesProvider.class.getName());
-  private static final ThreadLocal<CuVSResources> cuVSResouces;
+  private static final ThreadLocal<CuVSResources> cuVSResources;
 
   static {
     cuVSResouces = ThreadLocal.withInitial(() -> cuVSResourcesOrNull());
