@@ -4,8 +4,8 @@
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.isSupported;
 import static com.nvidia.cuvs.lucene.TestUtils.generateDataset;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
 import java.io.File;

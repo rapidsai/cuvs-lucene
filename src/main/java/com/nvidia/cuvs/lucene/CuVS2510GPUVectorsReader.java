@@ -10,8 +10,8 @@ import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_META_CODEC_EX
 import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_META_CODEC_NAME;
 import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.VERSION_CURRENT;
 import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.VERSION_START;
-import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.closeCuVSResourcesInstance;
-import static com.nvidia.cuvs.lucene.CuVSResourcesProvider.getCuVSResourcesInstance;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.closeCuVSResourcesInstance;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.getCuVSResourcesInstance;
 
 import com.nvidia.cuvs.BruteForceIndex;
 import com.nvidia.cuvs.BruteForceQuery;

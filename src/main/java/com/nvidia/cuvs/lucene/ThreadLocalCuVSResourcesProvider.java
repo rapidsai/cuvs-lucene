@@ -14,13 +14,14 @@ import java.util.logging.Logger;
  *
  * @since 26.02
  */
-public class CuVSResourcesProvider {
+public class ThreadLocalCuVSResourcesProvider {
 
-  private static final Logger log = Logger.getLogger(CuVSResourcesProvider.class.getName());
+  private static final Logger log =
+      Logger.getLogger(ThreadLocalCuVSResourcesProvider.class.getName());
   private static final ThreadLocal<CuVSResources> cuVSResources;
 
   static {
-    cuVSResouces = ThreadLocal.withInitial(() -> cuVSResourcesOrNull());
+    cuVSResources = ThreadLocal.withInitial(() -> cuVSResourcesOrNull());
   }
 
   /**
@@ -29,7 +30,7 @@ public class CuVSResourcesProvider {
    * @return an instance of CuVSResources
    */
   public static CuVSResources getCuVSResourcesInstance() {
-    return cuVSResouces.get();
+    return cuVSResources.get();
   }
 
   /**
@@ -38,7 +39,7 @@ public class CuVSResourcesProvider {
    * @param resources the instance of CuVSResources to set
    */
   public static void setCuVSResourcesInstance(CuVSResources resources) {
-    cuVSResouces.set(resources);
+    cuVSResources.set(resources);
   }
 
   private static CuVSResources cuVSResourcesOrNull() {
@@ -61,11 +62,11 @@ public class CuVSResourcesProvider {
    * Attempts to close the thread's {@link CuVSResources} instance.
    */
   public static void closeCuVSResourcesInstance() {
-    CuVSResources r = cuVSResouces.get();
+    CuVSResources r = cuVSResources.get();
     if (r != null) {
       r.close();
     }
-    cuVSResouces.remove();
+    cuVSResources.remove();
   }
 
   /**
@@ -76,7 +77,7 @@ public class CuVSResourcesProvider {
    * @return if cuVS is supported or not
    */
   public static boolean isSupported(boolean throwUOE) {
-    boolean isSupported = cuVSResouces.get() != null;
+    boolean isSupported = cuVSResources.get() != null;
     if (throwUOE && !isSupported) {
       throw new UnsupportedOperationException();
     }
