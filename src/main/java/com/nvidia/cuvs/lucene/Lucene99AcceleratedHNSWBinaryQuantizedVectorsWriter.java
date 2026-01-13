@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
@@ -31,12 +31,10 @@ import java.util.TreeSet;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
-import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatFieldVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
-import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.DocsWithFieldSet;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FloatVectorValues;
@@ -812,11 +810,13 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
       }
       if (isFloatEncoding) {
         @SuppressWarnings("unchecked")
-        FlatFieldVectorsWriter<float[]> floatWriter = (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter;
+        FlatFieldVectorsWriter<float[]> floatWriter =
+            (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter;
         floatWriter.addValue(docID, (float[]) vectorValue);
       } else {
         @SuppressWarnings("unchecked")
-        FlatFieldVectorsWriter<byte[]> byteWriter = (FlatFieldVectorsWriter<byte[]>) flatFieldVectorsWriter;
+        FlatFieldVectorsWriter<byte[]> byteWriter =
+            (FlatFieldVectorsWriter<byte[]>) flatFieldVectorsWriter;
         byteWriter.addValue(docID, (byte[]) vectorValue);
       }
     }
@@ -824,12 +824,14 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
     List<byte[]> getVectors() {
       if (isFloatEncoding) {
         @SuppressWarnings("unchecked")
-        FlatFieldVectorsWriter<float[]> floatWriter = (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter;
+        FlatFieldVectorsWriter<float[]> floatWriter =
+            (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter;
         List<float[]> floatVectors = floatWriter.getVectors();
         return quantizeFloatVectorsToBinary(floatVectors);
       } else {
         @SuppressWarnings("unchecked")
-        FlatFieldVectorsWriter<byte[]> byteWriter = (FlatFieldVectorsWriter<byte[]>) flatFieldVectorsWriter;
+        FlatFieldVectorsWriter<byte[]> byteWriter =
+            (FlatFieldVectorsWriter<byte[]>) flatFieldVectorsWriter;
         return byteWriter.getVectors();
       }
     }
