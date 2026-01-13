@@ -70,17 +70,22 @@ public class ThreadLocalCuVSResourcesProvider {
   }
 
   /**
-   * Checks if cuVS is supported and throws {@link UnsupportedOperationException} otherwise if asked to.
+   * Checks if cuVS is supported and throws {@link UnsupportedOperationException} otherwise.
    *
-   * @param throwUOE flag that lets this method throw {@link UnsupportedOperationException}
-   *
-   * @return if cuVS is supported or not
+   * @throws UnsupportedOperationException
    */
-  public static boolean isSupported(boolean throwUOE) {
-    boolean isSupported = cuVSResources.get() != null;
-    if (throwUOE && !isSupported) {
-      throw new UnsupportedOperationException();
+  public static void assertIsSupported() throws UnsupportedOperationException {
+    if (cuVSResources.get() == null) {
+      throw new UnsupportedOperationException("cuVS is not supported");
     }
-    return isSupported;
+  }
+
+  /**
+   * Checks if cuVS is supported.
+   *
+   * @return true if cuVS is supported else false
+   */
+  public static boolean isSupported() {
+    return cuVSResources.get() != null;
   }
 }

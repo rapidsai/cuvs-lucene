@@ -56,7 +56,7 @@ public class TestCagraToHnswSerializationAndSearchWithFallbackWriter extends Luc
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuVS not supported", isSupported(false));
+    assumeTrue("cuVS not supported", isSupported());
     // Set resources to null to simulate that cuVS is not supported.
     setCuVSResourcesInstance(null);
     // Fixed seed so that we can validate against the same result.

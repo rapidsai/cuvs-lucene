@@ -54,7 +54,7 @@ public class TestCuVSAcceleratedHNSWDeletedDocuments extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuVS not supported", isSupported(false));
+    assumeTrue("cuVS not supported", isSupported());
     random = random();
   }
 
