@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
 
 import static org.apache.lucene.tests.util.TestUtil.alwaysKnnVectorsFormat;
 
+import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.lucene.CuVS2510GPUVectorsWriter.IndexType;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -749,6 +750,7 @@ public class TestMerge extends LuceneTestCase {
             32, // writer threads
             128, // intermediate graph degree
             64, // graph degree
+            CagraGraphBuildAlgo.NN_DESCENT,
             IndexType.BRUTE_FORCE); // Use brute force index
 
     IndexWriterConfig config =
@@ -905,6 +907,7 @@ public class TestMerge extends LuceneTestCase {
             32, // writer threads
             128, // intermediate graph degree
             64, // graph degree
+            CagraGraphBuildAlgo.NN_DESCENT,
             IndexType.CAGRA_AND_BRUTE_FORCE); // Use combined CAGRA + brute force
 
     IndexWriterConfig config =
