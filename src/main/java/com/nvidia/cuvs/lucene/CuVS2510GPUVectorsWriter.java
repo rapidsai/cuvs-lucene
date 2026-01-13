@@ -530,7 +530,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
       int ordinal = iter.index();
       float[] vector = mergedVectorValues.vectorValue(ordinal);
-      res.add(vector);
+      res.add(vector.clone());
     }
     return res;
   }

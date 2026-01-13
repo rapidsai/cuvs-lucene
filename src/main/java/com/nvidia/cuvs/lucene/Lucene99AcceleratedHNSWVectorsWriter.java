@@ -741,7 +741,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
     KnnVectorValues.DocIndexIterator iter = mergedVectorValues.iterator();
     for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
       float[] vector = mergedVectorValues.vectorValue(iter.index());
-      vectors.add(vector);
+      vectors.add(vector.clone());
     }
     return vectors;
   }
