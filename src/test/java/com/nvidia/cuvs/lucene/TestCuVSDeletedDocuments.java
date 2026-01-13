@@ -1,11 +1,12 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
 
 import static com.nvidia.cuvs.lucene.TestUtils.generateDataset;
 import static com.nvidia.cuvs.lucene.TestUtils.generateRandomVector;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,7 +27,6 @@ import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
@@ -51,7 +51,7 @@ public class TestCuVSDeletedDocuments extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuVS not supported", CuVS2510GPUVectorsFormat.supported());
+    assumeTrue("cuVS not supported", isSupported());
     random = random();
   }
 
@@ -93,7 +93,8 @@ public class TestCuVSDeletedDocuments extends LuceneTestCase {
         // Use a random vector for query
         float[] queryVector = generateRandomVector(dimensions, random);
 
-        Query query = new KnnFloatVectorQuery("vector", queryVector, topK);
+        GPUKnnFloatVectorQuery query =
+            new GPUKnnFloatVectorQuery("vector", queryVector, topK, null, topK, 1);
         ScoreDoc[] hits = searcher.search(query, topK).scoreDocs;
 
         // Verify we got results
@@ -169,7 +170,8 @@ public class TestCuVSDeletedDocuments extends LuceneTestCase {
         IndexSearcher searcher = newSearcher(reader);
         float[] queryVector = generateRandomVector(dimensions, random);
 
-        Query query = new KnnFloatVectorQuery("vector", queryVector, topK);
+        GPUKnnFloatVectorQuery query =
+            new GPUKnnFloatVectorQuery("vector", queryVector, topK, null, topK, 1);
         ScoreDoc[] hits = searcher.search(query, topK).scoreDocs;
 
         // Verify results
@@ -183,7 +185,7 @@ public class TestCuVSDeletedDocuments extends LuceneTestCase {
 
         // Test filtered search with deletions
         Query filter = new TermQuery(new Term("category", "A"));
-        Query filteredQuery =
+        GPUKnnFloatVectorQuery filteredQuery =
             new GPUKnnFloatVectorQuery("vector", queryVector, topK, filter, topK, 1);
         ScoreDoc[] filteredHits = searcher.search(filteredQuery, topK).scoreDocs;
 
@@ -233,7 +235,8 @@ public class TestCuVSDeletedDocuments extends LuceneTestCase {
         IndexSearcher searcher = newSearcher(reader);
         float[] queryVector = generateRandomVector(dimensions, random);
 
-        Query query = new KnnFloatVectorQuery("vector", queryVector, topK);
+        GPUKnnFloatVectorQuery query =
+            new GPUKnnFloatVectorQuery("vector", queryVector, topK, null, topK, 1);
         TopDocs results = searcher.search(query, topK);
 
         assertEquals(
@@ -294,7 +297,8 @@ public class TestCuVSDeletedDocuments extends LuceneTestCase {
         IndexSearcher searcher = newSearcher(reader);
         float[] queryVector = generateRandomVector(dimensions, random);
 
-        Query query = new KnnFloatVectorQuery("vector", queryVector, topK);
+        GPUKnnFloatVectorQuery query =
+            new GPUKnnFloatVectorQuery("vector", queryVector, topK, null, topK, 1);
         ScoreDoc[] hits = searcher.search(query, topK).scoreDocs;
 
         Set<Integer> resultIds = new HashSet<>();

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
@@ -9,18 +9,22 @@ import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CagraIndexParams.CuvsDistanceType;
 import com.nvidia.cuvs.CagraIndexParams.HnswHeuristicType;
+import com.nvidia.cuvs.CuVSDeviceMatrix;
+import com.nvidia.cuvs.CuVSHostMatrix;
 import com.nvidia.cuvs.CuVSMatrix;
 import com.nvidia.cuvs.CuVSMatrix.Builder;
 import com.nvidia.cuvs.CuVSMatrix.DataType;
 import com.nvidia.cuvs.CuVSResources;
+import com.nvidia.cuvs.GPUInfoProvider;
 import com.nvidia.cuvs.HnswIndex;
 import com.nvidia.cuvs.HnswIndexParams;
+import com.nvidia.cuvs.TieredIndex;
 import com.nvidia.cuvs.spi.CuVSProvider;
 import java.lang.invoke.MethodHandle;
 import java.nio.file.Path;
 import java.util.logging.Level;
 
-/*package-private*/ class FilterCuVSProvider implements CuVSProvider {
+class FilterCuVSProvider implements CuVSProvider {
 
   private final CuVSProvider delegate;
 
@@ -62,29 +66,29 @@ import java.util.logging.Level;
   }
 
   @Override
-  public com.nvidia.cuvs.GPUInfoProvider gpuInfoProvider() {
+  public GPUInfoProvider gpuInfoProvider() {
     return delegate.gpuInfoProvider();
   }
 
   @Override
-  public Builder newHostMatrixBuilder(long rows, long cols, DataType dataType) {
+  public Builder<CuVSHostMatrix> newHostMatrixBuilder(long rows, long cols, DataType dataType) {
     return delegate.newHostMatrixBuilder(rows, cols, dataType);
   }
 
   @Override
-  public Builder newHostMatrixBuilder(
+  public Builder<CuVSHostMatrix> newHostMatrixBuilder(
       long rows, long cols, int maxRows, int maxCols, DataType dataType) {
     return delegate.newHostMatrixBuilder(rows, cols, maxRows, maxCols, dataType);
   }
 
   @Override
-  public Builder newDeviceMatrixBuilder(
+  public Builder<CuVSDeviceMatrix> newDeviceMatrixBuilder(
       CuVSResources resources, long rows, long cols, DataType dataType) {
     return delegate.newDeviceMatrixBuilder(resources, rows, cols, dataType);
   }
 
   @Override
-  public Builder newDeviceMatrixBuilder(
+  public Builder<CuVSDeviceMatrix> newDeviceMatrixBuilder(
       CuVSResources resources, long rows, long cols, int maxRows, int maxCols, DataType dataType) {
     return delegate.newDeviceMatrixBuilder(resources, rows, cols, maxRows, maxCols, dataType);
   }
@@ -115,7 +119,7 @@ import java.util.logging.Level;
   }
 
   @Override
-  public com.nvidia.cuvs.TieredIndex.Builder newTieredIndexBuilder(CuVSResources cuVSResources)
+  public TieredIndex.Builder newTieredIndexBuilder(CuVSResources cuVSResources)
       throws UnsupportedOperationException {
     return delegate.newTieredIndexBuilder(cuVSResources);
   }
@@ -148,11 +152,17 @@ import java.util.logging.Level;
 
   @Override
   public void enableRMMPooledMemory(int arg0, int arg1) {
-    delegate.enableRMMManagedPooledMemory(arg0, arg1);
+    delegate.enableRMMPooledMemory(arg0, arg1);
   }
 
   @Override
   public void resetRMMPooledMemory() {
     delegate.resetRMMPooledMemory();
+  }
+
+  @Override
+  public HnswIndex hnswIndexBuild(CuVSResources arg0, HnswIndexParams arg1, CuVSMatrix arg2)
+      throws Throwable {
+    return delegate.hnswIndexBuild(arg0, arg1, arg2);
   }
 }

@@ -34,7 +34,7 @@ concurrency:
 jobs:
   java-build:
     secrets: inherit
-    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@release/25.12
+    uses: rapidsai/shared-workflows/.github/workflows/custom-job.yaml@cuda-13.1.0
     # Artifacts are not published from these jobs, so it's safe to run for multiple CUDA versions.
     # If these jobs start producing artifacts, the names will have to differentiate between CUDA versions.
     strategy:
@@ -42,13 +42,13 @@ jobs:
       matrix:
         cuda_version:
           - '12.9.1'
-          - '13.0.2'
+          - '13.1.0'
     with:
       build_type: ${{ inputs.build_type || 'branch' }}
       branch: ${{ inputs.branch }}
       arch: "amd64"
       date: ${{ inputs.date }}
-      container_image: "rapidsai/ci-conda:25.12-cuda${{ matrix.cuda_version }}-ubuntu24.04-py3.13"
+      container_image: "rapidsai/ci-conda:26.02-cuda${{ matrix.cuda_version }}-ubuntu24.04-py3.13"
       script: "ci/build_java.sh"
       file_to_upload: "target/"
       artifact-name: "cuvs-lucene-cuda${{ matrix.cuda_version }}"
