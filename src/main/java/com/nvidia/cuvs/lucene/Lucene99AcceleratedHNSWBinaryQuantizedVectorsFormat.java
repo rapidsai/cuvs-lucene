@@ -4,56 +4,60 @@
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.Utils.cuVSResourcesOrNull;
-import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat.DEFAULT_BEAM_WIDTH;
-import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat.DEFAULT_MAX_CONN;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
 
-import com.nvidia.cuvs.CuVSResources;
 import com.nvidia.cuvs.LibraryException;
 import java.io.IOException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
+import org.apache.lucene.codecs.hnsw.DefaultFlatVectorScorer;
 import org.apache.lucene.codecs.hnsw.FlatVectorsFormat;
-import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 
 /**
- * cuVS based KnnVectorsFormat for indexing on GPU and searching on the CPU.
+ * cuVS based Binary Quantized KnnVectorsFormat for indexing on GPU and searching on the CPU.
  *
- * @since 25.10
+ * @since 26.02
  */
 public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVectorsFormat {
 
   private static final Logger log =
       Logger.getLogger(Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat.class.getName());
 
-  static final int DEFAULT_WRITER_THREADS = 32;
-  static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
-  static final int DEFAULT_GRAPH_DEGREE = 64;
-  static final int DEFAULT_HNSW_GRAPH_LAYERS = 1;
-
-  static final String HNSW_META_CODEC_NAME = "Lucene99HnswVectorsFormatMeta";
-  static final String HNSW_META_CODEC_EXT = "vem";
-  static final String HNSW_INDEX_CODEC_NAME = "Lucene99HnswVectorsFormatIndex";
-  static final String HNSW_INDEX_EXT = "vex";
-
-  private static CuVSResources resources = cuVSResourcesOrNull();
-
-  /** The format for storing, reading, and merging binary quantized vectors on disk. */
-  private static final FlatVectorsFormat flatVectorsFormat =
-      new org.apache.lucene.codecs.lucene102.Lucene102BinaryQuantizedVectorsFormat();
+  private static final int DEFAULT_WRITER_THREADS = 32;
+  private static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
+  private static final int DEFAULT_GRAPH_DEGREE = 64;
+  private static final int DEFAULT_HNSW_GRAPH_LAYERS = 1;
+  private static final LuceneProvider LUCENE102_PROVIDER;
+  private static final LuceneProvider LUCENE99_PROVIDER;
+  private static final FlatVectorsFormat FLAT_VECTORS_FORMAT;
+  private static final Integer DEFAULT_MAX_CONN;
+  private static final Integer DEFAULT_BEAM_WIDTH;
 
   private final int maxDimensions = 4096;
   private final int cuvsWriterThreads;
   private final int intGraphDegree;
   private final int graphDegree;
   private final int hnswLayers;
-
   private final int maxConn;
   private final int beamWidth;
+
+  static {
+    try {
+      LUCENE99_PROVIDER = LuceneProvider.getInstance("99");
+      LUCENE102_PROVIDER = LuceneProvider.getInstance("102");
+      FLAT_VECTORS_FORMAT =
+          LUCENE102_PROVIDER.getLuceneFlatVectorsFormatInstance(DefaultFlatVectorScorer.INSTANCE);
+      DEFAULT_MAX_CONN = LUCENE99_PROVIDER.getStaticIntParam("DEFAULT_MAX_CONN");
+      DEFAULT_BEAM_WIDTH = LUCENE99_PROVIDER.getStaticIntParam("DEFAULT_BEAM_WIDTH");
+    } catch (Exception e) {
+      throw new ExceptionInInitializerError(e.getMessage());
+    }
+  }
 
   /**
    * Initializes {@link Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat} with default values.
@@ -101,21 +105,27 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVect
    */
   @Override
   public KnnVectorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
-    var flatWriter = flatVectorsFormat.fieldsWriter(state);
-    if (supported()) {
-      log.info(
+    var flatWriter = FLAT_VECTORS_FORMAT.fieldsWriter(state);
+    if (isSupported()) {
+      log.log(
+          Level.FINE,
           "cuVS is supported so using the Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter");
       return new Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter(
-          state, cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers, resources, flatWriter);
+          state, cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers, flatWriter);
     } else {
-      log.warning(
-          "GPU based indexing not supported, falling back to using the"
-              + " Lucene102HnswBinaryQuantizedVectorsFormat");
-      // Fallback to Lucene's format
-      org.apache.lucene.codecs.lucene102.Lucene102HnswBinaryQuantizedVectorsFormat fallbackFormat =
-          new org.apache.lucene.codecs.lucene102.Lucene102HnswBinaryQuantizedVectorsFormat(
-              maxConn, beamWidth);
-      return fallbackFormat.fieldsWriter(state);
+      try {
+        // Fallback to Lucene's Lucene102HnswBinaryQuantizedVectorsFormat format
+        log.log(
+            Level.WARNING,
+            "GPU based indexing not supported, falling back to using the"
+                + " Lucene102HnswBinaryQuantizedVectorsFormat");
+        KnnVectorsFormat fallbackFormat =
+            LUCENE102_PROVIDER.getLuceneHnswBinaryQuantizedVectorsFormatInstance(
+                maxConn, beamWidth);
+        return fallbackFormat.fieldsWriter(state);
+      } catch (Exception e) {
+        throw new RuntimeException(e.getMessage());
+      }
     }
   }
 
@@ -124,7 +134,12 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVect
    */
   @Override
   public KnnVectorsReader fieldsReader(SegmentReadState state) throws IOException {
-    return new Lucene99HnswVectorsReader(state, flatVectorsFormat.fieldsReader(state));
+    try {
+      return LUCENE99_PROVIDER.getLuceneHnswVectorsReaderInstance(
+          state, FLAT_VECTORS_FORMAT.fieldsReader(state));
+    } catch (Exception e) {
+      throw new RuntimeException(e.getMessage());
+    }
   }
 
   /**
@@ -145,44 +160,7 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVect
     sb.append("intGraphDegree=").append(intGraphDegree);
     sb.append("graphDegree=").append(graphDegree);
     sb.append("hnswLayers=").append(hnswLayers);
-    sb.append("resources=").append(resources);
     sb.append(")");
     return sb.toString();
-  }
-
-  /**
-   * Gets the instance of CuVSResources
-   *
-   * @return the instance of CuVSResources
-   */
-  public static CuVSResources getResources() {
-    return resources;
-  }
-
-  /**
-   * Sets the instance of CuVSResources
-   *
-   * @param resources the instance of CuVSResources to set
-   */
-  public static void setResources(CuVSResources resources) {
-    Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat.resources = resources;
-  }
-
-  /**
-   * Tells whether the platform supports cuVS.
-   *
-   * @return if cuVS supported or not
-   */
-  public static boolean supported() {
-    return resources != null;
-  }
-
-  /**
-   * Checks if cuVS supported and throws {@link UnsupportedOperationException} otherwise.
-   */
-  public static void checkSupported() {
-    if (!supported()) {
-      throw new UnsupportedOperationException();
-    }
   }
 }

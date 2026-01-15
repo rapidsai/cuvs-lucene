@@ -4,6 +4,7 @@
  */
 package com.nvidia.cuvs.lucene;
 
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
 import static org.apache.lucene.index.VectorSimilarityFunction.COSINE;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
@@ -31,8 +32,7 @@ public class TestBinaryQuantizedVectorsFormat extends BaseKnnVectorsFormatTestCa
 
   @BeforeClass
   public static void beforeClass() {
-    assumeTrue(
-        "cuVS is not supported", Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat.supported());
+    assumeTrue("cuVS is not supported so skipping these tests", isSupported());
   }
 
   @Override
