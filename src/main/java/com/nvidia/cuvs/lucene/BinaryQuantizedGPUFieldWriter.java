@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package com.nvidia.cuvs.lucene;
 
 import static org.apache.lucene.index.VectorEncoding.FLOAT32;
