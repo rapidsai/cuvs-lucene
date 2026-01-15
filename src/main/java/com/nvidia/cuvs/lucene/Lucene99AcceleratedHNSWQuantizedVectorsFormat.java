@@ -14,10 +14,6 @@ import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsFormat;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
-// import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
-// import org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat;
-// import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader;
-// import org.apache.lucene.codecs.lucene99.Lucene99ScalarQuantizedVectorsFormat;
 import org.apache.lucene.index.SegmentReadState;
 import org.apache.lucene.index.SegmentWriteState;
 
