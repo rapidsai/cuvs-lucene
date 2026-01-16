@@ -3,3 +3,5 @@
 
 com.nvidia.cuvs.lucene.Lucene101AcceleratedHNSWCodec
 com.nvidia.cuvs.lucene.CuVS2510GPUSearchCodec
+com.nvidia.cuvs.lucene.Lucene101AcceleratedHNSWBinaryQuantizedCodec
+com.nvidia.cuvs.lucene.Lucene101AcceleratedHNSWScalarQuantizedCodec
