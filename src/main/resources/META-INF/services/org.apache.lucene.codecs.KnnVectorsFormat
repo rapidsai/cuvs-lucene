@@ -6,4 +6,4 @@ org.apache.lucene.codecs.lucene99.Lucene99HnswScalarQuantizedVectorsFormat
 com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat
 com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat
 com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat
-com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWQuantizedVectorsFormat
+com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWScalarQuantizedVectorsFormat

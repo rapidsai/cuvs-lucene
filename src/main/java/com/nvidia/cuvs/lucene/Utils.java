@@ -116,7 +116,6 @@ public class Utils {
     for (byte[] vector : data) {
       builder.addVector(vector);
     }
-
     return builder.build();
   }
 

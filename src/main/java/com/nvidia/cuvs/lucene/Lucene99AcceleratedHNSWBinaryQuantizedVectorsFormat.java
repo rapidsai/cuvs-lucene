@@ -27,16 +27,16 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVect
 
   private static final Logger log =
       Logger.getLogger(Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat.class.getName());
-
-  private static final int DEFAULT_WRITER_THREADS = 32;
-  private static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
-  private static final int DEFAULT_GRAPH_DEGREE = 64;
-  private static final int DEFAULT_HNSW_GRAPH_LAYERS = 1;
   private static final LuceneProvider LUCENE102_PROVIDER;
   private static final LuceneProvider LUCENE99_PROVIDER;
   private static final FlatVectorsFormat FLAT_VECTORS_FORMAT;
   private static final Integer DEFAULT_MAX_CONN;
   private static final Integer DEFAULT_BEAM_WIDTH;
+
+  public static final int DEFAULT_WRITER_THREADS = 32;
+  public static final int DEFAULT_INTERMEDIATE_GRAPH_DEGREE = 128;
+  public static final int DEFAULT_GRAPH_DEGREE = 64;
+  public static final int DEFAULT_HNSW_GRAPH_LAYERS = 2;
 
   private final int maxDimensions = 4096;
   private final int cuvsWriterThreads;
@@ -92,6 +92,16 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVect
       int maxConn,
       int beamWidth) {
     super("Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat");
+
+    assert cuvsWriterThreads > 0
+        : "cuvsWriterThreads must be greater than zero, but is: " + cuvsWriterThreads;
+    assert intGraphDegree > 0
+        : "intGraphDegree must be greater than zero, but is: " + intGraphDegree;
+    assert graphDegree > 0 : "graphDegree must be greater than zero, but is: " + graphDegree;
+    assert hnswLayers > 0 : "hnswLayers must be greater than zero, but is: " + hnswLayers;
+    assert maxConn > 0 : "maxConn must be greater than zero, but is: " + maxConn;
+    assert beamWidth > 0 : "beamWidth must be greater than zero, but is: " + beamWidth;
+
     this.cuvsWriterThreads = cuvsWriterThreads;
     this.intGraphDegree = intGraphDegree;
     this.graphDegree = graphDegree;

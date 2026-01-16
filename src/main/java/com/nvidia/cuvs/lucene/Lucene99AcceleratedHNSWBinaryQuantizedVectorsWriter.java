@@ -8,6 +8,7 @@ import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.cagraIndexParams;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.createMultiLayerHnswGraph;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.createSingleVectorHnswGraph;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.printInfoStream;
+import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.quantizeFloatVectorsToBinary;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.writeEmpty;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.writeGraph;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.writeMeta;
@@ -17,7 +18,6 @@ import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_M
 import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_META_CODEC_NAME;
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.closeCuVSResourcesInstance;
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.getCuVSResourcesInstance;
-import static org.apache.lucene.index.VectorEncoding.BYTE;
 import static org.apache.lucene.index.VectorEncoding.FLOAT32;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 import static org.apache.lucene.util.RamUsageEstimator.shallowSizeOfInstance;
@@ -25,6 +25,7 @@ import static org.apache.lucene.util.RamUsageEstimator.shallowSizeOfInstance;
 import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CuVSMatrix;
+import com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.QuantizationType;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +33,6 @@ import java.util.Objects;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
 import org.apache.lucene.codecs.KnnVectorsWriter;
-import org.apache.lucene.codecs.hnsw.FlatFieldVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
 import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.index.DocsWithFieldSet;
@@ -44,6 +44,7 @@ import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.Sorter;
 import org.apache.lucene.index.Sorter.DocMap;
+import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.InfoStream;
@@ -58,8 +59,6 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
 
   private static final long SHALLOW_RAM_BYTES_USED =
       shallowSizeOfInstance(Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter.class);
-
-  /** The name of the CUVS component for the info-stream * */
   private static final String COMPONENT = "Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter";
 
   private final int cuvsWriterThreads;
@@ -67,7 +66,7 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
   private final int graphDegree;
   private final int hnswLayers;
   private final FlatVectorsWriter flatVectorsWriter;
-  private final List<BinaryQuantizedGPUFieldWriter> fields = new ArrayList<>();
+  private final List<QuantizedFieldWriter> fields = new ArrayList<>();
   private final InfoStream infoStream;
   private IndexOutput hnswMeta = null, hnswVectorIndex = null;
   private boolean finished;
@@ -141,25 +140,14 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
    */
   @Override
   public KnnFieldVectorsWriter<?> addField(FieldInfo fieldInfo) throws IOException {
-    var encoding = fieldInfo.getVectorEncoding();
-    var writer = Objects.requireNonNull(flatVectorsWriter.addField(fieldInfo));
-
-    if (encoding == FLOAT32) {
-      @SuppressWarnings("unchecked")
-      var flatWriter = (FlatFieldVectorsWriter<float[]>) writer;
-      var cuvsFieldWriter = new BinaryQuantizedGPUFieldWriter(fieldInfo, flatWriter);
-      fields.add(cuvsFieldWriter);
-      return writer;
-    } else if (encoding == BYTE) {
-      @SuppressWarnings("unchecked")
-      var flatWriter = (FlatFieldVectorsWriter<byte[]>) writer;
-      var cuvsFieldWriter = new BinaryQuantizedGPUFieldWriter(fieldInfo, flatWriter);
-      fields.add(cuvsFieldWriter);
-      return writer;
-    } else {
-      throw new IllegalArgumentException(
-          "expected FLOAT32 or BYTE encoding for binary quantized vectors, got:" + encoding);
+    VectorEncoding encoding = fieldInfo.getVectorEncoding();
+    if (encoding != FLOAT32) {
+      throw new IllegalArgumentException("expected float32, got:" + encoding);
     }
+    var writer = Objects.requireNonNull(flatVectorsWriter.addField(fieldInfo));
+    var cuvsFieldWriter = new QuantizedFieldWriter(QuantizationType.BINARY, fieldInfo, writer);
+    fields.add(cuvsFieldWriter);
+    return writer;
   }
 
   /**
@@ -225,7 +213,8 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
               vectors,
               hnswLayers,
               graphDegree,
-              params);
+              params,
+              QuantizationType.BINARY);
 
       long vectorIndexOffset = hnswVectorIndex.getFilePointer();
       // Write the graph to the vector index
@@ -272,7 +261,7 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
    * @param fieldData
    * @throws IOException
    */
-  private void writeField(BinaryQuantizedGPUFieldWriter fieldData) throws IOException {
+  private void writeField(QuantizedFieldWriter fieldData) throws IOException {
     writeFieldInternal(fieldData.fieldInfo(), fieldData.getVectors());
   }
 
@@ -283,7 +272,7 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
    * @param sortMap instance of the DocMap
    * @throws IOException
    */
-  private void writeSortingField(BinaryQuantizedGPUFieldWriter fieldData, Sorter.DocMap sortMap)
+  private void writeSortingField(QuantizedFieldWriter fieldData, Sorter.DocMap sortMap)
       throws IOException {
 
     DocsWithFieldSet oldDocsWithFieldSet = fieldData.getDocsWithFieldSet();
@@ -291,8 +280,9 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
     mapOldOrdToNewOrd(oldDocsWithFieldSet, sortMap, null, new2OldOrd, null);
 
     List<byte[]> sortedVectors = new ArrayList<byte[]>();
-    for (int i = 0; i < fieldData.getVectors().size(); i++) {
-      sortedVectors.add(fieldData.getVectors().get(new2OldOrd[i]));
+    List<byte[]> vectors = fieldData.getVectors();
+    for (int i = 0; i < vectors.size(); i++) {
+      sortedVectors.add(vectors.get(new2OldOrd[i]));
     }
 
     writeFieldInternal(fieldData.fieldInfo(), sortedVectors);
@@ -361,39 +351,9 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
         List<float[]> floatVectors = new ArrayList<>();
         KnnVectorValues.DocIndexIterator iter = mergedVectorValues.iterator();
         for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
-          floatVectors.add(mergedVectorValues.vectorValue(iter.index()));
+          floatVectors.add(mergedVectorValues.vectorValue(iter.index()).clone());
         }
-
-        if (!floatVectors.isEmpty()) {
-          int dimensions = floatVectors.get(0).length;
-          int numVectors = floatVectors.size();
-          int bytesPerVector = (dimensions + 7) / 8;
-
-          float[] centroids = new float[dimensions];
-          for (float[] vector : floatVectors) {
-            for (int d = 0; d < dimensions; d++) {
-              centroids[d] += vector[d];
-            }
-          }
-          for (int d = 0; d < dimensions; d++) {
-            centroids[d] /= numVectors;
-          }
-
-          List<byte[]> dataset = new ArrayList<>(numVectors);
-          for (float[] vector : floatVectors) {
-            byte[] quantized = new byte[bytesPerVector];
-            for (int d = 0; d < dimensions; d++) {
-              boolean bit = vector[d] > centroids[d];
-              int byteIndex = d / 8;
-              int bitIndex = d % 8;
-              if (bit) {
-                quantized[byteIndex] |= (1 << bitIndex);
-              }
-            }
-            dataset.add(quantized);
-          }
-          writeFieldInternal(fieldInfo, dataset);
-        }
+        writeFieldInternal(fieldInfo, quantizeFloatVectorsToBinary(floatVectors));
       }
     } catch (Throwable t) {
       Utils.handleThrowable(t);

@@ -71,6 +71,11 @@ public class LuceneProvider {
   private static String luceneScalarQuantizedVectorsFormatFallback =
       BASE + backwardCodecs + "Lucene<version>ScalarQuantizedVectorsFormat";
 
+  private static String luceneHnswScalarQuantizedVectorsFormat =
+      BASE + codecs + "Lucene<version>HnswScalarQuantizedVectorsFormat";
+  private static String luceneHnswScalarQuantizedVectorsFormatFallback =
+      BASE + backwardCodecs + "Lucene<version>HnswScalarQuantizedVectorsFormat";
+
   private static String luceneCodec = BASE + codecs + "Lucene<version>Codec";
   private static String luceneCodecFallback = BASE + backwardCodecs + "Lucene<version>Codec";
 
@@ -85,6 +90,7 @@ public class LuceneProvider {
   private Class<?> binaryQuantizedVectorsFormat;
   private Class<?> hnswBinaryQuantizedVectorsFormat;
   private Class<?> scalarQuantizedVectorsFormat;
+  private Class<?> hnswScalarQuantizedVectorsFormat;
 
   public static LuceneProvider getInstance(String version) throws ClassNotFoundException {
     if (instance == null) {
@@ -114,6 +120,11 @@ public class LuceneProvider {
         loadClass(
             setVersion(luceneScalarQuantizedVectorsFormat, version),
             setVersion(luceneScalarQuantizedVectorsFormatFallback, version));
+
+    hnswScalarQuantizedVectorsFormat =
+        loadClass(
+            setVersion(luceneHnswScalarQuantizedVectorsFormat, version),
+            setVersion(luceneHnswScalarQuantizedVectorsFormatFallback, version));
 
     // TODO: Find a better way if possible, but as a separate initiative.
     if ("102".equals(version)) {
@@ -271,6 +282,21 @@ public class LuceneProvider {
       log.log(
           Level.SEVERE,
           "Unable to initialize LuceneScalarQuantizedVectorsFormat: " + e.getMessage());
+      throw e;
+    }
+  }
+
+  public FlatVectorsFormat getLuceneHnswScalarQuantizedVectorsFormatInstance(
+      int beamWidth, int maxConn) throws Exception {
+    try {
+      Constructor<?> luceneHnswScalarQuantizedVectorsFormatConstructor =
+          hnswScalarQuantizedVectorsFormat.getConstructor(Integer.TYPE, Integer.TYPE);
+      return (FlatVectorsFormat)
+          luceneHnswScalarQuantizedVectorsFormatConstructor.newInstance(beamWidth, maxConn);
+    } catch (Exception e) {
+      log.log(
+          Level.SEVERE,
+          "Unable to initialize LuceneHnswScalarQuantizedVectorsFormat: " + e.getMessage());
       throw e;
     }
   }

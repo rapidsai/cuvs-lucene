@@ -6,6 +6,7 @@
 package com.nvidia.cuvs.lucene;
 
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.getCuVSResourcesInstance;
+import static com.nvidia.cuvs.lucene.Utils.createByteMatrixFromArray;
 
 import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CagraIndexParams;
@@ -29,6 +30,11 @@ import org.apache.lucene.util.hnsw.NeighborArray;
 import org.apache.lucene.util.packed.DirectMonotonicWriter;
 
 public class AcceleratedHNSWUtils {
+
+  public enum QuantizationType {
+    BINARY,
+    SCALAR
+  }
 
   private static final LuceneProvider LUCENE_PROVIDER;
   private static final List<VectorSimilarityFunction> VECTOR_SIMILARITY_FUNCTIONS;
@@ -80,7 +86,8 @@ public class AcceleratedHNSWUtils {
       List<byte[]> vectors,
       int hnswLayers,
       int graphDegree,
-      CagraIndexParams params)
+      CagraIndexParams params,
+      QuantizationType quantization)
       throws Throwable {
 
     // Calculate M as cagraGraphDegree/2
@@ -133,7 +140,8 @@ public class AcceleratedHNSWUtils {
 
       // Build CAGRA graph for this layer
       layerAdjacencies.add(
-          buildCagraGraphForSubset(selectedVectors, selectedNodes, bytesPerVector, params));
+          buildCagraGraphForSubset(
+              selectedVectors, selectedNodes, bytesPerVector, params, dimensions, quantization));
 
       // Update for next iteration
       currentLayerSize = nextLayerSize;
@@ -151,11 +159,22 @@ public class AcceleratedHNSWUtils {
    * Builds a CAGRA graph for a subset of binary quantized vectors
    */
   private static CuVSMatrix buildCagraGraphForSubset(
-      byte[][] vectors, int[] selectedNodes, int bytesPerVector, CagraIndexParams params)
+      byte[][] vectors,
+      int[] selectedNodes,
+      int bytesPerVector,
+      CagraIndexParams params,
+      int dimensions,
+      QuantizationType quantization)
       throws Throwable {
-    // Create CuVSMatrix from the subset vectors
-    CuVSMatrix subsetDataset =
-        Utils.createByteMatrixFromArray(vectors, bytesPerVector, getCuVSResourcesInstance());
+
+    CuVSMatrix subsetDataset;
+
+    if (quantization == QuantizationType.BINARY) {
+      subsetDataset =
+          createByteMatrixFromArray(vectors, bytesPerVector, getCuVSResourcesInstance());
+    } else {
+      subsetDataset = createByteMatrixFromArray(vectors, dimensions, getCuVSResourcesInstance());
+    }
 
     // Build CAGRA index for the subset
     CagraIndex subsetIndex =
@@ -326,7 +345,6 @@ public class AcceleratedHNSWUtils {
       }
 
       memoryOffsetsWriter.finish();
-
       meta.writeLong(vectorIndex.getFilePointer() - start);
     }
   }
@@ -374,5 +392,95 @@ public class AcceleratedHNSWUtils {
         .withGraphDegree(graphDegree)
         .withCagraGraphBuildAlgo(CagraGraphBuildAlgo.NN_DESCENT)
         .build();
+  }
+
+  /**
+   * Quantizes FLOAT32 vectors to binary (1 bit per dimension, packed into bytes).
+   * Binary quantization: each dimension is compared to a centroid (mean of all values for that dimension).
+   * If value > centroid, bit = 1, else bit = 0.
+   * Bits are packed: 8 dimensions per byte.
+   *
+   * @param floatVectors A list of float vectors
+   * @return A list of byte binary representation for the input vectors
+   */
+  public static List<byte[]> quantizeFloatVectorsToBinary(List<float[]> floatVectors) {
+    if (floatVectors.isEmpty()) {
+      return new ArrayList<>();
+    }
+
+    int dimensions = floatVectors.get(0).length;
+    int numVectors = floatVectors.size();
+    int bytesPerVector = (dimensions + 7) / 8;
+
+    float[] centroids = new float[dimensions];
+    for (float[] vector : floatVectors) {
+      for (int d = 0; d < dimensions; d++) {
+        centroids[d] += vector[d];
+      }
+    }
+    for (int d = 0; d < dimensions; d++) {
+      centroids[d] /= numVectors;
+    }
+
+    List<byte[]> quantizedVectors = new ArrayList<>(numVectors);
+    for (float[] vector : floatVectors) {
+      byte[] quantized = new byte[bytesPerVector];
+      for (int d = 0; d < dimensions; d++) {
+        boolean bit = vector[d] > centroids[d];
+        int byteIndex = d / 8;
+        int bitIndex = d % 8;
+        if (bit) {
+          quantized[byteIndex] |= (1 << bitIndex);
+        }
+      }
+      quantizedVectors.add(quantized);
+    }
+
+    return quantizedVectors;
+  }
+
+  /**
+   * Scalar quantization.
+   *
+   * @param floatVectors A list of float vectors
+   * @return A list of byte scalar representation for the input vectors
+   */
+  public static List<byte[]> quantizeFloatVectorsToScalar(List<float[]> floatVectors) {
+    if (floatVectors.isEmpty()) {
+      return new ArrayList<>();
+    }
+
+    int dimensions = floatVectors.get(0).length;
+    int numVectors = floatVectors.size();
+
+    float[] minPerDim = new float[dimensions];
+    float[] maxPerDim = new float[dimensions];
+    Arrays.fill(minPerDim, Float.MAX_VALUE);
+    Arrays.fill(maxPerDim, Float.MIN_VALUE);
+
+    for (float[] vector : floatVectors) {
+      for (int d = 0; d < dimensions; d++) {
+        minPerDim[d] = Math.min(minPerDim[d], vector[d]);
+        maxPerDim[d] = Math.max(maxPerDim[d], vector[d]);
+      }
+    }
+
+    List<byte[]> quantizedVectors = new ArrayList<>(numVectors);
+    for (float[] vector : floatVectors) {
+      byte[] quantized = new byte[dimensions];
+      for (int d = 0; d < dimensions; d++) {
+        float range = maxPerDim[d] - minPerDim[d];
+        if (range > 0) {
+          float normalized = (vector[d] - minPerDim[d]) / range;
+          int quantizedValue = Math.round(normalized * 127.0f) - 64;
+          quantized[d] = (byte) Math.max(-64, Math.min(63, quantizedValue));
+        } else {
+          quantized[d] = 0;
+        }
+      }
+      quantizedVectors.add(quantized);
+    }
+
+    return quantizedVectors;
   }
 }

@@ -26,6 +26,7 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.VectorEncoding;
+import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.tests.index.BaseKnnVectorsFormatTestCase;
 import org.apache.lucene.tests.util.LuceneTestCase.SuppressSysoutChecks;
@@ -49,7 +50,7 @@ public class TestQuantizedVectorsFormats extends BaseKnnVectorsFormatTestCase {
     return Arrays.asList(
         new Object[][] {
           {new Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat()},
-          {new Lucene99AcceleratedHNSWQuantizedVectorsFormat()}
+          {new Lucene99AcceleratedHNSWScalarQuantizedVectorsFormat()}
         });
   }
 
@@ -72,7 +73,7 @@ public class TestQuantizedVectorsFormats extends BaseKnnVectorsFormatTestCase {
       f[i] = randomVector(D);
     }
 
-    try (Directory dir = newDirectory();
+    try (Directory dir = newDirectory(new ByteBuffersDirectory());
         IndexWriter w = new IndexWriter(dir, newIndexWriterConfig())) {
       for (int i = 0; i < R; i++) {
         Document doc = new Document();
@@ -115,7 +116,7 @@ public class TestQuantizedVectorsFormats extends BaseKnnVectorsFormatTestCase {
       f2[i] = randomVector(D);
     }
 
-    try (Directory dir = newDirectory();
+    try (Directory dir = newDirectory(new ByteBuffersDirectory());
         IndexWriter w = new IndexWriter(dir, newIndexWriterConfig())) {
 
       for (int i = 0; i < R; i++) {
@@ -154,7 +155,7 @@ public class TestQuantizedVectorsFormats extends BaseKnnVectorsFormatTestCase {
       f[i] = randomVector(D);
     }
 
-    try (Directory dir = newDirectory();
+    try (Directory dir = newDirectory(new ByteBuffersDirectory());
         IndexWriter w = new IndexWriter(dir, newIndexWriterConfig())) {
 
       for (int i = 0; i < R; i++) {

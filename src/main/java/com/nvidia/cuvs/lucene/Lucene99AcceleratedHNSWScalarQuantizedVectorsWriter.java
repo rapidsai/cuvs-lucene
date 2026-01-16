@@ -8,6 +8,7 @@ import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.cagraIndexParams;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.createMultiLayerHnswGraph;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.createSingleVectorHnswGraph;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.printInfoStream;
+import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.quantizeFloatVectorsToScalar;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.writeEmpty;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.writeGraph;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.writeMeta;
@@ -17,7 +18,6 @@ import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_M
 import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_META_CODEC_NAME;
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.closeCuVSResourcesInstance;
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.getCuVSResourcesInstance;
-import static org.apache.lucene.index.VectorEncoding.BYTE;
 import static org.apache.lucene.index.VectorEncoding.FLOAT32;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 import static org.apache.lucene.util.RamUsageEstimator.shallowSizeOfInstance;
@@ -25,17 +25,15 @@ import static org.apache.lucene.util.RamUsageEstimator.shallowSizeOfInstance;
 import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CuVSMatrix;
+import com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.QuantizationType;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
 import org.apache.lucene.codecs.KnnVectorsWriter;
-import org.apache.lucene.codecs.hnsw.FlatFieldVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
-import org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat;
 import org.apache.lucene.index.DocsWithFieldSet;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FloatVectorValues;
@@ -45,6 +43,7 @@ import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.Sorter;
 import org.apache.lucene.index.Sorter.DocMap;
+import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.InfoStream;
@@ -55,28 +54,37 @@ import org.apache.lucene.util.InfoStream;
  *
  * @since 26.02
  */
-public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWriter {
+public class Lucene99AcceleratedHNSWScalarQuantizedVectorsWriter extends KnnVectorsWriter {
 
   private static final long SHALLOW_RAM_BYTES_USED =
-      shallowSizeOfInstance(Lucene99AcceleratedHNSWQuantizedVectorsWriter.class);
-
-  /** The name of the CUVS component for the info-stream * */
+      shallowSizeOfInstance(Lucene99AcceleratedHNSWScalarQuantizedVectorsWriter.class);
   private static final String COMPONENT = "Lucene99AcceleratedHNSWQuantizedVectorsWriter";
+  private static final LuceneProvider LUCENE_PROVIDER;
+  private static final Integer VERSION_CURRENT;
 
   private final int cuvsWriterThreads;
   private final int intGraphDegree;
   private final int graphDegree;
   private final int hnswLayers;
   private final FlatVectorsWriter flatVectorsWriter;
-  private final List<ScalarQuantizedGPUFieldWriter> fields = new ArrayList<>();
+  private final List<QuantizedFieldWriter> fields = new ArrayList<>();
   private final InfoStream infoStream;
   private IndexOutput hnswMeta = null, hnswVectorIndex = null;
   private boolean finished;
   private String vemFileName;
   private String vexFileName;
 
+  static {
+    try {
+      LUCENE_PROVIDER = LuceneProvider.getInstance("99");
+      VERSION_CURRENT = LUCENE_PROVIDER.getStaticIntParam("VERSION_CURRENT");
+    } catch (Exception e) {
+      throw new ExceptionInInitializerError(e.getMessage());
+    }
+  }
+
   /**
-   * Initializes {@link Lucene99AcceleratedHNSWQuantizedVectorsWriter}
+   * Initializes {@link Lucene99AcceleratedHNSWScalarQuantizedVectorsWriter}
    *
    * @param state instance of the {@link org.apache.lucene.index.SegmentWriteState}
    * @param cuvsWriterThreads number of cuVS threads to use while building the intermediate CAGRA index
@@ -86,7 +94,7 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
    * @param flatVectorsWriter instance of the {@link org.apache.lucene.codecs.hnsw.FlatVectorsWriter}
    * @throws IOException IOException
    */
-  public Lucene99AcceleratedHNSWQuantizedVectorsWriter(
+  public Lucene99AcceleratedHNSWScalarQuantizedVectorsWriter(
       SegmentWriteState state,
       int cuvsWriterThreads,
       int intGraphDegree,
@@ -118,13 +126,13 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
       CodecUtil.writeIndexHeader(
           hnswMeta,
           HNSW_META_CODEC_NAME,
-          Lucene99HnswVectorsFormat.VERSION_CURRENT,
+          VERSION_CURRENT,
           state.segmentInfo.getId(),
           state.segmentSuffix);
       CodecUtil.writeIndexHeader(
           hnswVectorIndex,
           HNSW_INDEX_CODEC_NAME,
-          Lucene99HnswVectorsFormat.VERSION_CURRENT,
+          VERSION_CURRENT,
           state.segmentInfo.getId(),
           state.segmentSuffix);
       success = true;
@@ -142,25 +150,14 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
    */
   @Override
   public KnnFieldVectorsWriter<?> addField(FieldInfo fieldInfo) throws IOException {
-    var encoding = fieldInfo.getVectorEncoding();
-    var writer = Objects.requireNonNull(flatVectorsWriter.addField(fieldInfo));
-
-    if (encoding == FLOAT32) {
-      @SuppressWarnings("unchecked")
-      var flatWriter = (FlatFieldVectorsWriter<float[]>) writer;
-      var cuvsFieldWriter = new ScalarQuantizedGPUFieldWriter(fieldInfo, flatWriter);
-      fields.add(cuvsFieldWriter);
-      return writer;
-    } else if (encoding == BYTE) {
-      @SuppressWarnings("unchecked")
-      var flatWriter = (FlatFieldVectorsWriter<byte[]>) writer;
-      var cuvsFieldWriter = new ScalarQuantizedGPUFieldWriter(fieldInfo, flatWriter);
-      fields.add(cuvsFieldWriter);
-      return writer;
-    } else {
-      throw new IllegalArgumentException(
-          "expected FLOAT32 or BYTE encoding for scalar quantized vectors, got:" + encoding);
+    VectorEncoding encoding = fieldInfo.getVectorEncoding();
+    if (encoding != FLOAT32) {
+      throw new IllegalArgumentException("expected float32, got:" + encoding);
     }
+    var writer = Objects.requireNonNull(flatVectorsWriter.addField(fieldInfo));
+    var cuvsFieldWriter = new QuantizedFieldWriter(QuantizationType.SCALAR, fieldInfo, writer);
+    fields.add(cuvsFieldWriter);
+    return writer;
   }
 
   /**
@@ -242,7 +239,8 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
               unsignedVectors,
               hnswLayers,
               graphDegree,
-              params);
+              params,
+              QuantizationType.SCALAR);
 
       long vectorIndexOffset = hnswVectorIndex.getFilePointer();
 
@@ -290,7 +288,7 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
    * @param fieldData
    * @throws IOException
    */
-  private void writeField(ScalarQuantizedGPUFieldWriter fieldData) throws IOException {
+  private void writeField(QuantizedFieldWriter fieldData) throws IOException {
     writeFieldInternal(fieldData.fieldInfo(), fieldData.getVectors());
   }
 
@@ -301,7 +299,7 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
    * @param sortMap instance of the DocMap
    * @throws IOException
    */
-  private void writeSortingField(ScalarQuantizedGPUFieldWriter fieldData, Sorter.DocMap sortMap)
+  private void writeSortingField(QuantizedFieldWriter fieldData, Sorter.DocMap sortMap)
       throws IOException {
 
     DocsWithFieldSet oldDocsWithFieldSet = fieldData.getDocsWithFieldSet();
@@ -377,47 +375,9 @@ public class Lucene99AcceleratedHNSWQuantizedVectorsWriter extends KnnVectorsWri
         List<float[]> floatVectors = new ArrayList<>();
         KnnVectorValues.DocIndexIterator iter = mergedVectorValues.iterator();
         for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
-          floatVectors.add(mergedVectorValues.vectorValue(iter.index()));
+          floatVectors.add(mergedVectorValues.vectorValue(iter.index()).clone());
         }
-
-        if (!floatVectors.isEmpty()) {
-          int dimensions = floatVectors.get(0).length;
-          int numVectors = floatVectors.size();
-
-          float[] minPerDim = new float[dimensions];
-          float[] maxPerDim = new float[dimensions];
-          Arrays.fill(minPerDim, Float.MAX_VALUE);
-          Arrays.fill(maxPerDim, Float.MIN_VALUE);
-
-          for (float[] vector : floatVectors) {
-            for (int d = 0; d < dimensions; d++) {
-              minPerDim[d] = Math.min(minPerDim[d], vector[d]);
-              maxPerDim[d] = Math.max(maxPerDim[d], vector[d]);
-            }
-          }
-
-          List<byte[]> dataset = new ArrayList<>(numVectors);
-          for (float[] vector : floatVectors) {
-            byte[] quantized = new byte[dimensions];
-            for (int d = 0; d < dimensions; d++) {
-              float value = vector[d];
-              float min = minPerDim[d];
-              float max = maxPerDim[d];
-
-              byte signedByte;
-              if (max - min == 0) {
-                signedByte = 0;
-              } else {
-                float normalized = (value - min) / (max - min);
-                signedByte = (byte) Math.round(normalized * 127 - 64);
-              }
-
-              quantized[d] = signedToUnsignedByte(signedByte);
-            }
-            dataset.add(quantized);
-          }
-          writeFieldInternal(fieldInfo, dataset);
-        }
+        writeFieldInternal(fieldInfo, quantizeFloatVectorsToScalar(floatVectors));
       }
     } catch (Throwable t) {
       Utils.handleThrowable(t);
