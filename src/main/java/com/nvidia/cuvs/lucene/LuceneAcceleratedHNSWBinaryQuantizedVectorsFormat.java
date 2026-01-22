@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
@@ -23,10 +23,10 @@ import org.apache.lucene.index.SegmentWriteState;
  *
  * @since 26.02
  */
-public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVectorsFormat {
+public class LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVectorsFormat {
 
   private static final Logger log =
-      Logger.getLogger(Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat.class.getName());
+      Logger.getLogger(LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat.class.getName());
   private static final LuceneProvider LUCENE102_PROVIDER;
   private static final LuceneProvider LUCENE99_PROVIDER;
   private static final FlatVectorsFormat FLAT_VECTORS_FORMAT;
@@ -60,11 +60,11 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVect
   }
 
   /**
-   * Initializes {@link Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat} with default values.
+   * Initializes {@link LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat} with default values.
    *
    * @throws LibraryException if the native library fails to load
    */
-  public Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat() {
+  public LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat() {
     this(
         DEFAULT_WRITER_THREADS,
         DEFAULT_INTERMEDIATE_GRAPH_DEGREE,
@@ -75,7 +75,7 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVect
   }
 
   /**
-   * Initializes {@link Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat} with the given threads, graph degree, etc.
+   * Initializes {@link LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat} with the given threads, graph degree, etc.
    *
    * @param cuvsWriterThreads number of cuVS threads to use while building the CAGRA index
    * @param intGraphDegree the intermediate graph degree while building the CAGRA index
@@ -84,7 +84,7 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVect
    * @param maxConn the maximum connections for the HNSW graph
    * @param beamWidth the beam width to use while building the HNSW graph
    */
-  public Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat(
+  public LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat(
       int cuvsWriterThreads,
       int intGraphDegree,
       int graphDegree,
@@ -120,7 +120,7 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVect
       log.log(
           Level.FINE,
           "cuVS is supported so using the Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter");
-      return new Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter(
+      return new LuceneAcceleratedHNSWBinaryQuantizedVectorsWriter(
           state, cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers, flatWriter);
     } else {
       try {

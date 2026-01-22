@@ -1,13 +1,13 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat.DEFAULT_GRAPH_DEGREE;
-import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat.DEFAULT_HNSW_GRAPH_LAYERS;
-import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat.DEFAULT_INTERMEDIATE_GRAPH_DEGREE;
-import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat.DEFAULT_WRITER_THREADS;
+import static com.nvidia.cuvs.lucene.LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat.DEFAULT_GRAPH_DEGREE;
+import static com.nvidia.cuvs.lucene.LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat.DEFAULT_HNSW_GRAPH_LAYERS;
+import static com.nvidia.cuvs.lucene.LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat.DEFAULT_INTERMEDIATE_GRAPH_DEGREE;
+import static com.nvidia.cuvs.lucene.LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat.DEFAULT_WRITER_THREADS;
 
 import com.nvidia.cuvs.LibraryException;
 import java.util.logging.Level;
@@ -21,10 +21,10 @@ import org.apache.lucene.codecs.KnnVectorsFormat;
  *
  * @since 26.02
  */
-public class Lucene101AcceleratedHNSWBinaryQuantizedCodec extends FilterCodec {
+public class LuceneAcceleratedHNSWBinaryQuantizedCodec extends FilterCodec {
 
   private static final Logger log =
-      Logger.getLogger(Lucene101AcceleratedHNSWBinaryQuantizedCodec.class.getName());
+      Logger.getLogger(LuceneAcceleratedHNSWBinaryQuantizedCodec.class.getName());
   private static final String NAME = "Lucene101AcceleratedHNSWBinaryQuantizedCodec";
   private static final LuceneProvider LUCENE99_PROVIDER;
   private static final Integer DEFAULT_MAX_CONN;
@@ -42,16 +42,16 @@ public class Lucene101AcceleratedHNSWBinaryQuantizedCodec extends FilterCodec {
     }
   }
 
-  public Lucene101AcceleratedHNSWBinaryQuantizedCodec() throws Exception {
+  public LuceneAcceleratedHNSWBinaryQuantizedCodec() throws Exception {
     this(NAME, LuceneProvider.getCodec("101"));
   }
 
-  public Lucene101AcceleratedHNSWBinaryQuantizedCodec(String name, Codec delegate) {
+  public LuceneAcceleratedHNSWBinaryQuantizedCodec(String name, Codec delegate) {
     super(name, delegate);
     initializeFormatDefaultValues();
   }
 
-  public Lucene101AcceleratedHNSWBinaryQuantizedCodec(
+  public LuceneAcceleratedHNSWBinaryQuantizedCodec(
       int cuvsWriterThreads,
       int intGraphDegree,
       int graphDegree,
@@ -83,7 +83,7 @@ public class Lucene101AcceleratedHNSWBinaryQuantizedCodec extends FilterCodec {
       int beamWidth) {
     try {
       format =
-          new Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat(
+          new LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat(
               cuvsWriterThreads, intGraphDegree, graphDegree, hnswLayers, maxConn, beamWidth);
       setKnnFormat(format);
     } catch (LibraryException ex) {

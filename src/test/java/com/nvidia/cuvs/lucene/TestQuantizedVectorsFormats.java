@@ -49,8 +49,8 @@ public class TestQuantizedVectorsFormats extends BaseKnnVectorsFormatTestCase {
   public static List<Object[]> parameters() {
     return Arrays.asList(
         new Object[][] {
-          {new Lucene99AcceleratedHNSWBinaryQuantizedVectorsFormat()},
-          {new Lucene99AcceleratedHNSWScalarQuantizedVectorsFormat()}
+          {new LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat()},
+          {new LuceneAcceleratedHNSWScalarQuantizedVectorsFormat()}
         });
   }
 

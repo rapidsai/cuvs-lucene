@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
@@ -55,10 +55,10 @@ import org.apache.lucene.util.InfoStream;
  *
  * @since 26.02
  */
-public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVectorsWriter {
+public class LuceneAcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVectorsWriter {
 
   private static final long SHALLOW_RAM_BYTES_USED =
-      shallowSizeOfInstance(Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter.class);
+      shallowSizeOfInstance(LuceneAcceleratedHNSWBinaryQuantizedVectorsWriter.class);
   private static final String COMPONENT = "Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter";
 
   private final int cuvsWriterThreads;
@@ -74,7 +74,7 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
   private String vexFileName;
 
   /**
-   * Initializes {@link Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter}
+   * Initializes {@link LuceneAcceleratedHNSWBinaryQuantizedVectorsWriter}
    *
    * @param state instance of the {@link org.apache.lucene.index.SegmentWriteState}
    * @param cuvsWriterThreads number of cuVS threads to use while building the intermediate CAGRA index
@@ -84,7 +84,7 @@ public class Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVect
    * @param flatVectorsWriter instance of the {@link org.apache.lucene.codecs.hnsw.FlatVectorsWriter}
    * @throws IOException IOException
    */
-  public Lucene99AcceleratedHNSWBinaryQuantizedVectorsWriter(
+  public LuceneAcceleratedHNSWBinaryQuantizedVectorsWriter(
       SegmentWriteState state,
       int cuvsWriterThreads,
       int intGraphDegree,

@@ -34,50 +34,50 @@ public class LuceneProvider {
 
   private static final String BASE = "org.apache.lucene.";
   private static String codecs = "codecs.lucene<version>.";
-  private static String backwardCodecs = "backward_codecs.lucene<version>.";
+  private static String fallbackCodecs = "backward_codecs.lucene<version>.";
 
   private static String luceneFlatVectorsFormat =
       BASE + codecs + "Lucene<version>FlatVectorsFormat";
   private static String luceneFlatVectorsFormatFallback =
-      BASE + backwardCodecs + "Lucene<version>FlatVectorsFormat";
+      BASE + fallbackCodecs + "Lucene<version>FlatVectorsFormat";
 
   private static String luceneHnswVectorsFormat =
       BASE + codecs + "Lucene<version>HnswVectorsFormat";
   private static String luceneHnswVectorsFormatFallback =
-      BASE + backwardCodecs + "Lucene<version>HnswVectorsFormat";
+      BASE + fallbackCodecs + "Lucene<version>HnswVectorsFormat";
 
   private static String luceneHnswVectorsReader =
       BASE + codecs + "Lucene<version>HnswVectorsReader";
   private static String luceneHnswVectorsReaderFallback =
-      BASE + backwardCodecs + "Lucene<version>HnswVectorsReader";
+      BASE + fallbackCodecs + "Lucene<version>HnswVectorsReader";
 
   private static String luceneHnswVectorsWriter =
       BASE + codecs + "Lucene<version>HnswVectorsWriter";
   private static String luceneHnswVectorsWriterFallback =
-      BASE + backwardCodecs + "Lucene<version>HnswVectorsWriter";
+      BASE + fallbackCodecs + "Lucene<version>HnswVectorsWriter";
 
   private static String luceneBinaryQuantizedVectorsFormat =
       BASE + codecs + "Lucene<version>BinaryQuantizedVectorsFormat";
   private static String luceneBinaryQuantizedVectorsFormatFallback =
-      BASE + backwardCodecs + "Lucene<version>BinaryQuantizedVectorsFormat";
+      BASE + fallbackCodecs + "Lucene<version>BinaryQuantizedVectorsFormat";
 
   private static String luceneHnswBinaryQuantizedVectorsFormat =
       BASE + codecs + "Lucene<version>HnswBinaryQuantizedVectorsFormat";
   private static String luceneHnswBinaryQuantizedVectorsFormatFallback =
-      BASE + backwardCodecs + "Lucene<version>HnswBinaryQuantizedVectorsFormat";
+      BASE + fallbackCodecs + "Lucene<version>HnswBinaryQuantizedVectorsFormat";
 
   private static String luceneScalarQuantizedVectorsFormat =
       BASE + codecs + "Lucene<version>ScalarQuantizedVectorsFormat";
   private static String luceneScalarQuantizedVectorsFormatFallback =
-      BASE + backwardCodecs + "Lucene<version>ScalarQuantizedVectorsFormat";
+      BASE + fallbackCodecs + "Lucene<version>ScalarQuantizedVectorsFormat";
 
   private static String luceneHnswScalarQuantizedVectorsFormat =
       BASE + codecs + "Lucene<version>HnswScalarQuantizedVectorsFormat";
   private static String luceneHnswScalarQuantizedVectorsFormatFallback =
-      BASE + backwardCodecs + "Lucene<version>HnswScalarQuantizedVectorsFormat";
+      BASE + fallbackCodecs + "Lucene<version>HnswScalarQuantizedVectorsFormat";
 
   private static String luceneCodec = BASE + codecs + "Lucene<version>Codec";
-  private static String luceneCodecFallback = BASE + backwardCodecs + "Lucene<version>Codec";
+  private static String luceneCodecFallback = BASE + fallbackCodecs + "Lucene<version>Codec";
 
   private static LuceneProvider instance;
 
