@@ -60,7 +60,6 @@ public class TestMultithreadedCuVSGPUSearch extends LuceneTestCase {
   public static void beforeClass() throws IOException {
     assumeTrue("cuVS not supported", isSupported());
     random = random();
-
     directory = newDirectory(new ByteBuffersDirectory());
     IndexWriterConfig config = new IndexWriterConfig().setCodec(codec);
     IndexWriter writer = new IndexWriter(directory, config);
@@ -74,8 +73,8 @@ public class TestMultithreadedCuVSGPUSearch extends LuceneTestCase {
     float[][] dataset = generateDataset(random, datasetSize, dimensions);
     numQueries = random.nextInt(100, 500);
     log.log(Level.FINE, "Generating a query set with " + numQueries + " queries");
-    float[][] q = generateDataset(random, numQueries, dimensions);
-    queries = new ArrayBlockingQueue<>(numQueries, true, Arrays.asList(q));
+    float[][] queryVectors = generateDataset(random, numQueries, dimensions);
+    queries = new ArrayBlockingQueue<>(numQueries, true, Arrays.asList(queryVectors));
 
     log.log(Level.FINE, "Indexing " + datasetSize + " vectors");
     for (int i = 0; i < datasetSize; i++) {
@@ -90,7 +89,7 @@ public class TestMultithreadedCuVSGPUSearch extends LuceneTestCase {
   }
 
   @Test
-  public void testMultithreadedCuVSGPUSearch() throws IOException, InterruptedException {
+  public void testMultithreadedCuVSGPUSearch() throws Exception {
     DirectoryReader reader = DirectoryReader.open(directory);
     ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
     IndexSearcher searcher = new IndexSearcher(reader);
@@ -103,10 +102,10 @@ public class TestMultithreadedCuVSGPUSearch extends LuceneTestCase {
             public void run() {
               try {
                 float[] queryVector;
-                String tn = Thread.currentThread().getName();
+                String threadName = Thread.currentThread().getName();
                 while ((queryVector = queries.poll()) != null) {
-                  log.log(
-                      Level.FINER, "Thread: " + tn + ", query: " + Arrays.toString(queryVector));
+                  log.log(Level.FINE, "Thread: " + threadName + ", queue size: " + queries.size());
+                  log.log(Level.FINER, "Query: " + Arrays.toString(queryVector));
                   GPUKnnFloatVectorQuery query =
                       new GPUKnnFloatVectorQuery(VECTOR_FIELD, queryVector, topK, null, topK, 1);
                   ScoreDoc[] hits = searcher.search(query, topK).scoreDocs;
@@ -122,6 +121,7 @@ public class TestMultithreadedCuVSGPUSearch extends LuceneTestCase {
     }
     latch.await();
     executorService.shutdown();
+    executorService.close();
     reader.close();
     log.log(
         Level.FINE,
