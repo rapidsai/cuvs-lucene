@@ -7,7 +7,6 @@ package com.nvidia.cuvs.lucene;
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.assertIsSupported;
 
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
-import com.nvidia.cuvs.CuVSResources;
 import com.nvidia.cuvs.LibraryException;
 import com.nvidia.cuvs.lucene.CuVS2510GPUVectorsWriter.IndexType;
 import java.io.IOException;
@@ -116,7 +115,6 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
         graphDegree,
         cagraGraphBuildAlgo,
         indexType,
-        resources,
         flatWriter);
   }
 
@@ -147,7 +145,6 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
     sb.append("intGraphDegree=").append(intGraphDegree);
     sb.append("graphDegree=").append(graphDegree);
     sb.append("cagraGraphBuildAlgo=").append(cagraGraphBuildAlgo);
-    sb.append("resources=").append(resources);
     sb.append(")");
     return sb.toString();
   }

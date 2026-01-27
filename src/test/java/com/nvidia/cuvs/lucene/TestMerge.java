@@ -66,7 +66,7 @@ public class TestMerge extends LuceneTestCase {
   private static CagraGraphBuildAlgo cagraGraphBuildAlgo;
 
   public TestMerge(@Name("cagraGraphBuildAlgo") CagraGraphBuildAlgo cagraGraphBuildAlgo) {
-    this.cagraGraphBuildAlgo = cagraGraphBuildAlgo;
+    TestMerge.cagraGraphBuildAlgo = cagraGraphBuildAlgo;
   }
 
   @ParametersFactory
@@ -138,12 +138,7 @@ public class TestMerge extends LuceneTestCase {
             + vectorProbability);
 
     CuVS2510GPUVectorsFormat format =
-        new CuVS2510GPUVectorsFormat(
-            32, // writer threads
-            128, // intermediate graph degree
-            64, // graph degree
-            cagraGraphBuildAlgo,
-            IndexType.CAGRA);
+        new CuVS2510GPUVectorsFormat(32, 128, 64, cagraGraphBuildAlgo, IndexType.CAGRA);
 
     IndexWriterConfig config =
         new IndexWriterConfig()
@@ -277,12 +272,7 @@ public class TestMerge extends LuceneTestCase {
             + vectorProbability);
 
     CuVS2510GPUVectorsFormat format =
-        new CuVS2510GPUVectorsFormat(
-            32, // writer threads
-            128, // intermediate graph degree
-            64, // graph degree
-            cagraGraphBuildAlgo,
-            IndexType.CAGRA);
+        new CuVS2510GPUVectorsFormat(32, 128, 64, cagraGraphBuildAlgo, IndexType.CAGRA);
 
     IndexWriterConfig config =
         new IndexWriterConfig()
@@ -502,12 +492,7 @@ public class TestMerge extends LuceneTestCase {
     int numSegments = 3 + random().nextInt(3); // 3-5 segments
 
     CuVS2510GPUVectorsFormat format =
-        new CuVS2510GPUVectorsFormat(
-            32, // writer threads
-            128, // intermediate graph degree
-            64, // graph degree
-            cagraGraphBuildAlgo,
-            IndexType.CAGRA);
+        new CuVS2510GPUVectorsFormat(32, 128, 64, cagraGraphBuildAlgo, IndexType.CAGRA);
 
     IndexWriterConfig config =
         new IndexWriterConfig()
@@ -656,12 +641,7 @@ public class TestMerge extends LuceneTestCase {
             + deletionProbability);
 
     CuVS2510GPUVectorsFormat format =
-        new CuVS2510GPUVectorsFormat(
-            32, // writer threads
-            128, // intermediate graph degree
-            64, // graph degree
-            cagraGraphBuildAlgo,
-            IndexType.CAGRA);
+        new CuVS2510GPUVectorsFormat(32, 128, 64, cagraGraphBuildAlgo, IndexType.CAGRA);
 
     IndexWriterConfig config =
         new IndexWriterConfig()
@@ -807,11 +787,7 @@ public class TestMerge extends LuceneTestCase {
     // Configure with brute force index type
     CuVS2510GPUVectorsFormat bruteForceFormat =
         new CuVS2510GPUVectorsFormat(
-            32, // writer threads
-            128, // intermediate graph degree
-            64, // graph degree
-            cagraGraphBuildAlgo,
-            IndexType.BRUTE_FORCE); // Use brute force index
+            32, 128, 64, cagraGraphBuildAlgo, IndexType.BRUTE_FORCE); // Use brute force index
 
     IndexWriterConfig config =
         new IndexWriterConfig()
@@ -967,9 +943,9 @@ public class TestMerge extends LuceneTestCase {
     // Configure with CAGRA + brute force combined index type
     CuVS2510GPUVectorsFormat combinedFormat =
         new CuVS2510GPUVectorsFormat(
-            32, // writer threads
-            128, // intermediate graph degree
-            64, // graph degree
+            32,
+            128,
+            64,
             cagraGraphBuildAlgo,
             IndexType.CAGRA_AND_BRUTE_FORCE); // Use combined CAGRA + brute force
 
@@ -1148,12 +1124,7 @@ public class TestMerge extends LuceneTestCase {
             + totalDocuments);
 
     CuVS2510GPUVectorsFormat format =
-        new CuVS2510GPUVectorsFormat(
-            32, // writer threads
-            128, // intermediate graph degree
-            64, // graph degree
-            cagraGraphBuildAlgo,
-            IndexType.CAGRA);
+        new CuVS2510GPUVectorsFormat(32, 128, 64, cagraGraphBuildAlgo, IndexType.CAGRA);
 
     IndexWriterConfig config =
         new IndexWriterConfig()

@@ -8,10 +8,7 @@ import static com.nvidia.cuvs.lucene.TestUtils.generateDataset;
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
-import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -61,17 +58,8 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
   }
 
   @Test
-  public void testCagraToHnswSerializationAndSearch()
-      throws IOException,
-          ClassNotFoundException,
-          NoSuchMethodException,
-          SecurityException,
-          InstantiationException,
-          IllegalAccessException,
-          IllegalArgumentException,
-          InvocationTargetException {
-    Codec codec =
-        new Lucene101AcceleratedHNSWCodec(32, 128, 64, CagraGraphBuildAlgo.NN_DESCENT, 3, 16, 100);
+  public void testCagraToHnswSerializationAndSearch() throws Exception {
+    Codec codec = new Lucene101AcceleratedHNSWCodec(1, 128, 64, 3, 16, 100);
     IndexWriterConfig config = new IndexWriterConfig().setCodec(codec).setUseCompoundFile(false);
 
     final int COMMIT_FREQ = 2000;

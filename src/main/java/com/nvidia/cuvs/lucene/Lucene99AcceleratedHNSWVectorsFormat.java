@@ -7,7 +7,6 @@ package com.nvidia.cuvs.lucene;
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
 
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
-import com.nvidia.cuvs.CuVSResources;
 import com.nvidia.cuvs.LibraryException;
 import java.io.IOException;
 import java.util.logging.Level;
@@ -51,7 +50,8 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   private final int cuvsWriterThreads;
   private final int intGraphDegree;
   private final int graphDegree;
-  private final CagraGraphBuildAlgo cagraGraphBuildAlgo;
+  // This default setting will be removed once I figure out the root cause of a related bug.
+  private final CagraGraphBuildAlgo cagraGraphBuildAlgo = DEFAULT_CAGRA_GRAPH_BUILD_ALGO;
   private final int hnswLayers;
   private final int maxConn;
   private final int beamWidth;
@@ -79,7 +79,6 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
         DEFAULT_WRITER_THREADS,
         DEFAULT_INTERMEDIATE_GRAPH_DEGREE,
         DEFAULT_GRAPH_DEGREE,
-        DEFAULT_CAGRA_GRAPH_BUILD_ALGO,
         DEFAULT_HNSW_GRAPH_LAYERS,
         MAX_CONN,
         BEAM_WIDTH);
@@ -91,7 +90,6 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
    * @param cuvsWriterThreads number of cuVS threads to use while building the CAGRA index
    * @param intGraphDegree the intermediate graph degree while building the CAGRA index
    * @param graphDegree the graph degree to use while building the CAGRA index
-   * @param cagraGraphBuildAlgo the CAGRA graph build algorithm to use
    * @param hnswLayers the number of HNSW layers to construct in the HNSW graph
    * @param maxConn the maximum connections for the HNSW graph
    * @param beamWidth the beam width to use while building the HNSW graph
@@ -100,7 +98,6 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
       int cuvsWriterThreads,
       int intGraphDegree,
       int graphDegree,
-      CagraGraphBuildAlgo cagraGraphBuildAlgo,
       int hnswLayers,
       int maxConn,
       int beamWidth) {
@@ -108,7 +105,6 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
     this.cuvsWriterThreads = cuvsWriterThreads;
     this.intGraphDegree = intGraphDegree;
     this.graphDegree = graphDegree;
-    this.cagraGraphBuildAlgo = cagraGraphBuildAlgo;
     this.hnswLayers = hnswLayers;
     this.maxConn = maxConn;
     this.beamWidth = beamWidth;
@@ -129,7 +125,6 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
           graphDegree,
           cagraGraphBuildAlgo,
           hnswLayers,
-          resources,
           flatWriter);
     } else {
       log.log(

@@ -80,7 +80,6 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   private final int graphDegree;
   private final CagraGraphBuildAlgo cagraGraphBuildAlgo;
 
-  private final CuVSResources resources;
   private final IndexType indexType;
   private final FlatVectorsWriter flatVectorsWriter;
   private final List<GPUFieldWriter> fields = new ArrayList<>();
@@ -164,7 +163,6 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     this.intGraphDegree = intGraphDegree;
     this.graphDegree = graphDegree;
     this.cagraGraphBuildAlgo = cagraGraphBuildAlgo;
-    this.resources = resources;
     this.flatVectorsWriter = flatVectorsWriter;
     this.infoStream = state.infoStream;
 
