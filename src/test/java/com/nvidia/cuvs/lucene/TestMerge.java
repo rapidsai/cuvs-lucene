@@ -4,6 +4,7 @@
  */
 package com.nvidia.cuvs.lucene;
 
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
 import static org.apache.lucene.tests.util.TestUtil.alwaysKnnVectorsFormat;
 
 import com.carrotsearch.randomizedtesting.annotations.Name;
@@ -76,7 +77,7 @@ public class TestMerge extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() {
-    assumeTrue("cuVS is not supported", CuVS2510GPUVectorsFormat.supported());
+    assumeTrue("cuVS is not supported", isSupported());
   }
 
   private Directory directory;

@@ -9,6 +9,8 @@ import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_INDEX_EXT;
 import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_META_CODEC_EXT;
 import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_META_CODEC_NAME;
 import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.VERSION_CURRENT;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.closeCuVSResourcesInstance;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.getCuVSResourcesInstance;
 import static org.apache.lucene.index.VectorEncoding.FLOAT32;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 import static org.apache.lucene.util.RamUsageEstimator.shallowSizeOfInstance;
@@ -19,7 +21,6 @@ import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.CuVSMatrix;
-import com.nvidia.cuvs.CuVSResources;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -81,8 +82,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
 
   private final CuVSResources resources;
   private final IndexType indexType;
-
-  private final FlatVectorsWriter flatVectorsWriter; // for writing the raw vectors
+  private final FlatVectorsWriter flatVectorsWriter;
   private final List<GPUFieldWriter> fields = new ArrayList<>();
   private IndexOutput meta = null, cuvsIndex = null;
   private final InfoStream infoStream;
@@ -145,7 +145,6 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
    * @param graphDegree the graph degree for building the CAGRA index
    * @param cagraGraphBuildAlgo the CAGRA graph build algorithm to use
    * @param indexType the IndexType
-   * @param resources instance of the CuVSResources
    * @param flatVectorsWriter instance of FlatVectorsWriter
    *
    * @throws IOException I/O exceptions
@@ -157,7 +156,6 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
       int graphDegree,
       CagraGraphBuildAlgo cagraGraphBuildAlgo,
       IndexType indexType,
-      CuVSResources resources,
       FlatVectorsWriter flatVectorsWriter)
       throws IOException {
     super();
@@ -295,7 +293,8 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
         try {
           var cagraIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
           CuVSMatrix dataset =
-              Utils.createFloatMatrix(vectors, fieldInfo.getVectorDimension(), resources);
+              Utils.createFloatMatrix(
+                  vectors, fieldInfo.getVectorDimension(), getCuVSResourcesInstance());
           writeCagraIndex(cagraIndexOutputStream, dataset);
         } catch (Throwable t) {
           Utils.handleThrowableWithIgnore(t, CANNOT_GENERATE_CAGRA);
@@ -309,7 +308,8 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
       if (indexType.bruteForce()) {
         var bruteForceIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
         CuVSMatrix dataset =
-            Utils.createFloatMatrix(vectors, fieldInfo.getVectorDimension(), resources);
+            Utils.createFloatMatrix(
+                vectors, fieldInfo.getVectorDimension(), getCuVSResourcesInstance());
         writeBruteForceIndex(bruteForceIndexOutputStream, dataset);
         bruteForceIndexLength = cuvsIndex.getFilePointer() - bruteForceIndexOffset;
       }
@@ -340,10 +340,14 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     CagraIndexParams params = cagraIndexParams((int) dataset.size());
     long startTime = System.nanoTime();
     CagraIndex index =
-        CagraIndex.newBuilder(resources).withDataset(dataset).withIndexParams(params).build();
+        CagraIndex.newBuilder(getCuVSResourcesInstance())
+            .withDataset(dataset)
+            .withIndexParams(params)
+            .build();
     long elapsedMillis = Utils.nanosToMillis(System.nanoTime() - startTime);
     info("Cagra index created in " + elapsedMillis + "ms, with " + dataset.size() + " vectors");
-    Path tmpFile = Files.createTempFile(resources.tempDirectory(), "tmpindex", "cag");
+    Path tmpFile =
+        Files.createTempFile(getCuVSResourcesInstance().tempDirectory(), "tmpindex", "cag");
     index.serialize(os, tmpFile);
     index.close();
   }
@@ -362,7 +366,10 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
             .build();
     long startTime = System.nanoTime();
     var index =
-        BruteForceIndex.newBuilder(resources).withIndexParams(params).withDataset(dataset).build();
+        BruteForceIndex.newBuilder(getCuVSResourcesInstance())
+            .withIndexParams(params)
+            .withDataset(dataset)
+            .build();
     long elapsedMillis = Utils.nanosToMillis(System.nanoTime() - startTime);
     info("bf index created in " + elapsedMillis + "ms, with " + dataset.size() + " vectors");
     index.serialize(os);
@@ -587,7 +594,8 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
       var cagraIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
 
       // Serialize the merged index
-      Path tmpFile = Files.createTempFile(resources.tempDirectory(), "mergedindex", "cag");
+      Path tmpFile =
+          Files.createTempFile(getCuVSResourcesInstance().tempDirectory(), "mergedindex", "cag");
       mergedIndex.serialize(cagraIndexOutputStream, tmpFile);
       long cagraIndexLength = cuvsIndex.getFilePointer() - cagraIndexOffset;
 
@@ -660,6 +668,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   @Override
   public void close() throws IOException {
     IOUtils.close(meta, cuvsIndex, flatVectorsWriter);
+    closeCuVSResourcesInstance();
   }
 
   /**

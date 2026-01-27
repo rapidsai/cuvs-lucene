@@ -5,6 +5,7 @@
 package com.nvidia.cuvs.lucene;
 
 import static com.nvidia.cuvs.lucene.TestUtils.generateDataset;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
@@ -53,7 +54,7 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
 
   @Before
   public void beforeTest() throws Exception {
-    assumeTrue("cuVS not supported", Lucene99AcceleratedHNSWVectorsFormat.supported());
+    assumeTrue("cuVS not supported", isSupported());
     // Fixed seed so that we can validate against the same result.
     random = new Random(222);
     indexDirPath = Paths.get(UUID.randomUUID().toString());
