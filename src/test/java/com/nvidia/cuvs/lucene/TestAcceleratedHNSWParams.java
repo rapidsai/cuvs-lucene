@@ -5,12 +5,10 @@
 
 package com.nvidia.cuvs.lucene;
 
-import jakarta.validation.ConstraintViolationException;
 import java.util.Random;
 import java.util.logging.Logger;
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.apache.lucene.tests.util.LuceneTestCase.SuppressSysoutChecks;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -38,7 +36,7 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
     for (int v :
         new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(17, Integer.MAX_VALUE)}) {
       assertThrows(
-          ConstraintViolationException.class,
+          IllegalArgumentException.class,
           () -> new AcceleratedHNSWParams.Builder().withBeamWidth(v).build());
     }
   }
@@ -48,7 +46,7 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
     for (int v :
         new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(65, Integer.MAX_VALUE)}) {
       assertThrows(
-          ConstraintViolationException.class,
+          IllegalArgumentException.class,
           () -> new AcceleratedHNSWParams.Builder().withGraphDegree(v).build());
     }
   }
@@ -58,7 +56,7 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
     for (int v :
         new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(3, Integer.MAX_VALUE)}) {
       assertThrows(
-          ConstraintViolationException.class,
+          IllegalArgumentException.class,
           () -> new AcceleratedHNSWParams.Builder().withHNSWLayer(v).build());
     }
   }
@@ -68,7 +66,7 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
     for (int v :
         new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(129, Integer.MAX_VALUE)}) {
       assertThrows(
-          ConstraintViolationException.class,
+          IllegalArgumentException.class,
           () -> new AcceleratedHNSWParams.Builder().withIntermediateGraphDegree(v).build());
     }
   }
@@ -78,7 +76,7 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
     for (int v :
         new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(9, Integer.MAX_VALUE)}) {
       assertThrows(
-          ConstraintViolationException.class,
+          IllegalArgumentException.class,
           () -> new AcceleratedHNSWParams.Builder().withMaxConn(v).build());
     }
   }
@@ -88,7 +86,7 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
     for (int v :
         new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(2, Integer.MAX_VALUE)}) {
       assertThrows(
-          ConstraintViolationException.class,
+          IllegalArgumentException.class,
           () -> new AcceleratedHNSWParams.Builder().withWriterThreads(v).build());
     }
   }
@@ -97,7 +95,4 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
   public static void beforeClass() {
     random = random();
   }
-
-  @AfterClass
-  public static void afterClass() {}
 }

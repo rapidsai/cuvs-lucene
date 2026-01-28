@@ -5,16 +5,6 @@
 
 package com.nvidia.cuvs.lucene;
 
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.Validation;
-import jakarta.validation.Validator;
-import jakarta.validation.ValidatorFactory;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import java.util.Set;
-import org.hibernate.validator.messageinterpolation.ParameterMessageInterpolator;
-
 public class AcceleratedHNSWParams {
 
   /*
@@ -34,28 +24,11 @@ public class AcceleratedHNSWParams {
   private static final int MIN_BEAM_WIDTH = 1;
   private static final int MAX_BEAM_WIDTH = 512;
 
-  @Min(value = MIN_WRITER_THREADS)
-  @Max(value = MAX_WRITER_THREADS)
   private final int writerThreads;
-
-  @Min(value = MIN_INT_GRAPH_DEG)
-  @Max(value = MAX_INT_GRAPH_DEG)
   private final int intermediateGraphDegree;
-
-  @Min(value = MIN_GRAPH_DEG)
-  @Max(value = MAX_GRAPH_DEG)
   private final int graphdegree;
-
-  @Min(value = MIN_HNSW_LAYERS)
-  @Max(value = MAX_HNSW_LAYERS)
   private final int hnswLayers;
-
-  @Min(value = MIN_MAX_CONN)
-  @Max(value = MAX_MAX_CONN)
   private final int maxConn;
-
-  @Min(value = MIN_BEAM_WIDTH)
-  @Max(value = MAX_BEAM_WIDTH)
   private final int beamWidth;
 
   /**
@@ -247,28 +220,71 @@ public class AcceleratedHNSWParams {
     }
 
     /**
+     * Validates the input parameters.
+     *
+     * @throws IllegalArgumentException
+     */
+    private void validate() throws IllegalArgumentException {
+      if (writerThreads < MIN_WRITER_THREADS || writerThreads > MAX_WRITER_THREADS) {
+        throw new IllegalArgumentException(
+            "writerThreads not in valid range. Valid range: ["
+                + MIN_WRITER_THREADS
+                + ", "
+                + MAX_WRITER_THREADS
+                + "]");
+      }
+      if (intermediateGraphDegree < MIN_INT_GRAPH_DEG
+          || intermediateGraphDegree > MAX_INT_GRAPH_DEG) {
+        throw new IllegalArgumentException(
+            "intermediateGraphDegree not in valid range. Valid range: ["
+                + MIN_INT_GRAPH_DEG
+                + ", "
+                + MAX_INT_GRAPH_DEG
+                + "]");
+      }
+      if (graphdegree < MIN_GRAPH_DEG || graphdegree > MAX_GRAPH_DEG) {
+        throw new IllegalArgumentException(
+            "graphdegree not in valid range. Valid range: ["
+                + MIN_GRAPH_DEG
+                + ", "
+                + MAX_GRAPH_DEG
+                + "]");
+      }
+      if (hnswLayers < MIN_HNSW_LAYERS || hnswLayers > MAX_HNSW_LAYERS) {
+        throw new IllegalArgumentException(
+            "hnswLayers not in valid range. Valid range: ["
+                + MIN_HNSW_LAYERS
+                + ", "
+                + MAX_HNSW_LAYERS
+                + "]");
+      }
+      if (maxConn < MIN_MAX_CONN || maxConn > MAX_MAX_CONN) {
+        throw new IllegalArgumentException(
+            "maxConn not in valid range. Valid range: ["
+                + MIN_MAX_CONN
+                + ", "
+                + MAX_MAX_CONN
+                + "]");
+      }
+      if (beamWidth < MIN_BEAM_WIDTH || beamWidth > MAX_BEAM_WIDTH) {
+        throw new IllegalArgumentException(
+            "beamWidth not in valid range. Valid range: ["
+                + MIN_BEAM_WIDTH
+                + ", "
+                + MAX_BEAM_WIDTH
+                + "]");
+      }
+    }
+
+    /**
      * Create an instance of {@link AcceleratedHNSWParams}
      *
      * @return instance of {@link AcceleratedHNSWParams}
      */
     public AcceleratedHNSWParams build() {
-      ValidatorFactory factory =
-          Validation.byDefaultProvider()
-              .configure()
-              .messageInterpolator(new ParameterMessageInterpolator())
-              .buildValidatorFactory();
-      Validator validator = factory.getValidator();
-
-      AcceleratedHNSWParams acceleratedHNSWParams =
-          new AcceleratedHNSWParams(
-              writerThreads, intermediateGraphDegree, graphdegree, hnswLayers, maxConn, beamWidth);
-      Set<ConstraintViolation<AcceleratedHNSWParams>> violations =
-          validator.validate(acceleratedHNSWParams);
-
-      if (!violations.isEmpty()) {
-        throw new ConstraintViolationException(violations);
-      }
-      return acceleratedHNSWParams;
+      validate();
+      return new AcceleratedHNSWParams(
+          writerThreads, intermediateGraphDegree, graphdegree, hnswLayers, maxConn, beamWidth);
     }
   }
 }

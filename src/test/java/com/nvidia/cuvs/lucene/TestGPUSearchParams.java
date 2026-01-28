@@ -7,12 +7,10 @@ package com.nvidia.cuvs.lucene;
 
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.lucene.CuVS2510GPUVectorsWriter.IndexType;
-import jakarta.validation.ConstraintViolationException;
 import java.util.Random;
 import java.util.logging.Logger;
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.apache.lucene.tests.util.LuceneTestCase.SuppressSysoutChecks;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -39,7 +37,7 @@ public class TestGPUSearchParams extends LuceneTestCase {
     for (int v :
         new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(65, Integer.MAX_VALUE)}) {
       assertThrows(
-          ConstraintViolationException.class,
+          IllegalArgumentException.class,
           () -> new GPUSearchParams.Builder().withGraphDegree(v).build());
     }
   }
@@ -49,7 +47,7 @@ public class TestGPUSearchParams extends LuceneTestCase {
     for (int v :
         new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(129, Integer.MAX_VALUE)}) {
       assertThrows(
-          ConstraintViolationException.class,
+          IllegalArgumentException.class,
           () -> new GPUSearchParams.Builder().withIntermediateGraphDegree(v).build());
     }
   }
@@ -59,7 +57,7 @@ public class TestGPUSearchParams extends LuceneTestCase {
     for (int v :
         new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(2, Integer.MAX_VALUE)}) {
       assertThrows(
-          ConstraintViolationException.class,
+          IllegalArgumentException.class,
           () -> new GPUSearchParams.Builder().withWriterThreads(v).build());
     }
   }
@@ -67,14 +65,14 @@ public class TestGPUSearchParams extends LuceneTestCase {
   @Test
   public void testGPUSearchParamsInvalidCagraGraphBuildAlgo() {
     assertThrows(
-        ConstraintViolationException.class,
+        IllegalArgumentException.class,
         () -> new GPUSearchParams.Builder().withCagraGraphBuildAlgo(null).build());
   }
 
   @Test
   public void testGPUSearchParamsInvalidIndexType() {
     assertThrows(
-        ConstraintViolationException.class,
+        IllegalArgumentException.class,
         () -> new GPUSearchParams.Builder().withIndexType(null).build());
   }
 
@@ -82,7 +80,4 @@ public class TestGPUSearchParams extends LuceneTestCase {
   public static void beforeClass() {
     random = random();
   }
-
-  @AfterClass
-  public static void afterClass() {}
 }

@@ -7,16 +7,7 @@ package com.nvidia.cuvs.lucene;
 
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.lucene.CuVS2510GPUVectorsWriter.IndexType;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.Validation;
-import jakarta.validation.Validator;
-import jakarta.validation.ValidatorFactory;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
-import java.util.Set;
-import org.hibernate.validator.messageinterpolation.ParameterMessageInterpolator;
+import java.util.Objects;
 
 public class GPUSearchParams {
 
@@ -31,21 +22,11 @@ public class GPUSearchParams {
   private static final int MIN_GRAPH_DEG = 1;
   private static final int MAX_GRAPH_DEG = 64;
 
-  @Min(value = MIN_WRITER_THREADS)
-  @Max(value = MAX_WRITER_THREADS)
   private final int writerThreads;
-
-  @Min(value = MIN_INT_GRAPH_DEG)
-  @Max(value = MAX_INT_GRAPH_DEG)
   private final int intermediateGraphDegree;
-
-  @Min(value = MIN_GRAPH_DEG)
-  @Max(value = MAX_GRAPH_DEG)
   private final int graphdegree;
-
-  @NotNull private final CagraGraphBuildAlgo cagraGraphBuildAlgo;
-
-  @NotNull private final IndexType indexType;
+  private final CagraGraphBuildAlgo cagraGraphBuildAlgo;
+  private final IndexType indexType;
 
   /**
    * Constructs an instance of {@link GPUSearchParams} with specific parameter values.
@@ -205,27 +186,53 @@ public class GPUSearchParams {
     }
 
     /**
+     * Validates the input parameters.
+     *
+     * @throws IllegalArgumentException
+     */
+    private void validate() throws IllegalArgumentException {
+      if (writerThreads < MIN_WRITER_THREADS || writerThreads > MAX_WRITER_THREADS) {
+        throw new IllegalArgumentException(
+            "writerThreads not in valid range. Valid range: ["
+                + MIN_WRITER_THREADS
+                + ", "
+                + MAX_WRITER_THREADS
+                + "]");
+      }
+      if (intermediateGraphDegree < MIN_INT_GRAPH_DEG
+          || intermediateGraphDegree > MAX_INT_GRAPH_DEG) {
+        throw new IllegalArgumentException(
+            "intermediateGraphDegree not in valid range. Valid range: ["
+                + MIN_INT_GRAPH_DEG
+                + ", "
+                + MAX_INT_GRAPH_DEG
+                + "]");
+      }
+      if (graphdegree < MIN_GRAPH_DEG || graphdegree > MAX_GRAPH_DEG) {
+        throw new IllegalArgumentException(
+            "graphdegree not in valid range. Valid range: ["
+                + MIN_GRAPH_DEG
+                + ", "
+                + MAX_GRAPH_DEG
+                + "]");
+      }
+      if (Objects.isNull(cagraGraphBuildAlgo)) {
+        throw new IllegalArgumentException("cagraGraphBuildAlgo cannot be null.");
+      }
+      if (Objects.isNull(indexType)) {
+        throw new IllegalArgumentException("indexType cannot be null.");
+      }
+    }
+
+    /**
      * Creates and returns an instance of {@link GPUSearchParams}
      *
      * @return instance of {@link GPUSearchParams}
      */
     public GPUSearchParams build() {
-      ValidatorFactory factory =
-          Validation.byDefaultProvider()
-              .configure()
-              .messageInterpolator(new ParameterMessageInterpolator())
-              .buildValidatorFactory();
-      Validator validator = factory.getValidator();
-
-      GPUSearchParams gpuSearchParams =
-          new GPUSearchParams(
-              writerThreads, intermediateGraphDegree, graphdegree, cagraGraphBuildAlgo, indexType);
-      Set<ConstraintViolation<GPUSearchParams>> violations = validator.validate(gpuSearchParams);
-
-      if (!violations.isEmpty()) {
-        throw new ConstraintViolationException(violations);
-      }
-      return gpuSearchParams;
+      validate();
+      return new GPUSearchParams(
+          writerThreads, intermediateGraphDegree, graphdegree, cagraGraphBuildAlgo, indexType);
     }
   }
 }

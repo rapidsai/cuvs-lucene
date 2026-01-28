@@ -77,11 +77,6 @@
       <artifactId>cuvs-java</artifactId>
       <!--CUVS_LUCENE#VERSION_UPDATE_MARKER_START--><version>26.02.0</version><!--CUVS_LUCENE#VERSION_UPDATE_MARKER_END-->
     </dependency>
-	<dependency>
-	    <groupId>org.hibernate.validator</groupId>
-	    <artifactId>hibernate-validator</artifactId>
-	    <version>9.1.0.Final</version>
-	</dependency>
   </dependencies>
 
   <build>
