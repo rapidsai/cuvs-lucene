@@ -74,7 +74,7 @@ public class LuceneAcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVector
    * Initializes {@link LuceneAcceleratedHNSWBinaryQuantizedVectorsWriter}
    *
    * @param state instance of the {@link org.apache.lucene.index.SegmentWriteState}
-   * @param cuvsWriterThreads number of cuVS threads to use while building the intermediate CAGRA index
+   * @param acceleratedHNSWParams An instance of {@link AcceleratedHNSWParams}
    * @param flatVectorsWriter instance of the {@link org.apache.lucene.codecs.hnsw.FlatVectorsWriter}
    * @throws IOException IOException
    */
