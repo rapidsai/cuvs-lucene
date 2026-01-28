@@ -24,9 +24,7 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
 
   @Test
   public void testAcceleratedHNSWParamsDefaultValues() {
-
     AcceleratedHNSWParams params = new AcceleratedHNSWParams.Builder().build();
-
     assertEquals(16, params.getBeamWidth());
     assertEquals(64, params.getGraphdegree());
     assertEquals(2, params.getHnswLayers());

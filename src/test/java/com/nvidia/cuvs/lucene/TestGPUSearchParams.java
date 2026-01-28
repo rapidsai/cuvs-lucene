@@ -25,10 +25,8 @@ public class TestGPUSearchParams extends LuceneTestCase {
   private static Random random;
 
   @Test
-  public void testAcceleratedHNSWParamsDefaultValues() {
-
+  public void testGPUSearchParamsDefaultValues() {
     GPUSearchParams params = new GPUSearchParams.Builder().build();
-
     assertEquals(64, params.getGraphdegree());
     assertEquals(128, params.getIntermediateGraphDegree());
     assertEquals(1, params.getWriterThreads());
