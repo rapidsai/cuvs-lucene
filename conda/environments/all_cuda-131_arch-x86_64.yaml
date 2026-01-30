@@ -9,6 +9,8 @@ dependencies:
 - cuda-nvtx-dev
 - cuda-profiler-api
 - cuda-version=13.1
+- gcc
+- gxx
 - libcublas-dev
 - libcurand-dev
 - libcusolver-dev
