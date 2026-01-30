@@ -83,3 +83,5 @@ dependencies:
           - maven
           - ninja
           - openjdk=22.*
+          - gcc
+          - gxx
