@@ -33,7 +33,8 @@ public class AcceleratedHNSWUtils {
 
   public enum QuantizationType {
     BINARY,
-    SCALAR
+    SCALAR,
+    NONE
   }
 
   private static final LuceneProvider LUCENE_PROVIDER;
@@ -83,7 +84,7 @@ public class AcceleratedHNSWUtils {
       int size,
       int dimensions,
       CuVSMatrix adjacencyListMatrix,
-      List<byte[]> vectors,
+      List<?> vectors,
       int hnswLayers,
       int graphDegree,
       CagraIndexParams params,
@@ -131,17 +132,32 @@ public class AcceleratedHNSWUtils {
 
       layerNodes.add(selectedNodes);
 
-      // Extract vectors for selected nodes
-      int bytesPerVector = (dimensions + 7) / 8;
-      byte[][] selectedVectors = new byte[nextLayerSize][];
-      for (int i = 0; i < nextLayerSize; i++) {
-        selectedVectors[i] = vectors.get(selectedNodes[i]);
-      }
+      if (quantization == QuantizationType.NONE) {
+        // Extract vectors for selected nodes
+        float[][] selectedVectors = new float[nextLayerSize][];
+        for (int i = 0; i < nextLayerSize; i++) {
+          selectedVectors[i] = (float[]) vectors.get(selectedNodes[i]);
+        }
 
-      // Build CAGRA graph for this layer
-      layerAdjacencies.add(
-          buildCagraGraphForSubset(
-              selectedVectors, selectedNodes, bytesPerVector, params, dimensions, quantization));
+        // Build CAGRA graph for this layer
+        layerAdjacencies.add(
+            buildCagraGraphForSubset(
+                selectedVectors, selectedNodes, 0, params, dimensions, quantization));
+
+      } else {
+
+        // Extract vectors for selected nodes
+        int bytesPerVector = (dimensions + 7) / 8;
+        byte[][] selectedVectors = new byte[nextLayerSize][];
+        for (int i = 0; i < nextLayerSize; i++) {
+          selectedVectors[i] = (byte[]) vectors.get(selectedNodes[i]);
+        }
+
+        // Build CAGRA graph for this layer
+        layerAdjacencies.add(
+            buildCagraGraphForSubset(
+                selectedVectors, selectedNodes, bytesPerVector, params, dimensions, quantization));
+      }
 
       // Update for next iteration
       currentLayerSize = nextLayerSize;
@@ -159,7 +175,7 @@ public class AcceleratedHNSWUtils {
    * Builds a CAGRA graph for a subset of binary quantized vectors
    */
   private static CuVSMatrix buildCagraGraphForSubset(
-      byte[][] vectors,
+      Object vectors,
       int[] selectedNodes,
       int bytesPerVector,
       CagraIndexParams params,
@@ -171,9 +187,12 @@ public class AcceleratedHNSWUtils {
 
     if (quantization == QuantizationType.BINARY) {
       subsetDataset =
-          createByteMatrixFromArray(vectors, bytesPerVector, getCuVSResourcesInstance());
+          createByteMatrixFromArray((byte[][]) vectors, bytesPerVector, getCuVSResourcesInstance());
+    } else if (quantization == QuantizationType.SCALAR) {
+      subsetDataset =
+          createByteMatrixFromArray((byte[][]) vectors, dimensions, getCuVSResourcesInstance());
     } else {
-      subsetDataset = createByteMatrixFromArray(vectors, dimensions, getCuVSResourcesInstance());
+      subsetDataset = CuVSMatrix.ofArray((float[][]) vectors);
     }
 
     // Build CAGRA index for the subset
@@ -385,12 +404,15 @@ public class AcceleratedHNSWUtils {
    * @return instance of CagraIndexParams
    */
   public static CagraIndexParams cagraIndexParams(
-      int cuvsWriterThreads, int intGraphDegree, int graphDegree) {
+      int cuvsWriterThreads,
+      int intGraphDegree,
+      int graphDegree,
+      CagraGraphBuildAlgo cagraGraphBuildAlgo) {
     return new CagraIndexParams.Builder()
         .withNumWriterThreads(cuvsWriterThreads)
         .withIntermediateGraphDegree(intGraphDegree)
         .withGraphDegree(graphDegree)
-        .withCagraGraphBuildAlgo(CagraGraphBuildAlgo.NN_DESCENT)
+        .withCagraGraphBuildAlgo(cagraGraphBuildAlgo)
         .build();
   }
 

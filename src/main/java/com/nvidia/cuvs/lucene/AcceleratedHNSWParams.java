@@ -5,6 +5,10 @@
 
 package com.nvidia.cuvs.lucene;
 
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public class AcceleratedHNSWParams {
 
   /*
@@ -23,6 +27,8 @@ public class AcceleratedHNSWParams {
   private static final int MAX_MAX_CONN = 512;
   private static final int MIN_BEAM_WIDTH = 1;
   private static final int MAX_BEAM_WIDTH = 512;
+  private static final int MIN_NUM_MERGE_WORKERS = 1;
+  private static final int MAX_NUM_MERGE_WORKERS = 32;
 
   private final int writerThreads;
   private final int intermediateGraphDegree;
@@ -30,6 +36,8 @@ public class AcceleratedHNSWParams {
   private final int hnswLayers;
   private final int maxConn;
   private final int beamWidth;
+  private final int numMergeWorkers;
+  private final ExecutorService mergeExec;
 
   /**
    * Constructs an instance of {@link GPUSearchParams} with specific parameter values.
@@ -41,6 +49,8 @@ public class AcceleratedHNSWParams {
    * @param hnswLayers The number of HNSW layers to build in the HNSW index.
    * @param maxConn The max connection parameter used when building HNSW index with the fallback mechanism.
    * @param beamWidth The beam width parameter used when building HNSW index with the fallback mechanism.
+   * @param numMergeWorkers The number of merge workers to use with the fallback mechanism.
+   * @param mergeExec The instance of {@link ExecutorService} to use with the fallback mechanism.
    */
   private AcceleratedHNSWParams(
       int writerThreads,
@@ -48,7 +58,9 @@ public class AcceleratedHNSWParams {
       int graphdegree,
       int hnswLayers,
       int maxConn,
-      int beamWidth) {
+      int beamWidth,
+      int numMergeWorkers,
+      ExecutorService mergeExec) {
     super();
     this.writerThreads = writerThreads;
     this.intermediateGraphDegree = intermediateGraphDegree;
@@ -56,6 +68,8 @@ public class AcceleratedHNSWParams {
     this.hnswLayers = hnswLayers;
     this.maxConn = maxConn;
     this.beamWidth = beamWidth;
+    this.numMergeWorkers = numMergeWorkers;
+    this.mergeExec = mergeExec;
   }
 
   /**
@@ -112,6 +126,24 @@ public class AcceleratedHNSWParams {
     return beamWidth;
   }
 
+  /**
+   * Get the number of merge workers set to be used in the fallback mechanism
+   *
+   * @return the number of merge workers
+   */
+  public int getNumMergeWorkers() {
+    return numMergeWorkers;
+  }
+
+  /**
+   * Get the instance of the {@link ExecutorService} to be used in the fallback mechanism   *
+   *
+   * @return the instance of the {@link ExecutorService}
+   */
+  public ExecutorService getMergeExec() {
+    return mergeExec;
+  }
+
   @Override
   public String toString() {
     return "AcceleratedHNSWParams [writerThreads="
@@ -126,6 +158,8 @@ public class AcceleratedHNSWParams {
         + maxConn
         + ", beamWidth="
         + beamWidth
+        + ", numMergeWorkers="
+        + numMergeWorkers
         + "]";
   }
 
@@ -140,6 +174,8 @@ public class AcceleratedHNSWParams {
     private int hnswLayers = 2;
     private int maxConn = 8;
     private int beamWidth = 16;
+    private int numMergeWorkers = 1;
+    private ExecutorService mergeExec = Executors.newFixedThreadPool(1);
 
     /**
      * Set the number of cuVS writer threads while building the index
@@ -220,6 +256,30 @@ public class AcceleratedHNSWParams {
     }
 
     /**
+     * Set the number of merge workers to be used with the fallback mechanism
+     * Default value - 1
+     *
+     * @param numMergeWorkers number of merge workers to set
+     * @return instance of {@link Builder}
+     */
+    public Builder withNumMergeWorkers(int numMergeWorkers) {
+      this.numMergeWorkers = numMergeWorkers;
+      return this;
+    }
+
+    /**
+     * Set the merge executor service to be used in the fallback mechanism
+     * Default value an instance with one thread
+     *
+     * @param mergeExec an instance of {@link ExecutorService}
+     * @return instance of {@link Builder}
+     */
+    public Builder withMergeExecutorService(ExecutorService mergeExec) {
+      this.mergeExec = mergeExec;
+      return this;
+    }
+
+    /**
      * Validates the input parameters.
      *
      * @throws IllegalArgumentException
@@ -274,6 +334,17 @@ public class AcceleratedHNSWParams {
                 + MAX_BEAM_WIDTH
                 + "]");
       }
+      if (numMergeWorkers < MIN_NUM_MERGE_WORKERS || numMergeWorkers > MAX_NUM_MERGE_WORKERS) {
+        throw new IllegalArgumentException(
+            "numMergeWorkers not in valid range. Valid range: ["
+                + MIN_NUM_MERGE_WORKERS
+                + ", "
+                + MAX_NUM_MERGE_WORKERS
+                + "]");
+      }
+      if (Objects.isNull(mergeExec)) {
+        throw new IllegalArgumentException("mergeExec cannot be null.");
+      }
     }
 
     /**
@@ -284,7 +355,14 @@ public class AcceleratedHNSWParams {
     public AcceleratedHNSWParams build() {
       validate();
       return new AcceleratedHNSWParams(
-          writerThreads, intermediateGraphDegree, graphdegree, hnswLayers, maxConn, beamWidth);
+          writerThreads,
+          intermediateGraphDegree,
+          graphdegree,
+          hnswLayers,
+          maxConn,
+          beamWidth,
+          numMergeWorkers,
+          mergeExec);
     }
   }
 }
