@@ -49,7 +49,6 @@ public class AcceleratedHNSWParams {
       int hnswLayers,
       int maxConn,
       int beamWidth) {
-    super();
     this.writerThreads = writerThreads;
     this.intermediateGraphDegree = intermediateGraphDegree;
     this.graphdegree = graphdegree;
