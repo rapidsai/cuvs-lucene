@@ -72,7 +72,6 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   private IndexOutput hnswMeta = null, hnswVectorIndex = null;
   private String vemFileName;
   private String vexFileName;
-  private final AcceleratedHNSWParams acceleratedHNSWParams;
 
   static {
     try {
