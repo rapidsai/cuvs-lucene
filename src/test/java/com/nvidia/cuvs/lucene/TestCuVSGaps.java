@@ -9,6 +9,7 @@ import static com.nvidia.cuvs.lucene.TestDataProvider.TEXT_FIELD;
 import static com.nvidia.cuvs.lucene.TestDataProvider.VECTOR_FIELD1;
 import static com.nvidia.cuvs.lucene.TestUtils.createWriter;
 import static com.nvidia.cuvs.lucene.TestUtils.generateExpectedTopK;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
 import java.io.IOException;
@@ -50,7 +51,7 @@ public class TestCuVSGaps extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue("cuVS not supported so skipping these tests", CuVS2510GPUVectorsFormat.supported());
+    assumeTrue("cuVS not supported", isSupported());
     directory = newDirectory();
     random = random();
     dataProvider = new TestDataProvider(random);

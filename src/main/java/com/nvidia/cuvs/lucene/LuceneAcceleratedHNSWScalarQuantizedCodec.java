@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
@@ -14,24 +14,26 @@ import org.apache.lucene.codecs.KnnVectorsFormat;
 /**
  * CuVS based codec for GPU based vector search
  *
- * @since 25.10
+ * @since 26.02
  */
-public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
+public class LuceneAcceleratedHNSWScalarQuantizedCodec extends FilterCodec {
 
-  private static final Logger log = Logger.getLogger(Lucene101AcceleratedHNSWCodec.class.getName());
-  private static final String NAME = "Lucene101AcceleratedHNSWCodec";
+  private static final Logger log =
+      Logger.getLogger(LuceneAcceleratedHNSWScalarQuantizedCodec.class.getName());
+  private static final String NAME = "Lucene101AcceleratedHNSWScalarQuantizedCodec";
+
   private KnnVectorsFormat format;
 
-  public Lucene101AcceleratedHNSWCodec() throws Exception {
+  public LuceneAcceleratedHNSWScalarQuantizedCodec() throws Exception {
     this(NAME, LuceneProvider.getCodec("101"));
   }
 
-  public Lucene101AcceleratedHNSWCodec(String name, Codec delegate) {
+  public LuceneAcceleratedHNSWScalarQuantizedCodec(String name, Codec delegate) {
     super(name, delegate);
     initializeFormatDefaultValues();
   }
 
-  public Lucene101AcceleratedHNSWCodec(AcceleratedHNSWParams acceleratedHNSWParams)
+  public LuceneAcceleratedHNSWScalarQuantizedCodec(AcceleratedHNSWParams acceleratedHNSWParams)
       throws Exception {
     this(NAME, LuceneProvider.getCodec("101"));
     initializeFormat(acceleratedHNSWParams);
@@ -43,7 +45,7 @@ public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
 
   private void initializeFormat(AcceleratedHNSWParams acceleratedHNSWParams) {
     try {
-      format = new Lucene99AcceleratedHNSWVectorsFormat(acceleratedHNSWParams);
+      format = new LuceneAcceleratedHNSWScalarQuantizedVectorsFormat(acceleratedHNSWParams);
       setKnnFormat(format);
     } catch (LibraryException ex) {
       log.log(
@@ -52,21 +54,11 @@ public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
     }
   }
 
-  /**
-   * Get the configured {@link KnnVectorsFormat}
-   *
-   * @return the instance of the {@link KnnVectorsFormat}
-   */
   @Override
   public KnnVectorsFormat knnVectorsFormat() {
     return format;
   }
 
-  /**
-   * Set the {@link KnnVectorsFormat}
-   *
-   * @param format the {@link KnnVectorsFormat} to set
-   */
   public void setKnnFormat(KnnVectorsFormat format) {
     this.format = format;
   }

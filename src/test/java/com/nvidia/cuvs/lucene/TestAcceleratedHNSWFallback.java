@@ -9,10 +9,11 @@ import static com.nvidia.cuvs.lucene.TestDataProvider.VECTOR_FIELD1;
 import static com.nvidia.cuvs.lucene.TestDataProvider.VECTOR_FIELD2;
 import static com.nvidia.cuvs.lucene.TestUtils.createWriter;
 import static com.nvidia.cuvs.lucene.TestUtils.generateExpectedTopK;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.setCuVSResourcesInstance;
 import static com.nvidia.cuvs.lucene.Utils.cuVSResourcesOrNull;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
-import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -56,17 +57,13 @@ public class TestAcceleratedHNSWFallback extends LuceneTestCase {
 
   @Before
   public void beforeTest() throws Exception {
-    assumeTrue(
-        "cuVS not supported so skipping these tests",
-        Lucene99AcceleratedHNSWVectorsFormat.supported());
+    assumeTrue("cuVS not supported so skipping these tests", isSupported());
     // Set resources to null to simulate that cuVS is not supported.
-    Lucene99AcceleratedHNSWVectorsFormat.setResources(null);
-
+    setCuVSResourcesInstance(null);
     random = new Random();
     dataProvider = new TestDataProvider(random);
     indexDirPath = Paths.get(UUID.randomUUID().toString());
-    codec =
-        new Lucene101AcceleratedHNSWCodec(32, 128, 64, CagraGraphBuildAlgo.NN_DESCENT, 3, 16, 100);
+    codec = new Lucene101AcceleratedHNSWCodec();
   }
 
   @Test
@@ -148,7 +145,7 @@ public class TestAcceleratedHNSWFallback extends LuceneTestCase {
   @After
   public void afterTest() throws Exception {
     // Reset resources for other tests to work
-    Lucene99AcceleratedHNSWVectorsFormat.setResources(cuVSResourcesOrNull());
+    setCuVSResourcesInstance(cuVSResourcesOrNull());
 
     File indexDirPathFile = indexDirPath.toFile();
     if (indexDirPathFile.exists() && indexDirPathFile.isDirectory()) {

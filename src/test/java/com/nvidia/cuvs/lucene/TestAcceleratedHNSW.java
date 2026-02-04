@@ -9,9 +9,9 @@ import static com.nvidia.cuvs.lucene.TestDataProvider.VECTOR_FIELD1;
 import static com.nvidia.cuvs.lucene.TestDataProvider.VECTOR_FIELD2;
 import static com.nvidia.cuvs.lucene.TestUtils.createWriter;
 import static com.nvidia.cuvs.lucene.TestUtils.generateExpectedTopK;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
-import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -58,15 +58,14 @@ public class TestAcceleratedHNSW extends LuceneTestCase {
 
   @Before
   public void beforeTest() throws Exception {
-    assumeTrue(
-        "cuVS not supported so skipping these tests",
-        Lucene99AcceleratedHNSWVectorsFormat.supported());
+    assumeTrue("cuVS not supported", isSupported());
     random = new Random();
+    // Fixed seed so that we can validate against the same result.
+    random = new Random(222);
     indexDirPath = Paths.get(UUID.randomUUID().toString());
     randomID = UUID.randomUUID().toString();
     dataProvider = new TestDataProvider(random);
-    codec =
-        new Lucene101AcceleratedHNSWCodec(32, 128, 64, CagraGraphBuildAlgo.NN_DESCENT, 3, 16, 100);
+    codec = new Lucene101AcceleratedHNSWCodec();
   }
 
   @Test

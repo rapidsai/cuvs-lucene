@@ -7,6 +7,7 @@ package com.nvidia.cuvs.lucene;
 import static com.nvidia.cuvs.lucene.TestDataProvider.ID_FIELD;
 import static com.nvidia.cuvs.lucene.TestDataProvider.VECTOR_FIELD1;
 import static com.nvidia.cuvs.lucene.TestDataProvider.VECTOR_FIELD2;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
 import java.util.List;
@@ -37,9 +38,7 @@ public class TestAcceleratedHNSWVectorsFormat extends BaseKnnVectorsFormatTestCa
 
   @BeforeClass
   public static void beforeClass() {
-    assumeTrue(
-        "cuVS not supported so skipping these tests",
-        Lucene99AcceleratedHNSWVectorsFormat.supported());
+    assumeTrue("cuVS is not supported", isSupported());
     random = random();
     dataProvider = new TestDataProvider(random);
   }

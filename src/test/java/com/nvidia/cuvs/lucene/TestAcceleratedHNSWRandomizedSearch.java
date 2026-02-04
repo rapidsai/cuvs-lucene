@@ -10,6 +10,7 @@ import static com.nvidia.cuvs.lucene.TestDataProvider.VECTOR_FIELD1;
 import static com.nvidia.cuvs.lucene.TestDataProvider.VECTOR_FIELD2;
 import static com.nvidia.cuvs.lucene.TestUtils.createWriter;
 import static com.nvidia.cuvs.lucene.TestUtils.generateExpectedTopK;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 
 import java.io.IOException;
@@ -54,9 +55,7 @@ public class TestAcceleratedHNSWRandomizedSearch extends LuceneTestCase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    assumeTrue(
-        "cuVS not supported so skipping these tests",
-        Lucene99AcceleratedHNSWVectorsFormat.supported());
+    assumeTrue("cuVS not supported so skipping these tests", isSupported());
     directory = newDirectory();
     random = random();
     dataProvider = new TestDataProvider(random);

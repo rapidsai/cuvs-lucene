@@ -6,16 +6,18 @@ package com.nvidia.cuvs.lucene;
 
 import static com.nvidia.cuvs.lucene.TestDataProvider.ID_FIELD;
 import static com.nvidia.cuvs.lucene.TestDataProvider.VECTOR_FIELD1;
-import static com.nvidia.cuvs.lucene.TestUtils.createWriter;
-import static com.nvidia.cuvs.lucene.TestUtils.createWriterConfig;
 import static com.nvidia.cuvs.lucene.TestUtils.generateRandomText;
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.isSupported;
 import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
 import static org.apache.lucene.tests.util.TestUtil.alwaysKnnVectorsFormat;
 
+import com.carrotsearch.randomizedtesting.annotations.Name;
+import com.carrotsearch.randomizedtesting.annotations.ParametersFactory;
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.lucene.CuVS2510GPUVectorsWriter.IndexType;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -45,7 +47,6 @@ import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.tests.index.RandomIndexWriter;
 import org.apache.lucene.tests.util.LuceneTestCase;
 import org.apache.lucene.tests.util.LuceneTestCase.SuppressSysoutChecks;
 import org.apache.lucene.util.BytesRef;
@@ -69,9 +70,21 @@ public class TestMerge extends LuceneTestCase {
   private static Directory directory;
   private static Codec codec;
 
+  private static CagraGraphBuildAlgo cagraGraphBuildAlgo;
+
+  public TestMerge(@Name("cagraGraphBuildAlgo") CagraGraphBuildAlgo cagraGraphBuildAlgo) {
+    TestMerge.cagraGraphBuildAlgo = cagraGraphBuildAlgo;
+  }
+
+  @ParametersFactory
+  public static List<Object[]> parameters() {
+    return Arrays.asList(
+        new Object[][] {{CagraGraphBuildAlgo.NN_DESCENT}, {CagraGraphBuildAlgo.IVF_PQ}});
+  }
+
   @BeforeClass
   public static void beforeClass() {
-    assumeTrue("cuVS not supported so skipping these tests", CuVS2510GPUVectorsFormat.supported());
+    assumeTrue("cuVS is not supported", isSupported());
     random = random();
     codec = alwaysKnnVectorsFormat(new CuVS2510GPUVectorsFormat());
   }
@@ -96,6 +109,11 @@ public class TestMerge extends LuceneTestCase {
    **/
   @Test
   public void testMergeManyDocumentsMultipleSegments() throws IOException {
+    log.log(
+        Level.FINE,
+        "Starting testMergeManyDocumentsMultipleSegments with CagraGraphBuildAlgo: "
+            + cagraGraphBuildAlgo);
+
     // Randomize configuration parameters
     int maxBufferedDocs = dataProvider.getRandom(5, 16);
     int totalBatches = dataProvider.getRandom(8, 16);
@@ -116,10 +134,21 @@ public class TestMerge extends LuceneTestCase {
             + ", vectorProbability="
             + vectorProbability);
 
+    GPUSearchParams params =
+        new GPUSearchParams.Builder().withCagraGraphBuildAlgo(cagraGraphBuildAlgo).build();
+
+    CuVS2510GPUVectorsFormat format = new CuVS2510GPUVectorsFormat(params);
+
+    IndexWriterConfig config =
+        new IndexWriterConfig()
+            .setCodec(alwaysKnnVectorsFormat(format))
+            .setMaxBufferedDocs(maxBufferedDocs)
+            .setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
+
     List<Integer> expectedDocIds = new ArrayList<>();
     int documentsWithVectors = 0;
 
-    try (RandomIndexWriter writer = createWriter(random, directory, codec)) {
+    try (IndexWriter writer = new IndexWriter(directory, config)) {
       // Add documents in multiple batches to create many segments
       for (int batch = 0; batch < totalBatches; batch++) {
         for (int i = 0; i < docsPerBatch; i++) {
@@ -188,6 +217,11 @@ public class TestMerge extends LuceneTestCase {
    **/
   @Test
   public void testMergeWithIndexSortingStringField() throws IOException {
+    log.log(
+        Level.FINE,
+        "Starting testMergeWithIndexSorting with text-based sorting with CagraGraphBuildAlgo: "
+            + cagraGraphBuildAlgo);
+
     // Randomize sort field type
     final String SORT_FIELD_NAME = "text_sort_key";
     final String ORIGINAL_ORDER = "original_order";
@@ -216,10 +250,15 @@ public class TestMerge extends LuceneTestCase {
             + ", vectorProbability="
             + vectorProbability);
 
+    GPUSearchParams params =
+        new GPUSearchParams.Builder().withCagraGraphBuildAlgo(cagraGraphBuildAlgo).build();
+
+    CuVS2510GPUVectorsFormat format = new CuVS2510GPUVectorsFormat(params);
+
     IndexWriterConfig config =
         new IndexWriterConfig()
-            .setCodec(codec)
-            .setIndexSort(indexSort)
+            .setCodec(alwaysKnnVectorsFormat(format))
+            .setIndexSort(indexSort) // This automatically enables sorting during merges
             .setMergePolicy(mergePolicy)
             .setMaxBufferedDocs(maxBufferedDocs)
             .setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
@@ -525,9 +564,32 @@ public class TestMerge extends LuceneTestCase {
    **/
   @Test
   public void testMergeWithMissingVectors() throws IOException {
+    log.log(
+        Level.FINE,
+        "Starting testMergeWithMissingVectors with CagraGraphBuildAlgo: " + cagraGraphBuildAlgo);
+
+    // Randomize configuration
+    int maxBufferedDocs = 10 + random().nextInt(11); // 10-20 docs per buffer
     int numSegments = dataProvider.getRandom(3, 13);
-    IndexWriterConfig config = createWriterConfig(random, codec);
     log.log(Level.FINE, "Randomized parameters: numSegments=" + numSegments);
+
+    GPUSearchParams params =
+        new GPUSearchParams.Builder().withCagraGraphBuildAlgo(cagraGraphBuildAlgo).build();
+
+    CuVS2510GPUVectorsFormat format = new CuVS2510GPUVectorsFormat(params);
+
+    IndexWriterConfig config =
+        new IndexWriterConfig()
+            .setCodec(alwaysKnnVectorsFormat(format))
+            .setMaxBufferedDocs(maxBufferedDocs)
+            .setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
+
+    log.log(
+        Level.FINE,
+        "Randomized parameters: maxBufferedDocs="
+            + maxBufferedDocs
+            + ", numSegments="
+            + numSegments);
 
     int totalExpectedVectors = 0;
     int totalDocuments = 0;
@@ -624,6 +686,7 @@ public class TestMerge extends LuceneTestCase {
   public void testMergeWithDeletions() throws IOException {
     int numSegments = dataProvider.getRandom(3, 7);
     int docsPerSegment = dataProvider.getRandom(20, 41);
+    int maxBufferedDocs = dataProvider.getRandom(8, 17);
     double vectorProbability = dataProvider.getRandom(0.7, 0.95);
     double deletionProbability = dataProvider.getRandom(0.2, 0.5);
 
@@ -638,7 +701,17 @@ public class TestMerge extends LuceneTestCase {
             + ", deletionProbability="
             + deletionProbability);
 
-    IndexWriterConfig config = createWriterConfig(random, codec);
+    GPUSearchParams params =
+        new GPUSearchParams.Builder().withCagraGraphBuildAlgo(cagraGraphBuildAlgo).build();
+
+    CuVS2510GPUVectorsFormat format = new CuVS2510GPUVectorsFormat(params);
+
+    IndexWriterConfig config =
+        new IndexWriterConfig()
+            .setCodec(alwaysKnnVectorsFormat(format))
+            .setMaxBufferedDocs(maxBufferedDocs)
+            .setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
+
     List<Integer> expectedRemainingDocs = new ArrayList<>();
     List<Integer> deletedDocs = new ArrayList<>();
     int totalDocuments = numSegments * docsPerSegment;
@@ -751,6 +824,11 @@ public class TestMerge extends LuceneTestCase {
    * */
   @Test
   public void testMergeBruteForceIndex() throws IOException {
+    log.log(
+        Level.FINE,
+        "Starting testMergeBruteForceIndex with CagraGraphBuildAlgo: " + cagraGraphBuildAlgo);
+
+    // Randomize configuration parameters
     int numSegments = dataProvider.getRandom(3, 10);
     int docsPerSegment = dataProvider.getRandom(20, 100);
     double vectorProbability = dataProvider.getRandom(0.2, 0.7);
@@ -767,10 +845,15 @@ public class TestMerge extends LuceneTestCase {
             + ", vectorProbability="
             + vectorProbability);
 
+    GPUSearchParams params =
+        new GPUSearchParams.Builder()
+            .withCagraGraphBuildAlgo(cagraGraphBuildAlgo)
+            .withIndexType(IndexType.BRUTE_FORCE)
+            .build();
+
     // Configure with brute force index type
     CuVS2510GPUVectorsFormat bruteForceFormat =
-        new CuVS2510GPUVectorsFormat(
-            32, 128, 64, CagraGraphBuildAlgo.NN_DESCENT, IndexType.BRUTE_FORCE);
+        new CuVS2510GPUVectorsFormat(params); // Use brute force index
 
     IndexWriterConfig config =
         new IndexWriterConfig()
@@ -888,7 +971,13 @@ public class TestMerge extends LuceneTestCase {
    * Test merging segments for {@link IndexType#CAGRA}
    * */
   @Test
-  public void testMergeCagraIndex() throws IOException {
+  public void testMergeCagra() throws IOException {
+    log.log(
+        Level.FINE,
+        "Starting testMergeCagraAndBruteForceIndex with CagraGraphBuildAlgo: "
+            + cagraGraphBuildAlgo);
+
+    // Use moderate dataset size
     int numSegments = dataProvider.getRandom(3, 10);
     int docsPerSegment = dataProvider.getRandom(20, 100);
     double vectorProbability = dataProvider.getRandom(0.2, 0.7);
@@ -905,13 +994,18 @@ public class TestMerge extends LuceneTestCase {
             + ", vectorProbability="
             + vectorProbability);
 
-    // Configure with CAGRA index type
-    CuVS2510GPUVectorsFormat cagraAndBruteForceFormat =
-        new CuVS2510GPUVectorsFormat(32, 128, 64, CagraGraphBuildAlgo.NN_DESCENT, IndexType.CAGRA);
+    // Configure with CAGRA + brute force combined index type
+    GPUSearchParams params =
+        new GPUSearchParams.Builder()
+            .withCagraGraphBuildAlgo(cagraGraphBuildAlgo)
+            .withIndexType(IndexType.CAGRA)
+            .build();
+
+    CuVS2510GPUVectorsFormat format = new CuVS2510GPUVectorsFormat(params);
 
     IndexWriterConfig config =
         new IndexWriterConfig()
-            .setCodec(alwaysKnnVectorsFormat(cagraAndBruteForceFormat))
+            .setCodec(alwaysKnnVectorsFormat(format))
             .setMaxBufferedDocs(maxBufferedDocs)
             .setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
 
@@ -1042,14 +1136,17 @@ public class TestMerge extends LuceneTestCase {
             + ", vectorProbability="
             + vectorProbability);
 
-    // Configure with CAGRA + brute force index type
-    CuVS2510GPUVectorsFormat cagraAndBruteForceFormat =
-        new CuVS2510GPUVectorsFormat(
-            32, 128, 64, CagraGraphBuildAlgo.NN_DESCENT, IndexType.CAGRA_AND_BRUTE_FORCE);
+    GPUSearchParams params =
+        new GPUSearchParams.Builder()
+            .withCagraGraphBuildAlgo(cagraGraphBuildAlgo)
+            .withIndexType(IndexType.CAGRA_AND_BRUTE_FORCE)
+            .build();
+
+    CuVS2510GPUVectorsFormat format = new CuVS2510GPUVectorsFormat(params);
 
     IndexWriterConfig config =
         new IndexWriterConfig()
-            .setCodec(alwaysKnnVectorsFormat(cagraAndBruteForceFormat))
+            .setCodec(alwaysKnnVectorsFormat(format))
             .setMaxBufferedDocs(maxBufferedDocs)
             .setRAMBufferSizeMB(IndexWriterConfig.DISABLE_AUTO_FLUSH);
 
