@@ -29,6 +29,7 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
     assertEquals(128, params.getIntermediateGraphDegree());
     assertEquals(8, params.getMaxConn());
     assertEquals(1, params.getWriterThreads());
+    assertEquals(1, params.getNumMergeWorkers());
   }
 
   @Test
@@ -84,11 +85,28 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
   @Test
   public void testAcceleratedHNSWParamsInvalidWriterThreads() {
     for (int v :
-        new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(2, Integer.MAX_VALUE)}) {
+        new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(33, Integer.MAX_VALUE)}) {
       assertThrows(
           IllegalArgumentException.class,
           () -> new AcceleratedHNSWParams.Builder().withWriterThreads(v).build());
     }
+  }
+
+  @Test
+  public void testAcceleratedHNSWParamsInvalidNumMergeWorkers() {
+    for (int v :
+        new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(33, Integer.MAX_VALUE)}) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new AcceleratedHNSWParams.Builder().withNumMergeWorkers(v).build());
+    }
+  }
+
+  @Test
+  public void testAcceleratedHNSWParamsInvalidMergeExecutorService() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new AcceleratedHNSWParams.Builder().withMergeExecutorService(null).build());
   }
 
   @BeforeClass
