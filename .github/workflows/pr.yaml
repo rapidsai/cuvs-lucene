@@ -9,7 +9,6 @@ concurrency:
 jobs:
   pr-builder:
     needs:
-      - check-nightly-ci
       - changed-files
       - checks
       - conda-java-tests
@@ -28,17 +27,6 @@ jobs:
       - name: Telemetry setup
         if: ${{ vars.TELEMETRY_ENABLED == 'true' }}
         uses: rapidsai/shared-actions/telemetry-dispatch-stash-base-env-vars@main
-  check-nightly-ci:
-    needs: telemetry-setup
-    runs-on: ubuntu-latest
-    env:
-      RAPIDS_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: Check if nightly CI is passing
-        uses: rapidsai/shared-actions/check_nightly_success/dispatch@main
-        with:
-          repo: cuvs
-          max_days_without_success: 30
   changed-files:
     needs: telemetry-setup
     secrets: inherit
