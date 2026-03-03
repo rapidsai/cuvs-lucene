@@ -23,7 +23,6 @@ import static org.apache.lucene.util.RamUsageEstimator.shallowSizeOfInstance;
 
 import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CagraIndexParams;
-import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.CuVSMatrix;
 import com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.QuantizationType;
 import java.io.IOException;
@@ -171,7 +170,8 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
               acceleratedHNSWParams.getWriterThreads(),
               acceleratedHNSWParams.getIntermediateGraphDegree(),
               acceleratedHNSWParams.getGraphdegree(),
-              CagraGraphBuildAlgo.NN_DESCENT);
+              acceleratedHNSWParams.getCagraGraphBuildAlgo(),
+              acceleratedHNSWParams.getCuVSIvfPqParams());
       CagraIndex cagraIndex =
           CagraIndex.newBuilder(getCuVSResourcesInstance())
               .withDataset(dataset)
