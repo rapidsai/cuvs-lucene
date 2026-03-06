@@ -87,7 +87,7 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
   @Test
   public void testAcceleratedHNSWParamsInvalidWriterThreads() {
     for (int v :
-        new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(2, Integer.MAX_VALUE)}) {
+        new int[] {random.nextInt(Integer.MIN_VALUE, 1), random.nextInt(33, Integer.MAX_VALUE)}) {
       assertThrows(
           IllegalArgumentException.class,
           () -> new AcceleratedHNSWParams.Builder().withWriterThreads(v).build());
