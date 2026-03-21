@@ -27,17 +27,17 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
   @SuppressWarnings("unused")
   private static final Logger log = Logger.getLogger(CuVS2510GPUVectorsFormat.class.getName());
 
-  private static final int maxDimensions = 4096;
+  private static final int MAX_DIMENSIONS = 4096;
   private static final LuceneProvider LUCENE_PROVIDER;
   private static final FlatVectorsFormat FLAT_VECTORS_FORMAT;
   private GPUSearchParams gpuSearchParams;
 
-  static final String CUVS_META_CODEC_NAME = "Lucene102CuVSVectorsFormatMeta";
-  static final String CUVS_META_CODEC_EXT = "vemc";
-  static final String CUVS_INDEX_CODEC_NAME = "Lucene102CuVSVectorsFormatIndex";
-  static final String CUVS_INDEX_EXT = "vcag";
-  static final int VERSION_START = 0;
-  static final int VERSION_CURRENT = VERSION_START;
+  public static final String CUVS_META_CODEC_NAME = "Lucene102CuVSVectorsFormatMeta";
+  public static final String CUVS_META_CODEC_EXT = "vemc";
+  public static final String CUVS_INDEX_CODEC_NAME = "Lucene102CuVSVectorsFormatIndex";
+  public static final String CUVS_INDEX_EXT = "vcag";
+  public static final int VERSION_START = 0;
+  public static final int VERSION_CURRENT = VERSION_START;
 
   static {
     try {
@@ -93,6 +93,6 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
    */
   @Override
   public int getMaxDimensions(String fieldName) {
-    return maxDimensions;
+    return MAX_DIMENSIONS;
   }
 }
