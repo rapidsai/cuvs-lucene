@@ -24,6 +24,7 @@ import java.util.BitSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.lucene.codecs.CodecUtil;
@@ -359,7 +360,8 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
    */
   @Override
   public void checkIntegrity() throws IOException {
-    // TODO: Pending implementation
+    flatVectorsReader.checkIntegrity();
+    CodecUtil.checksumEntireFile(cuvsIndexInput);
   }
 
   /**
@@ -381,7 +383,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   }
 
   /** Native float to float function */
-  public interface FloatToFloatFunction {
+  private interface FloatToFloatFunction {
     float apply(float v);
   }
 
@@ -421,16 +423,19 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
     if (acceptDocs != null) {
       mask = new BitSet[1]; // As there is only one query "target"
       mask[0] = new BitSet(acceptedOrds.length());
+      /*
+       * Need to find if there is a better alternative to the below
+       * in subsequent code improvement iterations.
+       */
       for (int i = 0; i < acceptedOrds.length(); i++) {
         if (acceptedOrds.get(i)) {
           mask[0].set(i);
         }
       }
-      topK = Math.min(knnCollector.k() + 5, mask[0].cardinality());
+      topK = Math.min(knnCollector.k() + 10, mask[0].cardinality());
     }
 
     try {
-      Map<Integer, Float> result;
       List<Map<Integer, Float>> searchResult = null;
       if (knnCollector.k() <= 1024 && cuvsIndex.getCagraIndex() != null) {
         CagraSearchParams searchParams;
@@ -488,13 +493,12 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
 
       // List expected to have only one entry because of single query "target".
       assert searchResult.size() == 1;
-      result = searchResult.getFirst();
 
       final IntToIntFunction ordToDocFunction = (IntToIntFunction) rawValues::ordToDoc;
       final FloatToFloatFunction scoreCorrectionFunction =
           getScoreNormalizationFunc(fieldEntry.similarityFunction);
 
-      for (var entry : result.entrySet()) {
+      for (Entry<Integer, Float> entry : searchResult.getFirst().entrySet()) {
         int ord = entry.getKey();
         float score = entry.getValue();
         if (knnCollector.earlyTerminated()) {
@@ -503,7 +507,6 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
         if (ord < 0) {
           continue;
         }
-        assert ord >= 0 : "unexpected ord: " + ord;
         float correctedScore = scoreCorrectionFunction.apply(score);
         int doc = ordToDocFunction.apply(ord);
         knnCollector.incVisitedCount(1);
