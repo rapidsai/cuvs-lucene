@@ -59,15 +59,16 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
 
   private static final long SHALLOW_RAM_BYTES_USED =
       shallowSizeOfInstance(CuVS2510GPUVectorsWriter.class);
-  private static final String CUVS_COMPONENT = "CUVS";
+  private static final String COMPONENT = "CuVS2510GPUVectorsWriter";
   private static final LuceneProvider LUCENE_PROVIDER;
   private static final List<VectorSimilarityFunction> VECTOR_SIMILARITY_FUNCTIONS;
   private static final int MIN_CAGRA_INDEX_SIZE = 2;
+
   private final GPUSearchParams gpuSearchParams;
   private final FlatVectorsWriter flatVectorsWriter;
   private final List<GPUFieldWriter> fields = new ArrayList<>();
-  private IndexOutput meta = null, cuvsIndex = null;
   private final InfoStream infoStream;
+  private IndexOutput meta = null, cuvsIndex = null;
 
   static {
     try {
@@ -198,10 +199,10 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
       if (indexType.isCagra()) {
         var cagraIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
         try {
-          CuVSMatrix dataset =
+          CuVSMatrix cagraDataset =
               Utils.createFloatMatrix(
                   vectors, fieldInfo.getVectorDimension(), getCuVSResourcesInstance());
-          writeCagraIndex(cagraIndexOutputStream, dataset);
+          writeCagraIndex(cagraIndexOutputStream, cagraDataset);
         } catch (Throwable t) {
           // Fallback to brute force in a few cases, for now.
           Utils.handleThrowableWithIgnore(t, t.getMessage());
@@ -212,11 +213,11 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
       bruteForceIndexOffset = cuvsIndex.getFilePointer();
       if (indexType.isBruteForce()) {
         var bruteForceIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
-        CuVSMatrix dataset2 =
+        CuVSMatrix bruteforceDataset =
             Utils.createFloatMatrix(
                 vectors, fieldInfo.getVectorDimension(), getCuVSResourcesInstance());
 
-        writeBruteForceIndex(bruteForceIndexOutputStream, dataset2);
+        writeBruteForceIndex(bruteForceIndexOutputStream, bruteforceDataset);
         bruteForceIndexLength = cuvsIndex.getFilePointer() - bruteForceIndexOffset;
       }
       writeMeta(
@@ -252,9 +253,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
             .withDataset(dataset)
             .withIndexParams(params)
             .build();
-    Path tmpFile =
-        Files.createTempFile(getCuVSResourcesInstance().tempDirectory(), "tmpindex", "cag");
-    index.serialize(os, tmpFile);
+    index.serialize(os);
     index.close();
   }
 
@@ -412,7 +411,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
       writeMergedCagraIndex(fieldInfo, mergedIndex, totalVectorCount);
       info(
           infoStream,
-          CUVS_COMPONENT,
+          COMPONENT,
           "Successfully merged " + cagraIndexes.size() + " CAGRA indexes using native merge API");
     } catch (Throwable t) {
       Utils.handleThrowable(t);
@@ -436,7 +435,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
     } catch (Exception e) {
       info(
           infoStream,
-          CUVS_COMPONENT,
+          COMPONENT,
           "Failed to extract CAGRA index for field " + fieldName + ": " + e.getMessage());
       throw e;
     }

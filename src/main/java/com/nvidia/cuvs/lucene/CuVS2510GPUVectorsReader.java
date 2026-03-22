@@ -112,7 +112,6 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
       }
       var ioContext = state.context.withReadAdvice(ReadAdvice.SEQUENTIAL);
       cuvsIndexInput = openCuVSInput(state, versionMeta, ioContext);
-
       // Detect if an instance of this reader is getting opened when there is a merge call.
       boolean isMergeCall = false;
       for (StackTraceElement s : Thread.currentThread().getStackTrace()) {
@@ -128,7 +127,6 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
       } else {
         cuvsIndices = null;
       }
-
       success = true;
     } finally {
       if (success == false) {
@@ -373,7 +371,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   }
 
   /**
-   * Returns the FloatVectorValues for the given field.
+   * Returns the ByteVectorValues for the given field.
    *
    * This is not supported.
    */
@@ -418,14 +416,17 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
     final FloatVectorValues rawValues = flatVectorsReader.getFloatVectorValues(field);
     final Bits acceptedOrds = rawValues.getAcceptOrds(acceptDocs);
     BitSet[] mask = null;
+    int maskLength = 0;
     int topK = knnCollector.k();
 
     if (acceptDocs != null) {
       mask = new BitSet[1]; // As there is only one query "target"
       mask[0] = new BitSet(acceptedOrds.length());
       /*
-       * Need to find if there is a better alternative to the below
-       * in subsequent code improvement iterations.
+       * Need to find if there is a better alternative for below loop
+       * in subsequent code improvement iterations. This is needed as
+       * there is a difference between Lucene's Bits "acceptDocs" and
+       * what our API accepts.
        */
       for (int i = 0; i < acceptedOrds.length(); i++) {
         if (acceptedOrds.get(i)) {
@@ -433,6 +434,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
         }
       }
       topK = Math.min(knnCollector.k() + 10, mask[0].cardinality());
+      maskLength = mask[0].length();
     }
 
     try {
@@ -453,20 +455,21 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
         CagraIndex cagraIndex = cuvsIndex.getCagraIndex();
         assert cagraIndex != null;
         CagraQuery query = null;
+        CuVSMatrix queryVector = CuVSMatrix.ofArray(new float[][] {target});
         if (acceptDocs != null) {
           query =
               new CagraQuery.Builder(getCuVSResourcesInstance())
                   .withTopK(topK)
                   .withSearchParams(searchParams)
-                  .withQueryVectors(CuVSMatrix.ofArray(new float[][] {target}))
-                  .withPrefilter(mask[0], mask[0].length())
+                  .withQueryVectors(queryVector)
+                  .withPrefilter(mask[0], maskLength)
                   .build();
         } else {
           query =
               new CagraQuery.Builder(getCuVSResourcesInstance())
                   .withTopK(topK)
                   .withSearchParams(searchParams)
-                  .withQueryVectors(CuVSMatrix.ofArray(new float[][] {target}))
+                  .withQueryVectors(queryVector)
                   .build();
         }
         searchResult = cagraIndex.search(query).getResults();
@@ -474,17 +477,18 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
         BruteForceIndex bruteforceIndex = cuvsIndex.getBruteforceIndex();
         assert bruteforceIndex != null;
         BruteForceQuery query = null;
+        float[][] queryVector = new float[][] {target};
         if (acceptDocs != null) {
           query =
               new BruteForceQuery.Builder(getCuVSResourcesInstance())
-                  .withQueryVectors(new float[][] {target})
-                  .withPrefilters(mask, mask[0].length())
+                  .withQueryVectors(queryVector)
+                  .withPrefilters(mask, maskLength)
                   .withTopK(topK)
                   .build();
         } else {
           query =
               new BruteForceQuery.Builder(getCuVSResourcesInstance())
-                  .withQueryVectors(new float[][] {target})
+                  .withQueryVectors(queryVector)
                   .withTopK(topK)
                   .build();
         }
@@ -493,7 +497,6 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
 
       // List expected to have only one entry because of single query "target".
       assert searchResult.size() == 1;
-
       final IntToIntFunction ordToDocFunction = (IntToIntFunction) rawValues::ordToDoc;
       final FloatToFloatFunction scoreCorrectionFunction =
           getScoreNormalizationFunc(fieldEntry.similarityFunction);

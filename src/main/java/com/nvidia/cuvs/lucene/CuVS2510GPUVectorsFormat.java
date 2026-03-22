@@ -8,7 +8,6 @@ import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.assertIsSu
 
 import com.nvidia.cuvs.LibraryException;
 import java.io.IOException;
-import java.util.logging.Logger;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.hnsw.DefaultFlatVectorScorer;
@@ -24,13 +23,9 @@ import org.apache.lucene.index.SegmentWriteState;
  */
 public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
 
-  @SuppressWarnings("unused")
-  private static final Logger log = Logger.getLogger(CuVS2510GPUVectorsFormat.class.getName());
-
   private static final int MAX_DIMENSIONS = 4096;
   private static final LuceneProvider LUCENE_PROVIDER;
   private static final FlatVectorsFormat FLAT_VECTORS_FORMAT;
-  private GPUSearchParams gpuSearchParams;
 
   public static final String CUVS_META_CODEC_NAME = "Lucene102CuVSVectorsFormatMeta";
   public static final String CUVS_META_CODEC_EXT = "vemc";
@@ -38,6 +33,8 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
   public static final String CUVS_INDEX_EXT = "vcag";
   public static final int VERSION_START = 0;
   public static final int VERSION_CURRENT = VERSION_START;
+
+  private GPUSearchParams gpuSearchParams;
 
   static {
     try {
