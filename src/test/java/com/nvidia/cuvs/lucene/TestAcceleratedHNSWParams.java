@@ -105,24 +105,10 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
   }
 
   @Test
-  public void testAcceleratedHNSWParamsInvalidMergeExecutorService() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> new AcceleratedHNSWParams.Builder().withMergeExecutorService(null).build());
-  }
-
-  @Test
   public void testAcceleratedHNSWParamsInvalidCagraGraphBuildAlgo() {
     assertThrows(
         IllegalArgumentException.class,
         () -> new AcceleratedHNSWParams.Builder().withCagraGraphBuildAlgo(null).build());
-  }
-
-  @Test
-  public void testAcceleratedHNSWParamsInvalidCuVSIvfPqParams() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> new AcceleratedHNSWParams.Builder().withCuVSIvfPqParams(null).build());
   }
 
   @BeforeClass

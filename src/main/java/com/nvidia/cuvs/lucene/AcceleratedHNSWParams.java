@@ -10,6 +10,7 @@ import com.nvidia.cuvs.CuVSIvfPqParams;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 
 public class AcceleratedHNSWParams {
 
@@ -40,10 +41,17 @@ public class AcceleratedHNSWParams {
   private static final int DEFAULT_BEAM_WIDTH = 32;
   private static final CagraGraphBuildAlgo DEFAULT_CAGRA_GRAPH_BUILD_ALGO =
       CagraGraphBuildAlgo.NN_DESCENT;
-  private static final CuVSIvfPqParams DEFAULT_IVF_PQ_PARAMS =
-      new CuVSIvfPqParams.Builder().build();
   private static final int DEFAULT_NUM_MERGE_WORKERS = 1;
-  private static final ExecutorService DEFAULT_MERGE_EXE_SRVC = Executors.newFixedThreadPool(1);
+
+  private static final Supplier<CuVSIvfPqParams> DEFAULT_IVF_PQ_PARAMS =
+      () -> {
+        return new CuVSIvfPqParams.Builder().build();
+      };
+
+  private static final Supplier<ExecutorService> DEFAULT_MERGE_EXE_SRVC =
+      () -> {
+        return Executors.newFixedThreadPool(1);
+      };
 
   private final int writerThreads;
   private final int intermediateGraphDegree;
@@ -220,9 +228,9 @@ public class AcceleratedHNSWParams {
     private int maxConn = DEFAULT_MAX_CONN;
     private int beamWidth = DEFAULT_BEAM_WIDTH;
     private CagraGraphBuildAlgo cagraGraphBuildAlgo = DEFAULT_CAGRA_GRAPH_BUILD_ALGO;
-    private CuVSIvfPqParams cuVSIvfPqParams = DEFAULT_IVF_PQ_PARAMS;
     private int numMergeWorkers = DEFAULT_NUM_MERGE_WORKERS;
-    private ExecutorService mergeExec = DEFAULT_MERGE_EXE_SRVC;
+    private CuVSIvfPqParams cuVSIvfPqParams = null;
+    private ExecutorService mergeExec = null;
 
     /**
      * Set the number of cuVS writer threads while building the index
@@ -429,6 +437,12 @@ public class AcceleratedHNSWParams {
      * @return instance of {@link AcceleratedHNSWParams}
      */
     public AcceleratedHNSWParams build() {
+      if (Objects.isNull(cuVSIvfPqParams)) {
+        cuVSIvfPqParams = DEFAULT_IVF_PQ_PARAMS.get();
+      }
+      if (Objects.isNull(mergeExec)) {
+        mergeExec = DEFAULT_MERGE_EXE_SRVC.get();
+      }
       validate();
       return new AcceleratedHNSWParams(
           writerThreads,
