@@ -29,7 +29,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   private static final Logger log =
       Logger.getLogger(Lucene99AcceleratedHNSWVectorsFormat.class.getName());
   private static final FlatVectorsFormat FLAT_VECTORS_FORMAT;
-  private static final int maxDimensions = 4096;
+  private static final int MAX_DIMENSIONS = 4096;
   private final AcceleratedHNSWParams acceleratedHNSWParams;
 
   static final String HNSW_META_CODEC_NAME = "Lucene99HnswVectorsFormatMeta";
@@ -112,6 +112,6 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
    */
   @Override
   public int getMaxDimensions(String fieldName) {
-    return maxDimensions;
+    return MAX_DIMENSIONS;
   }
 }

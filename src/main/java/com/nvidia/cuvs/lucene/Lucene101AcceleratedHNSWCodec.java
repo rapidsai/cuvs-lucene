@@ -22,25 +22,51 @@ public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
   private static final String NAME = "Lucene101AcceleratedHNSWCodec";
   private KnnVectorsFormat format;
 
+  /**
+   * Default constructor for {@link Lucene101AcceleratedHNSWCodec}
+   *
+   * @throws Exception
+   */
   public Lucene101AcceleratedHNSWCodec() throws Exception {
     this(NAME, LuceneProvider.getCodec("101"));
   }
 
+  /**
+   * Constructor for {@link Lucene101AcceleratedHNSWCodec}
+   *
+   * @param name the codec's name
+   * @param delegate the delegate codec to filter
+   */
   public Lucene101AcceleratedHNSWCodec(String name, Codec delegate) {
     super(name, delegate);
     initializeFormatDefaultValues();
   }
 
+  /**
+   * Constructor for {@link Lucene101AcceleratedHNSWCodec}
+   *
+   * @param acceleratedHNSWParams instance of {@link AcceleratedHNSWParams}
+   * @throws Exception exception
+   */
   public Lucene101AcceleratedHNSWCodec(AcceleratedHNSWParams acceleratedHNSWParams)
       throws Exception {
     this(NAME, LuceneProvider.getCodec("101"));
     initializeFormat(acceleratedHNSWParams);
   }
 
+  /**
+   * Initialize an instance of {@link Lucene99AcceleratedHNSWVectorsFormat}
+   * with an instance of {@link AcceleratedHNSWParams} with default parameters
+   */
   private void initializeFormatDefaultValues() {
     initializeFormat(new AcceleratedHNSWParams.Builder().build());
   }
 
+  /**
+   * Initialize an instance of {@link Lucene99AcceleratedHNSWVectorsFormat}
+   *
+   * @param acceleratedHNSWParams instance of {@link AcceleratedHNSWParams}
+   */
   private void initializeFormat(AcceleratedHNSWParams acceleratedHNSWParams) {
     try {
       format = new Lucene99AcceleratedHNSWVectorsFormat(acceleratedHNSWParams);

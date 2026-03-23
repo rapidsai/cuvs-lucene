@@ -50,7 +50,7 @@ public class AcceleratedHNSWParams {
 
   private static final Supplier<ExecutorService> DEFAULT_MERGE_EXE_SRVC =
       () -> {
-        return Executors.newFixedThreadPool(1);
+        return Executors.newFixedThreadPool(DEFAULT_NUM_MERGE_WORKERS);
       };
 
   private final int writerThreads;
@@ -75,7 +75,7 @@ public class AcceleratedHNSWParams {
    * @param maxConn The max connection parameter used when building HNSW index with the fallback mechanism.
    * @param beamWidth The beam width parameter used when building HNSW index with the fallback mechanism.
    * @param cagraGraphBuildAlgo The CAGRA graph build algorithm to use [NN_DESCENT, IVF_PQ].
-   * @param cagraGraphBuildAlgo An instance of CuVSIvfPqParams containing IVF_PQ specific parameters.
+   * @param cuVSIvfPqParams An instance of CuVSIvfPqParams containing IVF_PQ specific parameters.
    * @param numMergeWorkers The number of merge workers to use with the fallback mechanism.
    * @param mergeExec The instance of {@link ExecutorService} to use with the fallback mechanism.
    */
@@ -185,7 +185,7 @@ public class AcceleratedHNSWParams {
   }
 
   /**
-   * Get the instance of the {@link ExecutorService} to be used in the fallback mechanism   *
+   * Get the instance of the {@link ExecutorService} to be used in the fallback mechanism
    *
    * @return the instance of the {@link ExecutorService}
    */
@@ -235,7 +235,7 @@ public class AcceleratedHNSWParams {
     /**
      * Set the number of cuVS writer threads while building the index
      * Valid range - Minimum: {@value MIN_WRITER_THREADS}, Maximum: {@value MAX_WRITER_THREADS}
-     * Default value - 64
+     * Default value - {@value DEFAULT_WRITER_THREADS}
      *
      * @param writerThreads
      * @return instance of {@link Builder}
@@ -248,7 +248,7 @@ public class AcceleratedHNSWParams {
     /**
      * Set the intermediate graph degree to use while building CAGRA index
      * Valid range - Minimum: {@value MIN_INT_GRAPH_DEG}, Maximum: {@value MAX_INT_GRAPH_DEG}
-     * Default value - 128
+     * Default value - {@value DEFAULT_INT_GRAPH_DEGREE}
      *
      * @param intermediateGraphDegree
      * @return instance of {@link Builder}
@@ -261,7 +261,7 @@ public class AcceleratedHNSWParams {
     /**
      * Set the graph degree to use while building CAGRA index
      * Valid range - Minimum: {@value MIN_GRAPH_DEG}, Maximum: {@value MAX_GRAPH_DEG}
-     * Default value - 64
+     * Default value - {@value DEFAULT_GRAPH_DEGREE}
      *
      * @param graphDegree
      * @return instance of {@link Builder}
@@ -274,7 +274,7 @@ public class AcceleratedHNSWParams {
     /**
      * Set the number of HNSW layers to construct while building the HNSW index
      * Valid range - Minimum: {@value MIN_HNSW_LAYERS}, Maximum: {@value MAX_HNSW_LAYERS}
-     * Default value - 2
+     * Default value - {@value DEFAULT_HNSW_LAYERS}
      *
      * @param hnswLayers the number of HNSW layers
      * @return instance of {@link Builder}
@@ -287,7 +287,7 @@ public class AcceleratedHNSWParams {
     /**
      * Set the max connections parameter while building HNSW index with fallback mechanism
      * Valid range - Minimum: {@value MIN_MAX_CONN}, Maximum: {@value MAX_MAX_CONN}
-     * Default value - 8
+     * Default value - {@value DEFAULT_MAX_CONN}
      *
      * @param maxConn the max connections parameter
      * @return instance of {@link Builder}
@@ -300,7 +300,7 @@ public class AcceleratedHNSWParams {
     /**
      * Set the beam width parameter while building HNSW index with fallback mechanism
      * Valid range - Minimum: {@value MIN_BEAM_WIDTH}, Maximum: {@value MAX_BEAM_WIDTH}
-     * Default value - 16
+     * Default value - {@value DEFAULT_BEAM_WIDTH}
      *
      * @param beamWidth the beam width parameter
      * @return instance of {@link Builder}
@@ -312,7 +312,7 @@ public class AcceleratedHNSWParams {
 
     /**
      * Set the CAGRA graph build algorithm to use
-     * Default NN_DESCENT
+     * Default value - NN_DESCENT
      *
      * @param cagraGraphBuildAlgo
      * @return instance of {@link Builder}
@@ -335,7 +335,7 @@ public class AcceleratedHNSWParams {
 
     /**
      * Set the number of merge workers to be used with the fallback mechanism
-     * Default value - 1
+     * Default value - {@value DEFAULT_NUM_MERGE_WORKERS}
      *
      * @param numMergeWorkers number of merge workers to set
      * @return instance of {@link Builder}

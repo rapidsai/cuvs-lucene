@@ -26,32 +26,27 @@ import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CuVSMatrix;
 import com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.QuantizationType;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
-import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
 import org.apache.lucene.index.DocsWithFieldSet;
 import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.FieldInfos;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.Sorter;
 import org.apache.lucene.index.Sorter.DocMap;
-import org.apache.lucene.internal.hppc.IntObjectHashMap;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.InfoStream;
 
 /**
  * This class extends upon the KnnVectorsWriter to
- * enable the creation of GPU-based accelerated vector search indexes.
+ * enable the creation of GPU-based accelerated HNSW based vector search.
  *
  * @since 25.10
  */
@@ -67,8 +62,8 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   private final FlatVectorsWriter flatVectorsWriter;
   private final List<FieldWriter> fields = new ArrayList<>();
   private final InfoStream infoStream;
-  private IndexOutput cuvsIndex = null;
-  private IndexOutput hnswMeta = null, hnswVectorIndex = null;
+  private IndexOutput hnswMeta = null;
+  private IndexOutput hnswVectorIndex = null;
   private String vemFileName;
   private String vexFileName;
 
@@ -98,13 +93,11 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
     this.flatVectorsWriter = flatVectorsWriter;
     this.infoStream = state.infoStream;
     this.acceleratedHNSWParams = acceleratedHNSWParams;
-
     vemFileName =
         IndexFileNames.segmentFileName(
             state.segmentInfo.name, state.segmentSuffix, HNSW_META_CODEC_EXT);
     vexFileName =
         IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, HNSW_INDEX_EXT);
-
     boolean success = false;
     try {
       hnswMeta = state.directory.createOutput(vemFileName, state.context);
@@ -122,6 +115,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
           state.segmentInfo.getId(),
           state.segmentSuffix);
       success = true;
+      printInfoStream(infoStream, COMPONENT, "Lucene99AcceleratedHNSWVectorsWriter is initialized");
     } finally {
       if (success == false) {
         IOUtils.closeWhileHandlingException(this);
@@ -145,7 +139,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * Builds the intermediate CAGRA index and builds and writes the HNSW index
+   * Builds the intermediate CAGRA index and builds and writes the HNSW index.
    *
    * @param fieldInfo instance of FieldInfo that has the field description
    * @param vectors vectors to index
@@ -160,7 +154,6 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
       writeSingleVectorGraph(fieldInfo, vectors);
       return;
     }
-
     try {
       CuVSMatrix dataset =
           Utils.createFloatMatrix(
@@ -204,9 +197,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
           hnswGraph,
           graphLevelNodeOffsets,
           acceleratedHNSWParams.getGraphdegree());
-
       cagraIndex.close();
-
     } catch (Throwable t) {
       Utils.handleThrowable(t);
     }
@@ -287,57 +278,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * Uses the CAGRA API to merge the CAGRA indexes.
-   *
-   * @param fieldInfo instance of FieldInfo
-   * @param mergeState instance of MergeState
-   * @throws IOException I/O Exceptions
-   */
-  @SuppressWarnings("unused")
-  private void mergeCagraIndexes(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
-    try {
-      List<CagraIndex> cagraIndexes = new ArrayList<>();
-      // We need this count so that the merged segment's meta information has the vector count.
-      int totalVectorCount = 0;
-      for (int i = 0; i < mergeState.knnVectorsReaders.length; i++) {
-        KnnVectorsReader knnReader = mergeState.knnVectorsReaders[i];
-        // Access the CAGRA index for this field from the reader
-
-        if (knnReader != null) {
-          if (knnReader instanceof CuVS2510GPUVectorsReader cvr) {
-            if (cvr != null) {
-              totalVectorCount += cvr.getFieldEntries().get(fieldInfo.number).count();
-              CagraIndex cagraIndex = getCagraIndexFromReader(cvr, fieldInfo.name);
-              if (cagraIndex != null) {
-                cagraIndexes.add(cagraIndex);
-              }
-            }
-          } else {
-            // This should never happen
-            throw new RuntimeException(
-                "Reader is not of CuVSVectorsReader type. Instead it is: " + knnReader.getClass());
-          }
-        }
-      }
-      assert cagraIndexes.size() > 1;
-
-      CagraIndex mergedIndex =
-          CagraIndex.merge(cagraIndexes.toArray(new CagraIndex[cagraIndexes.size()]));
-      writeMergedCagraIndex(fieldInfo, mergedIndex, totalVectorCount);
-      printInfoStream(
-          infoStream,
-          COMPONENT,
-          "Successfully merged " + cagraIndexes.size() + " CAGRA indexes using native merge API");
-
-    } catch (Throwable t) {
-      Utils.handleThrowable(t);
-    }
-  }
-
-  /**
-   * Fallback method that rebuilds indexes from merged vectors.
-   * Used when native CAGRA merge() is not possible. Also used
-   * when non-CAGRA index types are used (for e.g. Brute Force index).
+   * Create combined data set for the merged segment and call writeFieldInternal.
    */
   private void vectorBasedMerge(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
     try {
@@ -351,55 +292,11 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   }
 
   /**
-   * Extracts the CAGRA index for a specific field from a CuVSVectorsReader.
-   */
-  private CagraIndex getCagraIndexFromReader(CuVS2510GPUVectorsReader reader, String fieldName) {
-    try {
-      IntObjectHashMap<GPUIndex> cuvsIndices = reader.getCuvsIndexes();
-      FieldInfos fieldInfos = reader.getFieldInfos();
-      FieldInfo fieldInfo = fieldInfos.fieldInfo(fieldName);
-      if (fieldInfo != null) {
-        GPUIndex cuvsIndex = cuvsIndices.get(fieldInfo.number);
-        if (cuvsIndex != null) {
-          return cuvsIndex.getCagraIndex();
-        }
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-      printInfoStream(
-          infoStream,
-          COMPONENT,
-          "Failed to extract CAGRA index for field " + fieldName + ": " + e.getMessage());
-    }
-    return null;
-  }
-
-  /**
-   * Writes a pre-built merged CAGRA index to the output.
-   */
-  private void writeMergedCagraIndex(FieldInfo fieldInfo, CagraIndex mergedIndex, int vectorCount)
-      throws IOException {
-    try {
-      var cagraIndexOutputStream = new IndexOutputOutputStream(cuvsIndex);
-      // Serialize the merged index
-      Path tmpFile =
-          Files.createTempFile(getCuVSResourcesInstance().tempDirectory(), "mergedindex", "cag");
-      mergedIndex.serialize(cagraIndexOutputStream, tmpFile);
-      // Clean up the merged index
-      mergedIndex.close();
-    } catch (Throwable t) {
-      Utils.handleThrowable(t);
-    }
-  }
-
-  /**
    * Write field for merging.
    */
   @Override
   public void mergeOneField(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
     flatVectorsWriter.mergeOneField(fieldInfo, mergeState);
-    // TODO: revisit the CAGRA merge API path via mergeCagraIndexes(fieldInfo, mergeState);
-    // separately
     vectorBasedMerge(fieldInfo, mergeState);
   }
 
@@ -409,9 +306,6 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   @Override
   public void finish() throws IOException {
     flatVectorsWriter.finish();
-    if (cuvsIndex != null) {
-      CodecUtil.writeFooter(cuvsIndex);
-    }
     if (hnswMeta != null) {
       // write end of fields marker
       hnswMeta.writeInt(-1);
@@ -427,7 +321,8 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
    */
   @Override
   public void close() throws IOException {
-    IOUtils.close(cuvsIndex, hnswMeta, hnswVectorIndex, flatVectorsWriter);
+    printInfoStream(infoStream, COMPONENT, "Closing resources");
+    IOUtils.close(hnswMeta, hnswVectorIndex, flatVectorsWriter);
     closeCuVSResourcesInstance();
   }
 
