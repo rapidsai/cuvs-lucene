@@ -9,6 +9,7 @@ import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.CuVSIvfPqParams;
 import com.nvidia.cuvs.lucene.CuVS2510GPUVectorsWriter.IndexType;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 public class GPUSearchParams {
 
@@ -23,13 +24,17 @@ public class GPUSearchParams {
   private static final int MIN_GRAPH_DEG = 1;
   private static final int MAX_GRAPH_DEG = 512;
 
-  public static final CuVSIvfPqParams DEFAULT_IVF_PQ_PARAMS = new CuVSIvfPqParams.Builder().build();
   public static final int DEFAULT_INT_GRAPH_DEGREE = 128;
   public static final int DEFAULT_GRAPH_DEGREE = 64;
   public static final CagraGraphBuildAlgo DEFAULT_CAGRA_GRAPH_BUILD_ALGO =
       CagraGraphBuildAlgo.NN_DESCENT;
   public static final IndexType DEFAULT_INDEX_TYPE = IndexType.CAGRA;
   public static final int DEFAULT_WRITER_THREADS = 1;
+
+  public static final Supplier<CuVSIvfPqParams> DEFAULT_IVF_PQ_PARAMS =
+      () -> {
+        return new CuVSIvfPqParams.Builder().build();
+      };
 
   private final int writerThreads;
   private final int intermediateGraphDegree;
@@ -143,7 +148,7 @@ public class GPUSearchParams {
     private int graphdegree = DEFAULT_GRAPH_DEGREE;
     private CagraGraphBuildAlgo cagraGraphBuildAlgo = DEFAULT_CAGRA_GRAPH_BUILD_ALGO;
     private IndexType indexType = DEFAULT_INDEX_TYPE;
-    private CuVSIvfPqParams cuVSIvfPqParams = DEFAULT_IVF_PQ_PARAMS;
+    private CuVSIvfPqParams cuVSIvfPqParams = null;
 
     /**
      * Set the number of cuVS writer threads while building the index
@@ -267,6 +272,9 @@ public class GPUSearchParams {
      * @return instance of {@link GPUSearchParams}
      */
     public GPUSearchParams build() {
+      if (Objects.isNull(cuVSIvfPqParams)) {
+        cuVSIvfPqParams = DEFAULT_IVF_PQ_PARAMS.get();
+      }
       validate();
       return new GPUSearchParams(
           writerThreads,

@@ -76,13 +76,6 @@ public class TestGPUSearchParams extends LuceneTestCase {
         () -> new GPUSearchParams.Builder().withIndexType(null).build());
   }
 
-  @Test
-  public void testGPUSearchParamsInvalidCuVSIvfPqParams() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> new GPUSearchParams.Builder().withCuVSIvfPqParams(null).build());
-  }
-
   @BeforeClass
   public static void beforeClass() {
     random = random();
