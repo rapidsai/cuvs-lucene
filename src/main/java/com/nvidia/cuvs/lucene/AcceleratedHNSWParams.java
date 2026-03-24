@@ -65,7 +65,7 @@ public class AcceleratedHNSWParams {
   private final ExecutorService mergeExec;
 
   /**
-   * Constructs an instance of {@link GPUSearchParams} with specific parameter values.
+   * Constructs an instance of {@link AcceleratedHNSWParams} with specific parameter values.
    *
    * @param writerThreads Number of cuVS writer threads to use.
    * @param intermediateGraphDegree The intermediate graph degree while building the CAGRA index.
