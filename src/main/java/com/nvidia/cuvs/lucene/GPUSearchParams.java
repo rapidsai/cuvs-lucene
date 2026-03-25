@@ -17,12 +17,12 @@ public class GPUSearchParams {
    * TODO: Update boundaries for all parameters when a consensus is reached.
    * Issue: https://github.com/rapidsai/cuvs-lucene/issues/99
    */
-  private static final int MIN_WRITER_THREADS = 1;
-  private static final int MAX_WRITER_THREADS = 512;
-  private static final int MIN_INT_GRAPH_DEG = 2;
-  private static final int MAX_INT_GRAPH_DEG = 512;
-  private static final int MIN_GRAPH_DEG = 1;
-  private static final int MAX_GRAPH_DEG = 512;
+  public static final int MIN_WRITER_THREADS = 1;
+  public static final int MAX_WRITER_THREADS = 512;
+  public static final int MIN_INT_GRAPH_DEG = 2;
+  public static final int MAX_INT_GRAPH_DEG = 512;
+  public static final int MIN_GRAPH_DEG = 1;
+  public static final int MAX_GRAPH_DEG = 512;
 
   public static final int DEFAULT_INT_GRAPH_DEGREE = 128;
   public static final int DEFAULT_GRAPH_DEGREE = 64;
@@ -260,9 +260,6 @@ public class GPUSearchParams {
       }
       if (Objects.isNull(indexType)) {
         throw new IllegalArgumentException("indexType cannot be null.");
-      }
-      if (Objects.isNull(cuVSIvfPqParams)) {
-        throw new IllegalArgumentException("cuVSIvfPqParams cannot be null.");
       }
     }
 

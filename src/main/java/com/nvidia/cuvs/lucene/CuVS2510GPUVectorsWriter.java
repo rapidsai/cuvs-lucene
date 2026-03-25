@@ -69,6 +69,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
   private final List<GPUFieldWriter> fields = new ArrayList<>();
   private final InfoStream infoStream;
   private IndexOutput meta = null, cuvsIndex = null;
+  private boolean finished;
 
   static {
     try {
@@ -518,6 +519,10 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
    */
   @Override
   public void finish() throws IOException {
+    if (finished) {
+      throw new IllegalStateException("already finished");
+    }
+    finished = true;
     flatVectorsWriter.finish();
     if (meta != null) {
       // write end of fields marker

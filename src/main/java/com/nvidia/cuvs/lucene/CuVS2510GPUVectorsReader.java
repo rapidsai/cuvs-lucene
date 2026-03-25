@@ -44,6 +44,7 @@ import org.apache.lucene.search.KnnCollector;
 import org.apache.lucene.store.ChecksumIndexInput;
 import org.apache.lucene.store.DataInput;
 import org.apache.lucene.store.IOContext;
+import org.apache.lucene.store.IOContext.Context;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.ReadAdvice;
 import org.apache.lucene.util.Bits;
@@ -112,20 +113,15 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
       }
       var ioContext = state.context.withReadAdvice(ReadAdvice.SEQUENTIAL);
       cuvsIndexInput = openCuVSInput(state, versionMeta, ioContext);
-      // Detect if an instance of this reader is getting opened when there is a merge call.
-      boolean isMergeCall = false;
-      for (StackTraceElement s : Thread.currentThread().getStackTrace()) {
-        if ("getReaderForMerge".equals(s.getMethodName())) {
-          isMergeCall = true;
-          break;
-        }
-      }
-      // Do not load indexes on the GPU as they are not being used when merge happens.
-      // We reduce approximately 50% of device memory usage during merges with this approach.
-      if (!isMergeCall) {
-        cuvsIndices = loadCuVSIndices();
-      } else {
+      /*
+       * Only load indexes on the GPU when this reader is opening for searches.
+       * Do not load indexes on the GPU when this reader is opening during merge calls.
+       * With this approach we reduce device memory usage by approximately 50% during merges.
+       */
+      if (state.context.context().equals(Context.MERGE)) {
         cuvsIndices = null;
+      } else {
+        cuvsIndices = loadCuVSIndices();
       }
       success = true;
     } finally {
