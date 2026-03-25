@@ -451,7 +451,13 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
         CagraIndex cagraIndex = cuvsIndex.getCagraIndex();
         assert cagraIndex != null;
         CagraQuery query = null;
-        CuVSMatrix queryVector = CuVSMatrix.ofArray(new float[][] {target});
+
+        CuVSMatrix.Builder<?> builder =
+            CuVSMatrix.deviceBuilder(
+                getCuVSResourcesInstance(), 1, target.length, CuVSMatrix.DataType.FLOAT);
+        builder.addVector(target);
+        CuVSMatrix queryVector = builder.build();
+
         if (acceptDocs != null) {
           query =
               new CagraQuery.Builder(getCuVSResourcesInstance())
