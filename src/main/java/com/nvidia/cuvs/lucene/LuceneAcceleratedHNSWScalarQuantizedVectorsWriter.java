@@ -265,7 +265,7 @@ public class LuceneAcceleratedHNSWScalarQuantizedVectorsWriter extends KnnVector
    * @throws IOException
    */
   private void writeField(FieldWriter fieldData) throws IOException {
-    writeFieldInternal(fieldData.fieldInfo(), fieldData.getVectors());
+    writeFieldInternal(fieldData.fieldInfo(), fieldData.getByteVectors());
   }
 
   /**
@@ -282,8 +282,9 @@ public class LuceneAcceleratedHNSWScalarQuantizedVectorsWriter extends KnnVector
     mapOldOrdToNewOrd(oldDocsWithFieldSet, sortMap, null, new2OldOrd, null);
 
     List<byte[]> sortedVectors = new ArrayList<byte[]>();
-    for (int i = 0; i < fieldData.getVectors().size(); i++) {
-      sortedVectors.add((byte[]) fieldData.getVectors().get(new2OldOrd[i]));
+    List<byte[]> byteVectors = fieldData.getByteVectors();
+    for (int i = 0; i < byteVectors.size(); i++) {
+      sortedVectors.add(byteVectors.get(new2OldOrd[i]));
     }
 
     writeFieldInternal(fieldData.fieldInfo(), sortedVectors);

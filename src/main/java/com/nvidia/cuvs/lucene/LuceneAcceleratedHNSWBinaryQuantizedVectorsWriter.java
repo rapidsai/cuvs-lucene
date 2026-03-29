@@ -239,7 +239,7 @@ public class LuceneAcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVector
    * @throws IOException
    */
   private void writeField(FieldWriter fieldData) throws IOException {
-    writeFieldInternal(fieldData.fieldInfo(), (List<byte[]>) fieldData.getVectors());
+    writeFieldInternal(fieldData.fieldInfo(), fieldData.getByteVectors());
   }
 
   /**
@@ -256,7 +256,7 @@ public class LuceneAcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVector
     mapOldOrdToNewOrd(oldDocsWithFieldSet, sortMap, null, new2OldOrd, null);
 
     List<byte[]> sortedVectors = new ArrayList<byte[]>();
-    List<byte[]> vectors = (List<byte[]>) fieldData.getVectors();
+    List<byte[]> vectors = fieldData.getByteVectors();
     for (int i = 0; i < vectors.size(); i++) {
       sortedVectors.add(vectors.get(new2OldOrd[i]));
     }

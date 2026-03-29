@@ -49,13 +49,13 @@ public class FieldWriter extends KnnFieldVectorsWriter<Object> {
     flatFieldVectorsWriter.addValue(docID, (float[]) vectorValue);
   }
 
-  List<?> getVectors() {
+  List<byte[]> getByteVectors() {
     if (quantizationType == QuantizationType.BINARY) {
       return quantizeFloatVectorsToBinary(flatFieldVectorsWriter.getVectors());
     } else if (quantizationType == QuantizationType.SCALAR) {
       return quantizeFloatVectorsToScalar(flatFieldVectorsWriter.getVectors());
     } else {
-      return flatFieldVectorsWriter.getVectors();
+      throw new UnsupportedOperationException("Not applicable for QuantizationType.NONE");
     }
   }
 

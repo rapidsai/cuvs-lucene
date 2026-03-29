@@ -240,8 +240,9 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
     final int[] new2OldOrd = new int[oldDocsWithFieldSet.cardinality()];
     mapOldOrdToNewOrd(oldDocsWithFieldSet, sortMap, null, new2OldOrd, null);
     List<float[]> sortedVectors = new ArrayList<float[]>();
-    for (int i = 0; i < fieldData.getVectors().size(); i++) {
-      sortedVectors.add(fieldData.getFloatVectors().get(new2OldOrd[i]));
+    List<float[]> floatVectors = fieldData.getFloatVectors();
+    for (int i = 0; i < floatVectors.size(); i++) {
+      sortedVectors.add(floatVectors.get(new2OldOrd[i]));
     }
     writeFieldInternal(fieldData.fieldInfo(), sortedVectors);
   }
