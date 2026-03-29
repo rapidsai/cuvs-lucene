@@ -49,7 +49,8 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   }
 
   /**
-   * Initializes {@link Lucene99AcceleratedHNSWVectorsFormat} with default parameter values.
+   * Initializes {@link Lucene99AcceleratedHNSWVectorsFormat} with an instance
+   * of {@link AcceleratedHNSWParams} with default parameter values.
    *
    * @throws LibraryException if the native library fails to load
    */
@@ -58,7 +59,8 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   }
 
   /**
-   * Initializes {@link Lucene99AcceleratedHNSWVectorsFormat} with the given threads, graph degree, etc.
+   * Initializes {@link Lucene99AcceleratedHNSWVectorsFormat} with an instance
+   * of {@link AcceleratedHNSWParams}.
    *
    * @param acceleratedHNSWParams An instance of {@link AcceleratedHNSWParams}
    */

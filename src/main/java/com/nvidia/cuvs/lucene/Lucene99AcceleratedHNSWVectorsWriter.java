@@ -66,6 +66,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   private IndexOutput hnswVectorIndex = null;
   private String vemFileName;
   private String vexFileName;
+  private boolean finished;
 
   static {
     try {
@@ -306,6 +307,10 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
    */
   @Override
   public void finish() throws IOException {
+    if (finished) {
+      throw new IllegalStateException("already finished");
+    }
+    finished = true;
     flatVectorsWriter.finish();
     if (hnswMeta != null) {
       // write end of fields marker

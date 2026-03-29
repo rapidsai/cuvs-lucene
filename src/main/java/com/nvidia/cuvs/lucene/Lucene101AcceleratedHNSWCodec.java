@@ -12,7 +12,9 @@ import org.apache.lucene.codecs.FilterCodec;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 
 /**
- * CuVS based codec for GPU based vector search
+ * A codec that enables GPU-based accelerated HNSW capability and can be used
+ * to accelerated indexing using GPUs and search using CPUs. Fallbacks to CPU
+ * based indexing when used on a machine without a GPU and/or cuVS.
  *
  * @since 25.10
  */
@@ -23,7 +25,7 @@ public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
   private KnnVectorsFormat format;
 
   /**
-   * Default constructor for {@link Lucene101AcceleratedHNSWCodec}
+   * Default constructor for {@link Lucene101AcceleratedHNSWCodec}.
    *
    * @throws Exception
    */
@@ -32,7 +34,7 @@ public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
   }
 
   /**
-   * Constructor for {@link Lucene101AcceleratedHNSWCodec}
+   * Constructor for {@link Lucene101AcceleratedHNSWCodec}.
    *
    * @param name the codec's name
    * @param delegate the delegate codec to filter
@@ -43,7 +45,7 @@ public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
   }
 
   /**
-   * Constructor for {@link Lucene101AcceleratedHNSWCodec}
+   * Constructor for {@link Lucene101AcceleratedHNSWCodec}.
    *
    * @param acceleratedHNSWParams instance of {@link AcceleratedHNSWParams}
    * @throws Exception exception
@@ -56,16 +58,16 @@ public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
 
   /**
    * Initialize an instance of {@link Lucene99AcceleratedHNSWVectorsFormat}
-   * with an instance of {@link AcceleratedHNSWParams} with default parameters
+   * with an instance of {@link AcceleratedHNSWParams} with default parameter values.
    */
   private void initializeFormatDefaultValues() {
     initializeFormat(new AcceleratedHNSWParams.Builder().build());
   }
 
   /**
-   * Initialize an instance of {@link Lucene99AcceleratedHNSWVectorsFormat}
+   * Initialize an instance of {@link Lucene99AcceleratedHNSWVectorsFormat}.
    *
-   * @param acceleratedHNSWParams instance of {@link AcceleratedHNSWParams}
+   * @param acceleratedHNSWParams instance of {@link AcceleratedHNSWParams} to use
    */
   private void initializeFormat(AcceleratedHNSWParams acceleratedHNSWParams) {
     try {
@@ -79,7 +81,7 @@ public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
   }
 
   /**
-   * Get the configured {@link KnnVectorsFormat}
+   * Get the configured {@link KnnVectorsFormat}.
    *
    * @return the instance of the {@link KnnVectorsFormat}
    */
@@ -89,7 +91,7 @@ public class Lucene101AcceleratedHNSWCodec extends FilterCodec {
   }
 
   /**
-   * Set the {@link KnnVectorsFormat}
+   * Set the {@link KnnVectorsFormat}.
    *
    * @param format the {@link KnnVectorsFormat} to set
    */
