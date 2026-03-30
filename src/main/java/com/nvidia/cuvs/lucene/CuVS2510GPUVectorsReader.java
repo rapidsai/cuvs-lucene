@@ -398,13 +398,13 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
   @Override
   public void search(String field, float[] target, KnnCollector knnCollector, Bits acceptDocs)
       throws IOException {
-    FieldEntry fieldEntry = getFieldEntry(field, VectorEncoding.FLOAT32);
+    var fieldEntry = getFieldEntry(field, VectorEncoding.FLOAT32);
     if (fieldEntry.count() == 0 || knnCollector.k() == 0) {
       return;
     }
 
     var fieldNumber = fieldInfos.fieldInfo(field).number;
-    GPUIndex cuvsIndex = cuvsIndices.get(fieldNumber);
+    GPUIndex cuvsIndex = cuvsIndices != null ? cuvsIndices.get(fieldNumber) : null;
     if (cuvsIndex == null) {
       throw new IllegalStateException("Index not found for field:" + field);
     }

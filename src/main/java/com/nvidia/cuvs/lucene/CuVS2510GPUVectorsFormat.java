@@ -10,6 +10,7 @@ import com.nvidia.cuvs.LibraryException;
 import java.io.IOException;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
+import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.hnsw.DefaultFlatVectorScorer;
 import org.apache.lucene.codecs.hnsw.FlatVectorsFormat;
 import org.apache.lucene.index.SegmentReadState;
@@ -56,7 +57,7 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
   }
 
   /**
-   * Initializes the {@link CuVS2510GPUVectorsFormat} with the given threads, graph degree, etc.
+   * Initializes the {@link CuVS2510GPUVectorsFormat} with an instance of {@link GPUSearchParams}.
    *
    * @param gpuSearchParams An instance of {@link GPUSearchParams}
    * @throws LibraryException if the native library fails to load
@@ -67,17 +68,17 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
   }
 
   /**
-   * Returns a {@link CuVS2510GPUVectorsWriter} to write the vectors to the index.
+   * Returns a KnnVectorsReader instance to write the vectors to the index.
    */
   @Override
-  public CuVS2510GPUVectorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
+  public KnnVectorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
     assertIsSupported();
     var flatWriter = FLAT_VECTORS_FORMAT.fieldsWriter(state);
     return new CuVS2510GPUVectorsWriter(state, gpuSearchParams, flatWriter);
   }
 
   /**
-   * Returns a KnnVectorsReader to read the vectors from the index.
+   * Returns a KnnVectorsReader instance to read the vectors from the index.
    */
   @Override
   public KnnVectorsReader fieldsReader(SegmentReadState state) throws IOException {
