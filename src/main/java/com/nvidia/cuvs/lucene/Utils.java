@@ -16,6 +16,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.index.KnnVectorValues;
+import org.apache.lucene.util.InfoStream;
 
 /**
  * This class provides common static utility methods.
@@ -190,5 +191,18 @@ public class Utils {
       vectors.add(vector.clone());
     }
     return vectors;
+  }
+  
+  /** 
+   * Utility to print info/debug messages via InfoStream.
+   *
+   * @param infoStream the writer's infostream
+   * @param component the name of the index writer
+   * @param msg the log message to push via the InfoStream
+   */
+  static void info(InfoStream infoStream, String component, String msg) {
+    if (infoStream.isEnabled(component)) {
+      infoStream.message(component, msg);
+    }
   }
 }
