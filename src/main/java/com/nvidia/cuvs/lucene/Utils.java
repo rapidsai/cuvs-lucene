@@ -192,8 +192,8 @@ public class Utils {
     }
     return vectors;
   }
-  
-  /** 
+
+  /**
    * Utility to print info/debug messages via InfoStream.
    *
    * @param infoStream the writer's infostream
