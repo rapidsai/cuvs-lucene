@@ -127,36 +127,45 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
               .withSearchWidth(searchWidth)
               .build();
 
-      for (int i = 0; i < leaves.size(); i++) {
-        LeafReaderContext ctx = leaves.get(i);
-        cagraIndices.add(gpuReaders.get(i).getCagraIndexForField(field));
+      // Upload the query vector to device once and share it across all per-segment CagraQueries.
+      CuVSMatrix.Builder<?> vectorBuilder =
+          CuVSMatrix.deviceBuilder(resources, 1, target.length, CuVSMatrix.DataType.FLOAT);
+      vectorBuilder.addVector(target);
 
-        // Pass live-document bits as the prefilter so deleted docs are excluded.
-        Bits liveDocs = ctx.reader().getLiveDocs();
-        CagraQuery query =
-            buildCagraQuery(resources, target, k, searchParams, liveDocs, gpuReaders.get(i), ctx);
-        cagraQueries.add(query);
-      }
+      ScoreDoc[] scoreDocs;
+      try (CuVSMatrix queryVector = vectorBuilder.build()) {
+        for (int i = 0; i < leaves.size(); i++) {
+          LeafReaderContext ctx = leaves.get(i);
+          cagraIndices.add(gpuReaders.get(i).getCagraIndexForField(field));
 
-      MultiSegmentSearchResults results =
-          MultiSegmentCagraSearch.search(resources, cagraIndices, cagraQueries, k);
+          // Pass live-document bits as the prefilter so deleted docs are excluded.
+          Bits liveDocs = ctx.reader().getLiveDocs();
+          CagraQuery query =
+              buildCagraQuery(
+                  resources, queryVector, k, searchParams, liveDocs, gpuReaders.get(i), ctx);
+          cagraQueries.add(query);
+        }
 
-      if (results.count() == 0) {
-        return new MatchNoDocsQuery();
-      }
+        MultiSegmentSearchResults results =
+            MultiSegmentCagraSearch.search(resources, cagraIndices, cagraQueries, k);
 
-      // Map (segmentIdx, ordinal) → global Lucene doc ID; compute normalized score.
-      ScoreDoc[] scoreDocs = new ScoreDoc[results.count()];
-      for (int j = 0; j < results.count(); j++) {
-        int segIdx = results.getSegmentIndex(j);
-        int ordinal = results.getOrdinal(j);
-        float dist = results.getDistance(j);
+        if (results.count() == 0) {
+          return new MatchNoDocsQuery();
+        }
 
-        LeafReaderContext ctx = leaves.get(segIdx);
-        int localDoc = gpuReaders.get(segIdx).ordToDoc(field, ordinal);
-        int globalDoc = ctx.docBase + localDoc;
-        float score = 1.0f / (1.0f + dist);
-        scoreDocs[j] = new ScoreDoc(globalDoc, score);
+        // Map (segmentIdx, ordinal) → global Lucene doc ID; compute normalized score.
+        scoreDocs = new ScoreDoc[results.count()];
+        for (int j = 0; j < results.count(); j++) {
+          int segIdx = results.getSegmentIndex(j);
+          int ordinal = results.getOrdinal(j);
+          float dist = results.getDistance(j);
+
+          LeafReaderContext ctx = leaves.get(segIdx);
+          int localDoc = gpuReaders.get(segIdx).ordToDoc(field, ordinal);
+          int globalDoc = ctx.docBase + localDoc;
+          float score = 1.0f / (1.0f + dist);
+          scoreDocs[j] = new ScoreDoc(globalDoc, score);
+        }
       }
 
       Arrays.sort(scoreDocs, Comparator.comparingDouble((ScoreDoc sd) -> sd.score).reversed());
@@ -207,18 +216,13 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
    */
   private CagraQuery buildCagraQuery(
       CuVSResources resources,
-      float[] target,
+      CuVSMatrix queryVector,
       int topK,
       CagraSearchParams searchParams,
       Bits liveDocs,
       CuVS2510GPUVectorsReader gpuReader,
       LeafReaderContext ctx)
       throws IOException {
-    CuVSMatrix.Builder<?> vectorBuilder =
-        CuVSMatrix.deviceBuilder(resources, 1, target.length, CuVSMatrix.DataType.FLOAT);
-    vectorBuilder.addVector(target);
-    CuVSMatrix queryVector = vectorBuilder.build();
-
     CagraQuery.Builder queryBuilder =
         new CagraQuery.Builder(resources)
             .withTopK(topK)

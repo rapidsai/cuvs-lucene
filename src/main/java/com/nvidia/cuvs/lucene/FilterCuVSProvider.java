@@ -146,6 +146,11 @@ class FilterCuVSProvider implements CuVSProvider {
   }
 
   @Override
+  public void enableRMMAsyncMemory() {
+    delegate.enableRMMAsyncMemory();
+  }
+
+  @Override
   public void enableRMMManagedPooledMemory(int arg0, int arg1) {
     delegate.enableRMMManagedPooledMemory(arg0, arg1);
   }
