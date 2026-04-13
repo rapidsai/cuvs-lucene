@@ -63,10 +63,15 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
 
   private final int iTopK;
   private final int searchWidth;
+  private final int threadBlockSize;
   private final CagraSearchParams.SearchAlgo searchAlgo;
+  private final boolean persistent;
+  private final float persistentLifetime;
+  private final float persistentDeviceUsage;
 
   /**
-   * Initializes {@link GPUKnnFloatVectorQuery} with {@link CagraSearchParams.SearchAlgo#AUTO}.
+   * Initializes {@link GPUKnnFloatVectorQuery} with {@link CagraSearchParams.SearchAlgo#AUTO},
+   * persistent kernel disabled, and max_iterations auto-selected (0).
    *
    * @param field       the vector field name
    * @param target      the query vector
@@ -77,19 +82,20 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
    */
   public GPUKnnFloatVectorQuery(
       String field, float[] target, int k, Query filter, int iTopK, int searchWidth) {
-    this(field, target, k, filter, iTopK, searchWidth, CagraSearchParams.SearchAlgo.AUTO);
+    this(field, target, k, filter, iTopK, searchWidth, 0, CagraSearchParams.SearchAlgo.AUTO);
   }
 
   /**
-   * Initializes {@link GPUKnnFloatVectorQuery}.
+   * Initializes {@link GPUKnnFloatVectorQuery} with persistent kernel disabled.
    *
-   * @param field       the vector field name
-   * @param target      the query vector
-   * @param k           the number of nearest neighbors to return
-   * @param filter      optional pre-filter query
-   * @param iTopK       CAGRA itopk_size parameter
-   * @param searchWidth CAGRA search_width parameter
-   * @param searchAlgo  CAGRA search algorithm
+   * @param field           the vector field name
+   * @param target          the query vector
+   * @param k               the number of nearest neighbors to return
+   * @param filter          optional pre-filter query
+   * @param iTopK           CAGRA itopk_size parameter
+   * @param searchWidth     CAGRA search_width parameter
+   * @param threadBlockSize CAGRA thread_block_size (0 = auto)
+   * @param searchAlgo      CAGRA search algorithm
    */
   public GPUKnnFloatVectorQuery(
       String field,
@@ -98,11 +104,57 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
       Query filter,
       int iTopK,
       int searchWidth,
+      int threadBlockSize,
       CagraSearchParams.SearchAlgo searchAlgo) {
+    this(
+        field,
+        target,
+        k,
+        filter,
+        iTopK,
+        searchWidth,
+        threadBlockSize,
+        searchAlgo,
+        false,
+        2.0f,
+        1.0f);
+  }
+
+  /**
+   * Initializes {@link GPUKnnFloatVectorQuery}.
+   *
+   * @param field                 the vector field name
+   * @param target                the query vector
+   * @param k                     the number of nearest neighbors to return
+   * @param filter                optional pre-filter query
+   * @param iTopK                 CAGRA itopk_size parameter
+   * @param searchWidth           CAGRA search_width parameter
+   * @param threadBlockSize       CAGRA thread_block_size (0 = auto; controls worker_queue_size)
+   * @param searchAlgo            CAGRA search algorithm
+   * @param persistent            whether to use the persistent kernel
+   * @param persistentLifetime    persistent kernel lifetime in seconds
+   * @param persistentDeviceUsage fraction of GPU SMs for the persistent kernel
+   */
+  public GPUKnnFloatVectorQuery(
+      String field,
+      float[] target,
+      int k,
+      Query filter,
+      int iTopK,
+      int searchWidth,
+      int threadBlockSize,
+      CagraSearchParams.SearchAlgo searchAlgo,
+      boolean persistent,
+      float persistentLifetime,
+      float persistentDeviceUsage) {
     super(field, target, k, filter);
     this.iTopK = iTopK;
     this.searchWidth = searchWidth;
+    this.threadBlockSize = threadBlockSize;
     this.searchAlgo = searchAlgo;
+    this.persistent = persistent;
+    this.persistentLifetime = persistentLifetime;
+    this.persistentDeviceUsage = persistentDeviceUsage;
   }
 
   // -------------------------------------------------------------------------
@@ -138,6 +190,21 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
       gpuReaders.add(gpuReader);
     }
 
+    // Compute max_iterations from the largest segment so all segments hash identically,
+    // preventing persistent-runner destroy/recreate churn when segment sizes differ.
+    int maxDatasetSize = 0;
+    int graphDegree = 0;
+    for (int i = 0; i < gpuReaders.size(); i++) {
+      CuVSMatrix graph = gpuReaders.get(i).getCagraIndexForField(field).getGraph();
+      int segSize = (int) graph.size();
+      if (segSize > maxDatasetSize) {
+        maxDatasetSize = segSize;
+        graphDegree = (int) graph.columns();
+      }
+    }
+    int maxIterations =
+        computeMaxIterations(Math.max(iTopK, k), searchWidth, maxDatasetSize, graphDegree);
+
     // Build one CagraIndex + CagraQuery per segment.
     CuVSResources resources = getCuVSResourcesInstance();
     List<CagraIndex> cagraIndices = new ArrayList<>(leaves.size());
@@ -149,7 +216,12 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
           new CagraSearchParams.Builder()
               .withItopkSize(Math.max(iTopK, k))
               .withSearchWidth(searchWidth)
+              .withMaxIterations(maxIterations)
+              .withThreadBlockSize(threadBlockSize)
               .withAlgo(searchAlgo)
+              .withPersistent(persistent)
+              .withPersistentLifetime(persistentLifetime)
+              .withPersistentDeviceUsage(persistentDeviceUsage)
               .build();
 
       // Upload the query vector to device once and share it across all per-segment CagraQueries.
@@ -215,7 +287,16 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
       KnnCollectorManager knnCollectorManager)
       throws IOException {
     GPUPerLeafCuVSKnnCollector results =
-        new GPUPerLeafCuVSKnnCollector(k, visitedLimit, iTopK, searchWidth, searchAlgo);
+        new GPUPerLeafCuVSKnnCollector(
+            k,
+            visitedLimit,
+            iTopK,
+            searchWidth,
+            threadBlockSize,
+            searchAlgo,
+            persistent,
+            persistentLifetime,
+            persistentDeviceUsage);
     context.reader().searchNearestVectors(field, getTargetCopy(), results, acceptDocs);
     return results.topDocs();
   }
@@ -223,6 +304,25 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
   // -------------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------------
+
+  /**
+   * Mirrors {@code adjust_search_params()} from {@code search_plan.cuh}: computes the
+   * {@code max_iterations} value that CAGRA would auto-select for the given parameters.
+   *
+   * <p>Called with the <em>largest</em> segment's size so that all segments produce the same
+   * value and therefore the same persistent-runner hash, preventing destroy/recreate churn.
+   */
+  private static int computeMaxIterations(
+      int itopkSize, int searchWidth, int datasetSize, int graphDegree) {
+    int maxIter = itopkSize / searchWidth;
+    long numReachableNodes = 1;
+    long factor = Math.max(2L, graphDegree / 2);
+    while (numReachableNodes < datasetSize) {
+      numReachableNodes *= factor;
+      maxIter++;
+    }
+    return maxIter;
+  }
 
   /**
    * Unwraps the {@link LeafReaderContext}'s reader to a {@link CuVS2510GPUVectorsReader}, or
