@@ -63,9 +63,10 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
 
   private final int iTopK;
   private final int searchWidth;
+  private final CagraSearchParams.SearchAlgo searchAlgo;
 
   /**
-   * Initializes {@link GPUKnnFloatVectorQuery}.
+   * Initializes {@link GPUKnnFloatVectorQuery} with {@link CagraSearchParams.SearchAlgo#AUTO}.
    *
    * @param field       the vector field name
    * @param target      the query vector
@@ -76,9 +77,32 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
    */
   public GPUKnnFloatVectorQuery(
       String field, float[] target, int k, Query filter, int iTopK, int searchWidth) {
+    this(field, target, k, filter, iTopK, searchWidth, CagraSearchParams.SearchAlgo.AUTO);
+  }
+
+  /**
+   * Initializes {@link GPUKnnFloatVectorQuery}.
+   *
+   * @param field       the vector field name
+   * @param target      the query vector
+   * @param k           the number of nearest neighbors to return
+   * @param filter      optional pre-filter query
+   * @param iTopK       CAGRA itopk_size parameter
+   * @param searchWidth CAGRA search_width parameter
+   * @param searchAlgo  CAGRA search algorithm
+   */
+  public GPUKnnFloatVectorQuery(
+      String field,
+      float[] target,
+      int k,
+      Query filter,
+      int iTopK,
+      int searchWidth,
+      CagraSearchParams.SearchAlgo searchAlgo) {
     super(field, target, k, filter);
     this.iTopK = iTopK;
     this.searchWidth = searchWidth;
+    this.searchAlgo = searchAlgo;
   }
 
   // -------------------------------------------------------------------------
@@ -125,6 +149,7 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
           new CagraSearchParams.Builder()
               .withItopkSize(Math.max(iTopK, k))
               .withSearchWidth(searchWidth)
+              .withAlgo(searchAlgo)
               .build();
 
       // Upload the query vector to device once and share it across all per-segment CagraQueries.
@@ -190,7 +215,7 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
       KnnCollectorManager knnCollectorManager)
       throws IOException {
     GPUPerLeafCuVSKnnCollector results =
-        new GPUPerLeafCuVSKnnCollector(k, visitedLimit, iTopK, searchWidth);
+        new GPUPerLeafCuVSKnnCollector(k, visitedLimit, iTopK, searchWidth, searchAlgo);
     context.reader().searchNearestVectors(field, getTargetCopy(), results, acceptDocs);
     return results.topDocs();
   }

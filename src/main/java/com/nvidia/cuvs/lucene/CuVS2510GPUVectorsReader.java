@@ -443,6 +443,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
               new CagraSearchParams.Builder()
                   .withItopkSize(Math.max(collector.getiTopK(), topK))
                   .withSearchWidth(collector.getSearchWidth())
+                  .withAlgo(collector.getSearchAlgo())
                   .build();
         } else {
           // Setting itopK as topK because in any case iTopK should be ATLEAST equal to topK
