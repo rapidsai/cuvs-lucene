@@ -18,9 +18,6 @@ class GPUPerLeafCuVSKnnCollector extends TopKnnCollector {
   private int searchWidth;
   private int threadBlockSize;
   private CagraSearchParams.SearchAlgo searchAlgo;
-  private boolean persistent;
-  private float persistentLifetime;
-  private float persistentDeviceUsage;
 
   /**
    * Initializes {@link GPUPerLeafCuVSKnnCollector}
@@ -30,9 +27,6 @@ class GPUPerLeafCuVSKnnCollector extends TopKnnCollector {
    * @param searchWidth the search width
    * @param threadBlockSize CAGRA thread_block_size (0 = auto; controls worker_queue_size)
    * @param searchAlgo the CAGRA search algorithm
-   * @param persistent whether to use the persistent kernel
-   * @param persistentLifetime persistent kernel lifetime in seconds
-   * @param persistentDeviceUsage fraction of GPU SMs for the persistent kernel
    */
   public GPUPerLeafCuVSKnnCollector(
       int topK,
@@ -40,18 +34,12 @@ class GPUPerLeafCuVSKnnCollector extends TopKnnCollector {
       int iTopK,
       int searchWidth,
       int threadBlockSize,
-      CagraSearchParams.SearchAlgo searchAlgo,
-      boolean persistent,
-      float persistentLifetime,
-      float persistentDeviceUsage) {
+      CagraSearchParams.SearchAlgo searchAlgo) {
     super(topK, visitLimit);
     this.iTopK = iTopK > topK ? iTopK : topK;
     this.searchWidth = searchWidth;
     this.threadBlockSize = threadBlockSize;
     this.searchAlgo = searchAlgo;
-    this.persistent = persistent;
-    this.persistentLifetime = persistentLifetime;
-    this.persistentDeviceUsage = persistentDeviceUsage;
   }
 
   public int getiTopK() {
@@ -70,15 +58,4 @@ class GPUPerLeafCuVSKnnCollector extends TopKnnCollector {
     return searchAlgo;
   }
 
-  public boolean isPersistent() {
-    return persistent;
-  }
-
-  public float getPersistentLifetime() {
-    return persistentLifetime;
-  }
-
-  public float getPersistentDeviceUsage() {
-    return persistentDeviceUsage;
-  }
 }
