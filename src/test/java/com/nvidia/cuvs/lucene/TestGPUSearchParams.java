@@ -6,15 +6,24 @@
 package com.nvidia.cuvs.lucene;
 
 import static com.nvidia.cuvs.lucene.GPUSearchParams.DEFAULT_CAGRA_GRAPH_BUILD_ALGO;
+import static com.nvidia.cuvs.lucene.GPUSearchParams.DEFAULT_CUVS_DISTANCE_TYPE;
+import static com.nvidia.cuvs.lucene.GPUSearchParams.DEFAULT_EF_CONSTRUCTION;
 import static com.nvidia.cuvs.lucene.GPUSearchParams.DEFAULT_GRAPH_DEGREE;
+import static com.nvidia.cuvs.lucene.GPUSearchParams.DEFAULT_HEURISTIC_TYPE;
 import static com.nvidia.cuvs.lucene.GPUSearchParams.DEFAULT_INDEX_TYPE;
 import static com.nvidia.cuvs.lucene.GPUSearchParams.DEFAULT_INT_GRAPH_DEGREE;
+import static com.nvidia.cuvs.lucene.GPUSearchParams.DEFAULT_M;
+import static com.nvidia.cuvs.lucene.GPUSearchParams.DEFAULT_STRATEGY;
 import static com.nvidia.cuvs.lucene.GPUSearchParams.DEFAULT_WRITER_THREADS;
+import static com.nvidia.cuvs.lucene.GPUSearchParams.MAX_EF_CONSTRUCTION;
 import static com.nvidia.cuvs.lucene.GPUSearchParams.MAX_GRAPH_DEG;
 import static com.nvidia.cuvs.lucene.GPUSearchParams.MAX_INT_GRAPH_DEG;
+import static com.nvidia.cuvs.lucene.GPUSearchParams.MAX_M;
 import static com.nvidia.cuvs.lucene.GPUSearchParams.MAX_WRITER_THREADS;
+import static com.nvidia.cuvs.lucene.GPUSearchParams.MIN_EF_CONSTRUCTION;
 import static com.nvidia.cuvs.lucene.GPUSearchParams.MIN_GRAPH_DEG;
 import static com.nvidia.cuvs.lucene.GPUSearchParams.MIN_INT_GRAPH_DEG;
+import static com.nvidia.cuvs.lucene.GPUSearchParams.MIN_M;
 import static com.nvidia.cuvs.lucene.GPUSearchParams.MIN_WRITER_THREADS;
 import static java.lang.Integer.MAX_VALUE;
 import static java.lang.Integer.MIN_VALUE;
@@ -42,6 +51,11 @@ public class TestGPUSearchParams extends LuceneTestCase {
     assertEquals(DEFAULT_WRITER_THREADS, params.getWriterThreads());
     assertEquals(DEFAULT_CAGRA_GRAPH_BUILD_ALGO, params.getCagraGraphBuildAlgo());
     assertEquals(DEFAULT_INDEX_TYPE, params.getIndexType());
+    assertEquals(DEFAULT_M, params.getM());
+    assertEquals(DEFAULT_EF_CONSTRUCTION, params.getEfConstruction());
+    assertEquals(DEFAULT_STRATEGY, params.getStrategy());
+    assertEquals(DEFAULT_CUVS_DISTANCE_TYPE, params.getCuvsDistanceType());
+    assertEquals(DEFAULT_HEURISTIC_TYPE, params.getHeuristicType());
   }
 
   @Test
@@ -94,6 +108,49 @@ public class TestGPUSearchParams extends LuceneTestCase {
     assertThrows(
         IllegalArgumentException.class,
         () -> new GPUSearchParams.Builder().withIndexType(null).build());
+  }
+
+  @Test
+  public void testGPUSearchParamsInvalidM() {
+    for (int v :
+        new int[] {random.nextInt(MIN_VALUE, MIN_M), random.nextInt(MAX_M + 1, MAX_VALUE)}) {
+      assertThrows(
+          IllegalArgumentException.class, () -> new GPUSearchParams.Builder().withM(v).build());
+    }
+  }
+
+  @Test
+  public void testGPUSearchParamsInvalidefConstruction() {
+    for (int v :
+        new int[] {
+          random.nextInt(MIN_VALUE, MIN_EF_CONSTRUCTION),
+          random.nextInt(MAX_EF_CONSTRUCTION + 1, MAX_VALUE)
+        }) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new GPUSearchParams.Builder().withEfConstruction(v).build());
+    }
+  }
+
+  @Test
+  public void testGPUSearchParamsInvalidStrategy() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new GPUSearchParams.Builder().withStrategy(null).build());
+  }
+
+  @Test
+  public void testGPUSearchParamsInvalidHnswHeuristicType() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new GPUSearchParams.Builder().withHeuristicType(null).build());
+  }
+
+  @Test
+  public void testGPUSearchParamsInvalidCuvsDistanceType() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new GPUSearchParams.Builder().withCuvsDistanceType(null).build());
   }
 
   @BeforeClass

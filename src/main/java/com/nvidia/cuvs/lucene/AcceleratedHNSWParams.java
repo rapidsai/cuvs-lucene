@@ -6,13 +6,21 @@
 package com.nvidia.cuvs.lucene;
 
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
+import com.nvidia.cuvs.CagraIndexParams.CuvsDistanceType;
+import com.nvidia.cuvs.CagraIndexParams.HnswHeuristicType;
 import com.nvidia.cuvs.CuVSIvfPqParams;
+import com.nvidia.cuvs.lucene.GPUSearchParams.Builder;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
 public class AcceleratedHNSWParams {
+
+  public static enum Strategy {
+    HEURISTIC,
+    CUSTOM
+  }
 
   /*
    * TODO: Update boundaries for all parameters when a consensus is reached.
@@ -32,6 +40,10 @@ public class AcceleratedHNSWParams {
   public static final int MAX_BEAM_WIDTH = 512;
   public static final int MIN_NUM_MERGE_WORKERS = 1;
   public static final int MAX_NUM_MERGE_WORKERS = 512;
+  public static final int MIN_M = 1;
+  public static final int MAX_M = 1024;
+  public static final int MIN_EF_CONSTRUCTION = 1;
+  public static final int MAX_EF_CONSTRUCTION = 1024;
 
   public static final int DEFAULT_WRITER_THREADS = 1;
   public static final int DEFAULT_INT_GRAPH_DEGREE = 128;
@@ -42,6 +54,12 @@ public class AcceleratedHNSWParams {
   public static final CagraGraphBuildAlgo DEFAULT_CAGRA_GRAPH_BUILD_ALGO =
       CagraGraphBuildAlgo.NN_DESCENT;
   public static final int DEFAULT_NUM_MERGE_WORKERS = 1;
+  public static final int DEFAULT_M = 16;
+  public static final int DEFAULT_EF_CONSTRUCTION = 16;
+  public static final Strategy DEFAULT_STRATEGY = Strategy.HEURISTIC;
+  public static final HnswHeuristicType DEFAULT_HEURISTIC_TYPE =
+      HnswHeuristicType.SAME_GRAPH_FOOTPRINT;
+  public static final CuvsDistanceType DEFAULT_CUVS_DISTANCE_TYPE = CuvsDistanceType.L2Expanded;
 
   public static final Supplier<CuVSIvfPqParams> DEFAULT_IVF_PQ_PARAMS =
       () -> {
@@ -63,6 +81,11 @@ public class AcceleratedHNSWParams {
   private final CuVSIvfPqParams cuVSIvfPqParams;
   private final int numMergeWorkers;
   private final ExecutorService mergeExec;
+  private final int m;
+  private final int efConstruction;
+  private final Strategy strategy;
+  private final HnswHeuristicType heuristicType;
+  private final CuvsDistanceType cuvsDistanceType;
 
   /**
    * Constructs an instance of {@link AcceleratedHNSWParams} with specific parameter values.
@@ -78,6 +101,11 @@ public class AcceleratedHNSWParams {
    * @param cuVSIvfPqParams An instance of CuVSIvfPqParams containing IVF_PQ specific parameters.
    * @param numMergeWorkers The number of merge workers to use with the fallback mechanism.
    * @param mergeExec The instance of {@link ExecutorService} to use with the fallback mechanism.
+   * @param m defines The maximum number of bi-directional links (edges) per node.
+   * @param efConstruction Determines the size of the dynamic candidate list during graph construction.
+   * @param strategy either HEURISTIC [Default] that automatically chooses build algorithm and its parameters based on data set size or CUSTOM that uses the parameters passed though this class.
+   * @param heuristicType
+   * @param cuvsDistanceType
    */
   private AcceleratedHNSWParams(
       int writerThreads,
@@ -89,7 +117,12 @@ public class AcceleratedHNSWParams {
       CagraGraphBuildAlgo cagraGraphBuildAlgo,
       CuVSIvfPqParams cuVSIvfPqParams,
       int numMergeWorkers,
-      ExecutorService mergeExec) {
+      ExecutorService mergeExec,
+      int m,
+      int efConstruction,
+      Strategy strategy,
+      HnswHeuristicType heuristicType,
+      CuvsDistanceType cuvsDistanceType) {
     super();
     this.writerThreads = writerThreads;
     this.intermediateGraphDegree = intermediateGraphDegree;
@@ -101,6 +134,11 @@ public class AcceleratedHNSWParams {
     this.cuVSIvfPqParams = cuVSIvfPqParams;
     this.numMergeWorkers = numMergeWorkers;
     this.mergeExec = mergeExec;
+    this.m = m;
+    this.efConstruction = efConstruction;
+    this.strategy = strategy;
+    this.heuristicType = heuristicType;
+    this.cuvsDistanceType = cuvsDistanceType;
   }
 
   /**
@@ -193,6 +231,54 @@ public class AcceleratedHNSWParams {
     return mergeExec;
   }
 
+  /**
+   * Get the value of m - defines the maximum number of bi-directional links (edges) per node
+   *
+   * @return the value of m
+   */
+  public int getM() {
+    return m;
+  }
+
+  /**
+   * Get the value of efConstruction - determines the size of the dynamic candidate list during graph construction
+   *
+   * @return the value of efConstruction
+   */
+  public int getEfConstruction() {
+    return efConstruction;
+  }
+
+  /**
+   * Get the chosen strategy:
+   *
+   * When HEURISTIC [Default] is chosen, the CAGRA build algorithm and its indexing parameters are automatically chosen based on the size of the data set
+   * When CUSTOM is chosen, the build algorithm and its parameters (either defaults or overridden values with the use of With* methods) is used internally
+   *
+   * @return get the chosen {@link Strategy}
+   */
+  public Strategy getStrategy() {
+    return strategy;
+  }
+
+  /**
+   * Get the heuristic type
+   *
+   * @return the heuristic type
+   */
+  public HnswHeuristicType getHeuristicType() {
+    return heuristicType;
+  }
+
+  /**
+   * Get the cuvs distance type
+   *
+   * @return the distance type
+   */
+  public CuvsDistanceType getCuvsDistanceType() {
+    return cuvsDistanceType;
+  }
+
   @Override
   public String toString() {
     return "AcceleratedHNSWParams [writerThreads="
@@ -209,10 +295,22 @@ public class AcceleratedHNSWParams {
         + beamWidth
         + ", cagraGraphBuildAlgo="
         + cagraGraphBuildAlgo
+        + ", cuVSIvfPqParams="
+        + cuVSIvfPqParams
         + ", numMergeWorkers="
         + numMergeWorkers
         + ", mergeExec="
         + mergeExec
+        + ", m="
+        + m
+        + ", efConstruction="
+        + efConstruction
+        + ", strategy="
+        + strategy
+        + ", heuristicType="
+        + heuristicType
+        + ", cuvsDistanceType="
+        + cuvsDistanceType
         + "]";
   }
 
@@ -231,6 +329,11 @@ public class AcceleratedHNSWParams {
     private int numMergeWorkers = DEFAULT_NUM_MERGE_WORKERS;
     private CuVSIvfPqParams cuVSIvfPqParams = null;
     private ExecutorService mergeExec = null;
+    private int m = DEFAULT_M;
+    private int efConstruction = DEFAULT_EF_CONSTRUCTION;
+    private Strategy strategy = DEFAULT_STRATEGY;
+    private HnswHeuristicType heuristicType = DEFAULT_HEURISTIC_TYPE;
+    private CuvsDistanceType cuvsDistanceType = DEFAULT_CUVS_DISTANCE_TYPE;
 
     /**
      * Set the number of cuVS writer threads while building the index
@@ -358,6 +461,64 @@ public class AcceleratedHNSWParams {
     }
 
     /**
+     * Set the value of m - defines the maximum number of bi-directional links (edges) per node
+     *
+     * @param m, the value to set
+     * @return instance of {@link Builder}
+     */
+    public Builder withM(int m) {
+      this.m = m;
+      return this;
+    }
+
+    /**
+     * Set the value of efConstruction - determines the size of the dynamic candidate list during graph construction
+     *
+     * @param efConstruction, the value to set
+     * @return instance of {@link Builder}
+     */
+    public Builder withEfConstruction(int efConstruction) {
+      this.efConstruction = efConstruction;
+      return this;
+    }
+
+    /**
+     * Set the chosen strategy:
+     *
+     * When HEURISTIC [Default] is chosen, the CAGRA build algorithm and its indexing parameters are automatically chosen based on the size of the data set
+     * When CUSTOM is chosen, the build algorithm and its parameters (either defaults or overridden values with the use of With* methods) is used internally
+     *
+     * @param strategy, the strategy to choose
+     * @return instance of {@link Builder}
+     */
+    public Builder withStrategy(Strategy strategy) {
+      this.strategy = strategy;
+      return this;
+    }
+
+    /**
+     * Set the HnswHeuristicType
+     *
+     * @param the HnswHeuristicType to set
+     * @return instance of {@link Builder}
+     */
+    public Builder withHeuristicType(HnswHeuristicType heuristicType) {
+      this.heuristicType = heuristicType;
+      return this;
+    }
+
+    /**
+     * Set the CuvsDistanceType
+     *
+     * @param the CuvsDistanceType to set
+     * @return instance of {@link Builder}
+     */
+    public Builder withCuvsDistanceType(CuvsDistanceType cuvsDistanceType) {
+      this.cuvsDistanceType = cuvsDistanceType;
+      return this;
+    }
+
+    /**
      * Validates the input parameters.
      *
      * @throws IllegalArgumentException
@@ -423,6 +584,27 @@ public class AcceleratedHNSWParams {
                 + MAX_NUM_MERGE_WORKERS
                 + "]");
       }
+      if (m < MIN_M || m > MAX_M) {
+        throw new IllegalArgumentException(
+            "m not in valid range. Valid range: [" + MIN_M + ", " + MAX_M + "]");
+      }
+      if (efConstruction < MIN_EF_CONSTRUCTION || efConstruction > MAX_EF_CONSTRUCTION) {
+        throw new IllegalArgumentException(
+            "efConstruction not in valid range. Valid range: ["
+                + MIN_EF_CONSTRUCTION
+                + ", "
+                + MAX_EF_CONSTRUCTION
+                + "]");
+      }
+      if (Objects.isNull(strategy)) {
+        throw new IllegalArgumentException("strategy cannot be null.");
+      }
+      if (Objects.isNull(heuristicType)) {
+        throw new IllegalArgumentException("heuristicType cannot be null.");
+      }
+      if (Objects.isNull(cuvsDistanceType)) {
+        throw new IllegalArgumentException("cuvsDistanceType cannot be null.");
+      }
     }
 
     /**
@@ -448,7 +630,12 @@ public class AcceleratedHNSWParams {
           cagraGraphBuildAlgo,
           cuVSIvfPqParams,
           numMergeWorkers,
-          mergeExec);
+          mergeExec,
+          m,
+          efConstruction,
+          strategy,
+          heuristicType,
+          cuvsDistanceType);
     }
   }
 }

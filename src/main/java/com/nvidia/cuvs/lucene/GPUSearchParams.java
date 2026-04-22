@@ -6,12 +6,19 @@
 package com.nvidia.cuvs.lucene;
 
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
+import com.nvidia.cuvs.CagraIndexParams.CuvsDistanceType;
+import com.nvidia.cuvs.CagraIndexParams.HnswHeuristicType;
 import com.nvidia.cuvs.CuVSIvfPqParams;
 import com.nvidia.cuvs.lucene.CuVS2510GPUVectorsWriter.IndexType;
 import java.util.Objects;
 import java.util.function.Supplier;
 
 public class GPUSearchParams {
+
+  public static enum Strategy {
+    HEURISTIC,
+    CUSTOM
+  }
 
   /*
    * TODO: Update boundaries for all parameters when a consensus is reached.
@@ -23,6 +30,10 @@ public class GPUSearchParams {
   public static final int MAX_INT_GRAPH_DEG = 512;
   public static final int MIN_GRAPH_DEG = 1;
   public static final int MAX_GRAPH_DEG = 512;
+  public static final int MIN_M = 1;
+  public static final int MAX_M = 1024;
+  public static final int MIN_EF_CONSTRUCTION = 1;
+  public static final int MAX_EF_CONSTRUCTION = 1024;
 
   public static final int DEFAULT_INT_GRAPH_DEGREE = 128;
   public static final int DEFAULT_GRAPH_DEGREE = 64;
@@ -30,6 +41,12 @@ public class GPUSearchParams {
       CagraGraphBuildAlgo.NN_DESCENT;
   public static final IndexType DEFAULT_INDEX_TYPE = IndexType.CAGRA;
   public static final int DEFAULT_WRITER_THREADS = 1;
+  public static final int DEFAULT_M = 16;
+  public static final int DEFAULT_EF_CONSTRUCTION = 16;
+  public static final Strategy DEFAULT_STRATEGY = Strategy.HEURISTIC;
+  public static final HnswHeuristicType DEFAULT_HEURISTIC_TYPE =
+      HnswHeuristicType.SAME_GRAPH_FOOTPRINT;
+  public static final CuvsDistanceType DEFAULT_CUVS_DISTANCE_TYPE = CuvsDistanceType.L2Expanded;
 
   public static final Supplier<CuVSIvfPqParams> DEFAULT_IVF_PQ_PARAMS =
       () -> {
@@ -42,6 +59,11 @@ public class GPUSearchParams {
   private final CagraGraphBuildAlgo cagraGraphBuildAlgo;
   private final IndexType indexType;
   private final CuVSIvfPqParams cuVSIvfPqParams;
+  private final int m;
+  private final int efConstruction;
+  private final Strategy strategy;
+  private final HnswHeuristicType heuristicType;
+  private final CuvsDistanceType cuvsDistanceType;
 
   /**
    * Constructs an instance of {@link GPUSearchParams} with specific parameter values.
@@ -52,6 +74,11 @@ public class GPUSearchParams {
    * @param cagraGraphBuildAlgo The CAGRA build algorithm to use.
    * @param indexType The type of index to build - CAGRA, BRUTEFORCE, or both.
    * @param cuVSIvfPqParams An instance of CuVSIvfPqParams containing IVF_PQ specific parameters.
+   * @param m defines The maximum number of bi-directional links (edges) per node.
+   * @param efConstruction Determines the size of the dynamic candidate list during graph construction.
+   * @param strategy either HEURISTIC [Default] that automatically chooses build algorithm and its parameters based on data set size or CUSTOM that uses the parameters passed though this class.
+   * @param heuristicType
+   * @param cuvsDistanceType
    */
   private GPUSearchParams(
       int writerThreads,
@@ -59,7 +86,12 @@ public class GPUSearchParams {
       int graphdegree,
       CagraGraphBuildAlgo cagraGraphBuildAlgo,
       IndexType indexType,
-      CuVSIvfPqParams cuVSIvfPqParams) {
+      CuVSIvfPqParams cuVSIvfPqParams,
+      int m,
+      int efConstruction,
+      Strategy strategy,
+      HnswHeuristicType heuristicType,
+      CuvsDistanceType cuvsDistanceType) {
     super();
     this.writerThreads = writerThreads;
     this.intermediateGraphDegree = intermediateGraphDegree;
@@ -67,6 +99,11 @@ public class GPUSearchParams {
     this.cagraGraphBuildAlgo = cagraGraphBuildAlgo;
     this.indexType = indexType;
     this.cuVSIvfPqParams = cuVSIvfPqParams;
+    this.m = m;
+    this.efConstruction = efConstruction;
+    this.strategy = strategy;
+    this.heuristicType = heuristicType;
+    this.cuvsDistanceType = cuvsDistanceType;
   }
 
   /**
@@ -123,6 +160,54 @@ public class GPUSearchParams {
     return cuVSIvfPqParams;
   }
 
+  /**
+   * Get the value of m - defines the maximum number of bi-directional links (edges) per node
+   *
+   * @return the value of m
+   */
+  public int getM() {
+    return m;
+  }
+
+  /**
+   * Get the value of efConstruction - determines the size of the dynamic candidate list during graph construction
+   *
+   * @return the value of efConstruction
+   */
+  public int getEfConstruction() {
+    return efConstruction;
+  }
+
+  /**
+   * Get the chosen strategy:
+   *
+   * When HEURISTIC [Default] is chosen, the CAGRA build algorithm and its indexing parameters are automatically chosen based on the size of the data set
+   * When CUSTOM is chosen, the build algorithm and its parameters (either defaults or overridden values with the use of With* methods) is used internally
+   *
+   * @return get the chosen {@link Strategy}
+   */
+  public Strategy getStrategy() {
+    return strategy;
+  }
+
+  /**
+   * Get the heuristic type
+   *
+   * @return the heuristic type
+   */
+  public HnswHeuristicType getHeuristicType() {
+    return heuristicType;
+  }
+
+  /**
+   * Get the cuvs distance type
+   *
+   * @return the distance type
+   */
+  public CuvsDistanceType getCuvsDistanceType() {
+    return cuvsDistanceType;
+  }
+
   @Override
   public String toString() {
     return "GPUSearchParams [writerThreads="
@@ -135,6 +220,18 @@ public class GPUSearchParams {
         + cagraGraphBuildAlgo
         + ", indexType="
         + indexType
+        + ", cuVSIvfPqParams="
+        + cuVSIvfPqParams
+        + ", m="
+        + m
+        + ", efConstruction="
+        + efConstruction
+        + ", strategy="
+        + strategy
+        + ", heuristicType="
+        + heuristicType
+        + ", cuvsDistanceType="
+        + cuvsDistanceType
         + "]";
   }
 
@@ -149,6 +246,11 @@ public class GPUSearchParams {
     private CagraGraphBuildAlgo cagraGraphBuildAlgo = DEFAULT_CAGRA_GRAPH_BUILD_ALGO;
     private IndexType indexType = DEFAULT_INDEX_TYPE;
     private CuVSIvfPqParams cuVSIvfPqParams = null;
+    private int m = DEFAULT_M;
+    private int efConstruction = DEFAULT_EF_CONSTRUCTION;
+    private Strategy strategy = DEFAULT_STRATEGY;
+    private HnswHeuristicType heuristicType = DEFAULT_HEURISTIC_TYPE;
+    private CuvsDistanceType cuvsDistanceType = DEFAULT_CUVS_DISTANCE_TYPE;
 
     /**
      * Set the number of cuVS writer threads while building the index
@@ -225,6 +327,64 @@ public class GPUSearchParams {
     }
 
     /**
+     * Set the value of m - defines the maximum number of bi-directional links (edges) per node
+     *
+     * @param m, the value to set
+     * @return instance of {@link Builder}
+     */
+    public Builder withM(int m) {
+      this.m = m;
+      return this;
+    }
+
+    /**
+     * Set the value of efConstruction - determines the size of the dynamic candidate list during graph construction
+     *
+     * @param efConstruction, the value to set
+     * @return instance of {@link Builder}
+     */
+    public Builder withEfConstruction(int efConstruction) {
+      this.efConstruction = efConstruction;
+      return this;
+    }
+
+    /**
+     * Set the chosen strategy:
+     *
+     * When HEURISTIC [Default] is chosen, the CAGRA build algorithm and its indexing parameters are automatically chosen based on the size of the data set
+     * When CUSTOM is chosen, the build algorithm and its parameters (either defaults or overridden values with the use of With* methods) is used internally
+     *
+     * @param strategy, the strategy to choose
+     * @return instance of {@link Builder}
+     */
+    public Builder withStrategy(Strategy strategy) {
+      this.strategy = strategy;
+      return this;
+    }
+
+    /**
+     * Set the HnswHeuristicType
+     *
+     * @param the HnswHeuristicType to set
+     * @return instance of {@link Builder}
+     */
+    public Builder withHeuristicType(HnswHeuristicType heuristicType) {
+      this.heuristicType = heuristicType;
+      return this;
+    }
+
+    /**
+     * Set the CuvsDistanceType
+     *
+     * @param the CuvsDistanceType to set
+     * @return instance of {@link Builder}
+     */
+    public Builder withCuvsDistanceType(CuvsDistanceType cuvsDistanceType) {
+      this.cuvsDistanceType = cuvsDistanceType;
+      return this;
+    }
+
+    /**
      * Validates the input parameters.
      *
      * @throws IllegalArgumentException
@@ -261,6 +421,27 @@ public class GPUSearchParams {
       if (Objects.isNull(indexType)) {
         throw new IllegalArgumentException("indexType cannot be null.");
       }
+      if (m < MIN_M || m > MAX_M) {
+        throw new IllegalArgumentException(
+            "m not in valid range. Valid range: [" + MIN_M + ", " + MAX_M + "]");
+      }
+      if (efConstruction < MIN_EF_CONSTRUCTION || efConstruction > MAX_EF_CONSTRUCTION) {
+        throw new IllegalArgumentException(
+            "efConstruction not in valid range. Valid range: ["
+                + MIN_EF_CONSTRUCTION
+                + ", "
+                + MAX_EF_CONSTRUCTION
+                + "]");
+      }
+      if (Objects.isNull(strategy)) {
+        throw new IllegalArgumentException("strategy cannot be null.");
+      }
+      if (Objects.isNull(heuristicType)) {
+        throw new IllegalArgumentException("heuristicType cannot be null.");
+      }
+      if (Objects.isNull(cuvsDistanceType)) {
+        throw new IllegalArgumentException("cuvsDistanceType cannot be null.");
+      }
     }
 
     /**
@@ -279,7 +460,12 @@ public class GPUSearchParams {
           graphdegree,
           cagraGraphBuildAlgo,
           indexType,
-          cuVSIvfPqParams);
+          cuVSIvfPqParams,
+          m,
+          efConstruction,
+          strategy,
+          heuristicType,
+          cuvsDistanceType);
     }
   }
 }

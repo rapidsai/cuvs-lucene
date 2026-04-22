@@ -10,10 +10,9 @@ import static com.nvidia.cuvs.lucene.Utils.createByteMatrixFromArray;
 
 import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CagraIndexParams;
-import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
-import com.nvidia.cuvs.CuVSIvfPqParams;
 import com.nvidia.cuvs.CuVSMatrix;
 import com.nvidia.cuvs.RowView;
+import com.nvidia.cuvs.lucene.AcceleratedHNSWParams.Strategy;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -400,26 +399,6 @@ public class AcceleratedHNSWUtils {
   }
 
   /**
-   * Builds an instance of CagraIndexParams.
-   *
-   * @return instance of CagraIndexParams
-   */
-  public static CagraIndexParams cagraIndexParams(
-      int cuvsWriterThreads,
-      int intGraphDegree,
-      int graphDegree,
-      CagraGraphBuildAlgo cagraGraphBuildAlgo,
-      CuVSIvfPqParams cuVSIvfPqParams) {
-    return new CagraIndexParams.Builder()
-        .withNumWriterThreads(cuvsWriterThreads)
-        .withIntermediateGraphDegree(intGraphDegree)
-        .withGraphDegree(graphDegree)
-        .withCagraGraphBuildAlgo(cagraGraphBuildAlgo)
-        .withCuVSIvfPqParams(cuVSIvfPqParams)
-        .build();
-  }
-
-  /**
    * Quantizes FLOAT32 vectors to binary (1 bit per dimension, packed into bytes).
    * Binary quantization: each dimension is compared to a centroid (mean of all values for that dimension).
    * If value > centroid, bit = 1, else bit = 0.
@@ -507,5 +486,35 @@ public class AcceleratedHNSWUtils {
     }
 
     return quantizedVectors;
+  }
+
+  /**
+   * Get an instance of {@link CagraIndexParams} based on the chosen {@link Strategy}
+   *
+   * @param acceleratedHNSWParams instance of the {@link AcceleratedHNSWParams}
+   * @param rows the number of vectors in the data set
+   * @param dimension the vector dimension
+   *
+   * @return an instance of {@link CagraIndexParams}
+   */
+  public static CagraIndexParams getCagraIndexParams(
+      AcceleratedHNSWParams acceleratedHNSWParams, long rows, long dimension) {
+    if (acceleratedHNSWParams.getStrategy().equals(Strategy.HEURISTIC)) {
+      return CagraIndexParams.fromHnswParams(
+          rows,
+          dimension,
+          acceleratedHNSWParams.getM(),
+          acceleratedHNSWParams.getEfConstruction(),
+          acceleratedHNSWParams.getHeuristicType(),
+          acceleratedHNSWParams.getCuvsDistanceType());
+    } else {
+      return new CagraIndexParams.Builder()
+          .withNumWriterThreads(acceleratedHNSWParams.getWriterThreads())
+          .withIntermediateGraphDegree(acceleratedHNSWParams.getIntermediateGraphDegree())
+          .withGraphDegree(acceleratedHNSWParams.getGraphdegree())
+          .withCagraGraphBuildAlgo(acceleratedHNSWParams.getCagraGraphBuildAlgo())
+          .withCuVSIvfPqParams(acceleratedHNSWParams.getCuVSIvfPqParams())
+          .build();
+    }
   }
 }

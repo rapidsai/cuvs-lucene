@@ -7,23 +7,32 @@ package com.nvidia.cuvs.lucene;
 
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.DEFAULT_BEAM_WIDTH;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.DEFAULT_CAGRA_GRAPH_BUILD_ALGO;
+import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.DEFAULT_CUVS_DISTANCE_TYPE;
+import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.DEFAULT_EF_CONSTRUCTION;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.DEFAULT_GRAPH_DEGREE;
+import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.DEFAULT_HEURISTIC_TYPE;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.DEFAULT_HNSW_LAYERS;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.DEFAULT_INT_GRAPH_DEGREE;
+import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.DEFAULT_M;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.DEFAULT_MAX_CONN;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.DEFAULT_NUM_MERGE_WORKERS;
+import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.DEFAULT_STRATEGY;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.DEFAULT_WRITER_THREADS;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MAX_BEAM_WIDTH;
+import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MAX_EF_CONSTRUCTION;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MAX_GRAPH_DEG;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MAX_HNSW_LAYERS;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MAX_INT_GRAPH_DEG;
+import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MAX_M;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MAX_MAX_CONN;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MAX_NUM_MERGE_WORKERS;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MAX_WRITER_THREADS;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MIN_BEAM_WIDTH;
+import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MIN_EF_CONSTRUCTION;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MIN_GRAPH_DEG;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MIN_HNSW_LAYERS;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MIN_INT_GRAPH_DEG;
+import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MIN_M;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MIN_MAX_CONN;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MIN_NUM_MERGE_WORKERS;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWParams.MIN_WRITER_THREADS;
@@ -56,6 +65,11 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
     assertEquals(DEFAULT_WRITER_THREADS, params.getWriterThreads());
     assertEquals(DEFAULT_NUM_MERGE_WORKERS, params.getNumMergeWorkers());
     assertEquals(DEFAULT_CAGRA_GRAPH_BUILD_ALGO, params.getCagraGraphBuildAlgo());
+    assertEquals(DEFAULT_M, params.getM());
+    assertEquals(DEFAULT_EF_CONSTRUCTION, params.getEfConstruction());
+    assertEquals(DEFAULT_STRATEGY, params.getStrategy());
+    assertEquals(DEFAULT_CUVS_DISTANCE_TYPE, params.getCuvsDistanceType());
+    assertEquals(DEFAULT_HEURISTIC_TYPE, params.getHeuristicType());
   }
 
   @Test
@@ -150,6 +164,50 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
     assertThrows(
         IllegalArgumentException.class,
         () -> new AcceleratedHNSWParams.Builder().withCagraGraphBuildAlgo(null).build());
+  }
+
+  @Test
+  public void testAcceleratedHNSWParamsInvalidM() {
+    for (int v :
+        new int[] {random.nextInt(MIN_VALUE, MIN_M), random.nextInt(MAX_M + 1, MAX_VALUE)}) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new AcceleratedHNSWParams.Builder().withM(v).build());
+    }
+  }
+
+  @Test
+  public void testAcceleratedHNSWParamsInvalidefConstruction() {
+    for (int v :
+        new int[] {
+          random.nextInt(MIN_VALUE, MIN_EF_CONSTRUCTION),
+          random.nextInt(MAX_EF_CONSTRUCTION + 1, MAX_VALUE)
+        }) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new AcceleratedHNSWParams.Builder().withEfConstruction(v).build());
+    }
+  }
+
+  @Test
+  public void testAcceleratedHNSWParamsInvalidStrategy() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new AcceleratedHNSWParams.Builder().withStrategy(null).build());
+  }
+
+  @Test
+  public void testAcceleratedHNSWParamsInvalidHnswHeuristicType() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new AcceleratedHNSWParams.Builder().withHeuristicType(null).build());
+  }
+
+  @Test
+  public void testAcceleratedHNSWParamsInvalidCuvsDistanceType() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new AcceleratedHNSWParams.Builder().withCuvsDistanceType(null).build());
   }
 
   @BeforeClass

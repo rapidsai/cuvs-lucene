@@ -21,6 +21,7 @@ import com.nvidia.cuvs.BruteForceIndexParams;
 import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CuVSMatrix;
+import com.nvidia.cuvs.lucene.GPUSearchParams.Strategy;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -241,14 +242,26 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
    * @throws Throwable
    */
   private void writeCagraIndex(OutputStream os, CuVSMatrix dataset) throws Throwable {
-    CagraIndexParams params =
-        new CagraIndexParams.Builder()
-            .withNumWriterThreads(gpuSearchParams.getWriterThreads())
-            .withIntermediateGraphDegree(gpuSearchParams.getIntermediateGraphDegree())
-            .withGraphDegree(gpuSearchParams.getGraphdegree())
-            .withCagraGraphBuildAlgo(gpuSearchParams.getCagraGraphBuildAlgo())
-            .withCuVSIvfPqParams(gpuSearchParams.getCuVSIvfPqParams())
-            .build();
+    CagraIndexParams params;
+    if (gpuSearchParams.getStrategy().equals(Strategy.HEURISTIC)) {
+      params =
+          CagraIndexParams.fromHnswParams(
+              dataset.size(),
+              dataset.columns(),
+              gpuSearchParams.getM(),
+              gpuSearchParams.getEfConstruction(),
+              gpuSearchParams.getHeuristicType(),
+              gpuSearchParams.getCuvsDistanceType());
+    } else {
+      params =
+          new CagraIndexParams.Builder()
+              .withNumWriterThreads(gpuSearchParams.getWriterThreads())
+              .withIntermediateGraphDegree(gpuSearchParams.getIntermediateGraphDegree())
+              .withGraphDegree(gpuSearchParams.getGraphdegree())
+              .withCagraGraphBuildAlgo(gpuSearchParams.getCagraGraphBuildAlgo())
+              .withCuVSIvfPqParams(gpuSearchParams.getCuVSIvfPqParams())
+              .build();
+    }
     CagraIndex index =
         CagraIndex.newBuilder(getCuVSResourcesInstance())
             .withDataset(dataset)
