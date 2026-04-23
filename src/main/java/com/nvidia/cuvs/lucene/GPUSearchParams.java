@@ -68,7 +68,7 @@ public class GPUSearchParams {
   public static final CagraGraphBuildAlgo DEFAULT_CAGRA_GRAPH_BUILD_ALGO =
       CagraGraphBuildAlgo.NN_DESCENT;
   public static final IndexType DEFAULT_INDEX_TYPE = IndexType.CAGRA;
-  public static final int DEFAULT_WRITER_THREADS = 1;
+  public static final int DEFAULT_WRITER_THREADS = 32;
   public static final int DEFAULT_M = 16;
   public static final int DEFAULT_EF_CONSTRUCTION = 16;
   public static final Strategy DEFAULT_STRATEGY = Strategy.HEURISTIC;
@@ -200,6 +200,9 @@ public class GPUSearchParams {
   /**
    * Get the value of efConstruction - determines the size of the dynamic candidate list during graph construction
    *
+   * Valid range - Minimum: {@value MIN_EF_CONSTRUCTION}, Maximum: {@value MAX_EF_CONSTRUCTION}
+   * Default value - {@value DEFAULT_EF_CONSTRUCTION}
+   *
    * @return the value of efConstruction
    */
   public int getEfConstruction() {
@@ -211,6 +214,7 @@ public class GPUSearchParams {
    *
    * When HEURISTIC [Default] is chosen, the CAGRA build algorithm and its indexing parameters are automatically chosen based on the size of the data set
    * When CUSTOM is chosen, the build algorithm and its parameters (either defaults or overridden values with the use of With* methods) is used internally
+   *
    *
    * @return get the chosen {@link Strategy}
    */
@@ -283,7 +287,7 @@ public class GPUSearchParams {
     /**
      * Set the number of cuVS writer threads while building the index
      * Valid range - Minimum: {@value MIN_WRITER_THREADS}, Maximum: {@value MAX_WRITER_THREADS}
-     * Default value - 64
+     * Default value - {@value DEFAULT_WRITER_THREADS}
      *
      * @param writerThreads the number of cuVS writer threads
      * @return instance of {@link Builder}
@@ -296,7 +300,7 @@ public class GPUSearchParams {
     /**
      * Set the intermediate graph degree to use while building CAGRA index
      * Valid range - Minimum: {@value MIN_INT_GRAPH_DEG}, Maximum: {@value MAX_INT_GRAPH_DEG}
-     * Default value - 128
+     * Default value - {@value DEFAULT_INT_GRAPH_DEGREE}
      *
      * @param intermediateGraphDegree the intermediate graph degree parameter
      * @return instance of {@link Builder}
@@ -309,7 +313,7 @@ public class GPUSearchParams {
     /**
      * Set the graph degree to use while building CAGRA index
      * Valid range - Minimum: {@value MIN_GRAPH_DEG}, Maximum: {@value MAX_GRAPH_DEG}
-     * Default value - 64
+     * Default value - {@value DEFAULT_GRAPH_DEGREE}
      *
      * @param graphDegree the graph degree parameter
      * @return instance of {@link Builder}
@@ -357,6 +361,9 @@ public class GPUSearchParams {
     /**
      * Set the value of m - defines the maximum number of bi-directional links (edges) per node
      *
+     * Valid range - Minimum: {@value MIN_M}, Maximum: {@value MAX_M}
+     * Default value - {@value DEFAULT_M}
+     *
      * @param m, the value to set
      * @return instance of {@link Builder}
      */
@@ -367,6 +374,9 @@ public class GPUSearchParams {
 
     /**
      * Set the value of efConstruction - determines the size of the dynamic candidate list during graph construction
+     *
+     * Valid range - Minimum: {@value MIN_EF_CONSTRUCTION}, Maximum: {@value MAX_EF_CONSTRUCTION}
+     * Default value - {@value DEFAULT_EF_CONSTRUCTION}
      *
      * @param efConstruction, the value to set
      * @return instance of {@link Builder}
@@ -381,6 +391,9 @@ public class GPUSearchParams {
      *
      * When HEURISTIC [Default] is chosen, the CAGRA build algorithm and its indexing parameters are automatically chosen based on the size of the data set
      * When CUSTOM is chosen, the build algorithm and its parameters (either defaults or overridden values with the use of With* methods) is used internally
+     *
+     * Valid options - HEURISTIC, CUSTOM
+     * Default value - HEURISTIC
      *
      * @param strategy, the strategy to choose
      * @return instance of {@link Builder}

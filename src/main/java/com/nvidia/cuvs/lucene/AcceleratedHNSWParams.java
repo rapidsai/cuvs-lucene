@@ -490,6 +490,9 @@ public class AcceleratedHNSWParams {
     /**
      * Set the value of m - defines the maximum number of bi-directional links (edges) per node
      *
+     * Valid range - Minimum: {@value MIN_M}, Maximum: {@value MAX_M}
+     * Default value - {@value DEFAULT_M}
+     *
      * @param m, the value to set
      * @return instance of {@link Builder}
      */
@@ -500,6 +503,9 @@ public class AcceleratedHNSWParams {
 
     /**
      * Set the value of efConstruction - determines the size of the dynamic candidate list during graph construction
+     *
+     * Valid range - Minimum: {@value MIN_EF_CONSTRUCTION}, Maximum: {@value MAX_EF_CONSTRUCTION}
+     * Default value - {@value DEFAULT_EF_CONSTRUCTION}
      *
      * @param efConstruction, the value to set
      * @return instance of {@link Builder}
@@ -514,6 +520,9 @@ public class AcceleratedHNSWParams {
      *
      * When HEURISTIC [Default] is chosen, the CAGRA build algorithm and its indexing parameters are automatically chosen based on the size of the data set
      * When CUSTOM is chosen, the build algorithm and its parameters (either defaults or overridden values with the use of With* methods) is used internally
+     *
+     * Valid options - HEURISTIC, CUSTOM
+     * Default value - HEURISTIC
      *
      * @param strategy, the strategy to choose
      * @return instance of {@link Builder}
