@@ -9,7 +9,6 @@ import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.CagraIndexParams.CuvsDistanceType;
 import com.nvidia.cuvs.CagraIndexParams.HnswHeuristicType;
 import com.nvidia.cuvs.CuVSIvfPqParams;
-import com.nvidia.cuvs.lucene.GPUSearchParams.Builder;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -18,7 +17,35 @@ import java.util.function.Supplier;
 public class AcceleratedHNSWParams {
 
   public static enum Strategy {
+    /*
+     * This strategy allows for automatic selection of the underlining build algorithm for CAGRA.
+     * As per the currently chosen threshold we choose NN_DESCENT under 1M vectors.
+     * For 1M vectors, we switch to IVF_PQ algorithm. Also for both algorithms the input parameters
+     * are heuristically assessed internally in the cuvs layer.
+     *
+     * When using this strategy only the following parameters are effective and can be overridden:
+     * - m
+     * - efConstruction
+     * - heuristicType
+     * - cuvsDistanceType
+     * - writerThreads
+     *
+     * This is the default and the recommended strategy.
+     */
     HEURISTIC,
+    /*
+     * This is an option when the end-user would want to use custom parameter values.
+     *
+     * When using this strategy only the following parameters are effective and can be overridden:
+     * - intermediateGraphDegree
+     * - graphdegree
+     * - cagraGraphBuildAlgo
+     * - indexType
+     * - cuVSIvfPqParams
+     * - writerThreads
+     *
+     * This strategy should only be used under expert guidance.
+     */
     CUSTOM
   }
 
@@ -104,8 +131,8 @@ public class AcceleratedHNSWParams {
    * @param m defines The maximum number of bi-directional links (edges) per node.
    * @param efConstruction Determines the size of the dynamic candidate list during graph construction.
    * @param strategy either HEURISTIC [Default] that automatically chooses build algorithm and its parameters based on data set size or CUSTOM that uses the parameters passed though this class.
-   * @param heuristicType
-   * @param cuvsDistanceType
+   * @param heuristicType the heuristic type. The default option is SAME_GRAPH_FOOTPRINT.
+   * @param cuvsDistanceType the cuvsDistanceType. The default option is L2Expanded.
    */
   private AcceleratedHNSWParams(
       int writerThreads,
@@ -499,7 +526,7 @@ public class AcceleratedHNSWParams {
     /**
      * Set the HnswHeuristicType
      *
-     * @param the HnswHeuristicType to set
+     * @param heuristicType the HnswHeuristicType to set
      * @return instance of {@link Builder}
      */
     public Builder withHeuristicType(HnswHeuristicType heuristicType) {
@@ -510,7 +537,7 @@ public class AcceleratedHNSWParams {
     /**
      * Set the CuvsDistanceType
      *
-     * @param the CuvsDistanceType to set
+     * @param cuvsDistanceType the CuvsDistanceType to set
      * @return instance of {@link Builder}
      */
     public Builder withCuvsDistanceType(CuvsDistanceType cuvsDistanceType) {
