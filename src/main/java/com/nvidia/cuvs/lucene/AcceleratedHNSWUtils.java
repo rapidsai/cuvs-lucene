@@ -499,22 +499,6 @@ public class AcceleratedHNSWUtils {
    */
   public static CagraIndexParams getCagraIndexParams(
       AcceleratedHNSWParams acceleratedHNSWParams, long rows, long dimension) {
-    if (acceleratedHNSWParams.getStrategy().equals(Strategy.HEURISTIC)) {
-      return CagraIndexParams.fromHnswParams(
-          rows,
-          dimension,
-          acceleratedHNSWParams.getM(),
-          acceleratedHNSWParams.getEfConstruction(),
-          acceleratedHNSWParams.getHeuristicType(),
-          acceleratedHNSWParams.getCuvsDistanceType());
-    } else {
-      return new CagraIndexParams.Builder()
-          .withNumWriterThreads(acceleratedHNSWParams.getWriterThreads())
-          .withIntermediateGraphDegree(acceleratedHNSWParams.getIntermediateGraphDegree())
-          .withGraphDegree(acceleratedHNSWParams.getGraphdegree())
-          .withCagraGraphBuildAlgo(acceleratedHNSWParams.getCagraGraphBuildAlgo())
-          .withCuVSIvfPqParams(acceleratedHNSWParams.getCuVSIvfPqParams())
-          .build();
-    }
+    return new CagraIndexParamsFactory().create(acceleratedHNSWParams, rows, dimension);
   }
 }
