@@ -61,7 +61,7 @@ public class CagraIndexParamsFactory {
             .withNLists(nLists)
             .withPqBits(pqBits)
             .withPqDim(pqDim)
-            .withAddDataOnBuild(false)
+            .withAddDataOnBuild(true)
             .withConservativeMemoryAllocation(true)
             .build();
 
