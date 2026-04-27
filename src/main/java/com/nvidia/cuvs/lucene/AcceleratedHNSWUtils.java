@@ -499,6 +499,6 @@ public class AcceleratedHNSWUtils {
    */
   public static CagraIndexParams getCagraIndexParams(
       AcceleratedHNSWParams acceleratedHNSWParams, long rows, long dimension) {
-    return new CagraIndexParamsFactory().create(acceleratedHNSWParams, rows, dimension);
+    return CagraIndexParamsFactory.create(acceleratedHNSWParams, rows, dimension);
   }
 }

@@ -49,10 +49,8 @@ public class AcceleratedHNSWParams {
   public static final int MAX_BEAM_WIDTH = 512;
   public static final int MIN_NUM_MERGE_WORKERS = 1;
   public static final int MAX_NUM_MERGE_WORKERS = 512;
-  public static final int MIN_M = 1;
-  public static final int MAX_M = 1024;
-  public static final int MIN_EF_CONSTRUCTION = 1;
-  public static final int MAX_EF_CONSTRUCTION = 1024;
+  public static final long MIN_NN_DESCENT_NUM_ITERATIONS = 1;
+  public static final long MAX_NN_DESCENT_NUM_ITERATIONS = 100;
 
   public static final int DEFAULT_WRITER_THREADS = 1;
   public static final int DEFAULT_INT_GRAPH_DEGREE = 128;
@@ -65,6 +63,7 @@ public class AcceleratedHNSWParams {
   public static final int DEFAULT_NUM_MERGE_WORKERS = 1;
   public static final Strategy DEFAULT_STRATEGY = Strategy.HEURISTIC;
   public static final CuvsDistanceType DEFAULT_CUVS_DISTANCE_TYPE = CuvsDistanceType.L2Expanded;
+  public static final long DEFAULT_NN_DESCENT_NUM_ITERATIONS = 20;
 
   public static final Supplier<CuVSIvfPqParams> DEFAULT_IVF_PQ_PARAMS =
       () -> {
@@ -88,6 +87,7 @@ public class AcceleratedHNSWParams {
   private final ExecutorService mergeExec;
   private final Strategy strategy;
   private final CuvsDistanceType cuvsDistanceType;
+  private final long nNDescentNumIterations;
 
   /**
    * Constructs an instance of {@link AcceleratedHNSWParams} with specific parameter values.
@@ -105,6 +105,7 @@ public class AcceleratedHNSWParams {
    * @param mergeExec The instance of {@link ExecutorService} to use with the fallback mechanism.
    * @param strategy either HEURISTIC [Default] that automatically chooses build algorithm and its parameters based on data set size or CUSTOM that uses the parameters passed though this class.
    * @param cuvsDistanceType the cuvsDistanceType. The default option is L2Expanded.
+   * @param nNDescentNumIterations the number of Iterations to run if building with NN_DESCENT.
    */
   private AcceleratedHNSWParams(
       int writerThreads,
@@ -118,7 +119,8 @@ public class AcceleratedHNSWParams {
       int numMergeWorkers,
       ExecutorService mergeExec,
       Strategy strategy,
-      CuvsDistanceType cuvsDistanceType) {
+      CuvsDistanceType cuvsDistanceType,
+      long nNDescentNumIterations) {
     super();
     this.writerThreads = writerThreads;
     this.intermediateGraphDegree = intermediateGraphDegree;
@@ -132,6 +134,7 @@ public class AcceleratedHNSWParams {
     this.mergeExec = mergeExec;
     this.strategy = strategy;
     this.cuvsDistanceType = cuvsDistanceType;
+    this.nNDescentNumIterations = nNDescentNumIterations;
   }
 
   /**
@@ -245,6 +248,15 @@ public class AcceleratedHNSWParams {
     return cuvsDistanceType;
   }
 
+  /**
+   * get the number of Iterations to run if building with NN_DESCENT
+   *
+   * @return the number of iterations for NN_DESCENT
+   */
+  public long getnNDescentNumIterations() {
+    return nNDescentNumIterations;
+  }
+
   @Override
   public String toString() {
     return "AcceleratedHNSWParams [writerThreads="
@@ -271,6 +283,8 @@ public class AcceleratedHNSWParams {
         + strategy
         + ", cuvsDistanceType="
         + cuvsDistanceType
+        + ", nNDescentNumIterations="
+        + nNDescentNumIterations
         + "]";
   }
 
@@ -291,6 +305,7 @@ public class AcceleratedHNSWParams {
     private ExecutorService mergeExec = null;
     private Strategy strategy = DEFAULT_STRATEGY;
     private CuvsDistanceType cuvsDistanceType = DEFAULT_CUVS_DISTANCE_TYPE;
+    private long nNDescentNumIterations = DEFAULT_NN_DESCENT_NUM_ITERATIONS;
 
     /**
      * Set the number of cuVS writer threads while building the index
@@ -446,6 +461,20 @@ public class AcceleratedHNSWParams {
     }
 
     /**
+     * Set the number of Iterations to run if building with NN_DESCENT
+     *
+     * Valid range - Minimum: {@value MIN_NN_DESCENT_NUM_ITERATIONS}, Maximum: {@value MAX_NN_DESCENT_NUM_ITERATIONS}
+     * Default value - {@value DEFAULT_NN_DESCENT_NUM_ITERATIONS}
+     *
+     * @param nNDescentNumIterations number of merge workers to set
+     * @return instance of {@link Builder}
+     */
+    public Builder withNNDescentNumIterations(int nNDescentNumIterations) {
+      this.nNDescentNumIterations = nNDescentNumIterations;
+      return this;
+    }
+
+    /**
      * Validates the input parameters.
      *
      * @throws IllegalArgumentException
@@ -517,6 +546,15 @@ public class AcceleratedHNSWParams {
       if (Objects.isNull(cuvsDistanceType)) {
         throw new IllegalArgumentException("cuvsDistanceType cannot be null.");
       }
+      if (nNDescentNumIterations < MIN_NN_DESCENT_NUM_ITERATIONS
+          || nNDescentNumIterations > MAX_NN_DESCENT_NUM_ITERATIONS) {
+        throw new IllegalArgumentException(
+            "nNDescentNumIterations not in valid range. Valid range: ["
+                + MIN_NN_DESCENT_NUM_ITERATIONS
+                + ", "
+                + MAX_NN_DESCENT_NUM_ITERATIONS
+                + "]");
+      }
     }
 
     /**
@@ -544,7 +582,8 @@ public class AcceleratedHNSWParams {
           numMergeWorkers,
           mergeExec,
           strategy,
-          cuvsDistanceType);
+          cuvsDistanceType,
+          nNDescentNumIterations);
     }
   }
 }
