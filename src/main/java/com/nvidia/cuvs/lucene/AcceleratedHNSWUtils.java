@@ -13,6 +13,7 @@ import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.CuVSIvfPqParams;
 import com.nvidia.cuvs.CuVSMatrix;
+import com.nvidia.cuvs.CuVSResources;
 import com.nvidia.cuvs.RowView;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -89,7 +90,8 @@ public class AcceleratedHNSWUtils {
       int hnswLayers,
       int graphDegree,
       CagraIndexParams params,
-      QuantizationType quantization)
+      QuantizationType quantization,
+      CuVSResources cuVSResources)
       throws Throwable {
 
     // Calculate M as cagraGraphDegree/2
@@ -143,7 +145,13 @@ public class AcceleratedHNSWUtils {
         // Build CAGRA graph for this layer
         layerAdjacencies.add(
             buildCagraGraphForSubset(
-                selectedVectors, selectedNodes, 0, params, dimensions, quantization));
+                selectedVectors,
+                selectedNodes,
+                0,
+                params,
+                dimensions,
+                quantization,
+                cuVSResources));
 
       } else {
 
@@ -157,7 +165,13 @@ public class AcceleratedHNSWUtils {
         // Build CAGRA graph for this layer
         layerAdjacencies.add(
             buildCagraGraphForSubset(
-                selectedVectors, selectedNodes, bytesPerVector, params, dimensions, quantization));
+                selectedVectors,
+                selectedNodes,
+                bytesPerVector,
+                params,
+                dimensions,
+                quantization,
+                cuVSResources));
       }
 
       // Update for next iteration
@@ -181,7 +195,8 @@ public class AcceleratedHNSWUtils {
       int bytesPerVector,
       CagraIndexParams params,
       int dimensions,
-      QuantizationType quantization)
+      QuantizationType quantization,
+      CuVSResources cuVSResources)
       throws Throwable {
 
     CuVSMatrix subsetDataset;
@@ -198,7 +213,7 @@ public class AcceleratedHNSWUtils {
 
     // Build CAGRA index for the subset
     CagraIndex subsetIndex =
-        CagraIndex.newBuilder(getCuVSResourcesInstance())
+        CagraIndex.newBuilder(cuVSResources)
             .withDataset(subsetDataset)
             .withIndexParams(params)
             .build();
