@@ -14,6 +14,8 @@ import com.nvidia.cuvs.CuVSIvfPqIndexParams;
 import com.nvidia.cuvs.CuVSResources;
 import com.nvidia.cuvs.GPUInfoProvider;
 import com.nvidia.cuvs.spi.CuVSProvider;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -22,7 +24,7 @@ import java.util.logging.Logger;
 
 public class CuvsResourcesManager {
 
-  private static final Logger log = Logger.getLogger(Utils.class.getName());
+  private static final Logger LOG = Logger.getLogger(Utils.class.getName());
   private static final CuVSProvider PROVIDER = CuVSProvider.provider();
   private static final GPUInfoProvider GPU_INFO_PROVIDER = PROVIDER.gpuInfoProvider();
   private static final int MAX_POOL_SIZE = 512;
@@ -53,56 +55,35 @@ public class CuvsResourcesManager {
   }
 
   private ManagedCuVSResources getAvailableResourcesFromPool() {
-    try {
-      lock.lock();
-      for (int i = 0; i < capacity; i++) {
-        if (pool[i] != null && !pool[i].isLocked()) {
-          return pool[i];
-        }
-      }
-    } finally {
-      lock.unlock();
-    }
-    return null;
+    return Arrays.stream(pool).filter(mcr -> !mcr.isLocked()).findFirst().orElse(null);
   }
 
-  private int getNumLockedResources() {
-    try {
-      lock.lock();
-      int res = 0;
-      for (int i = 0; i < capacity; i++) {
-        if (pool[i].isLocked()) {
-          res += 1;
-        }
-      }
-      return res;
-    } finally {
-      lock.unlock();
-    }
+  private long getNumLockedResources() {
+    return Arrays.stream(pool).filter(mcr -> mcr.isLocked()).count();
   }
 
   public ManagedCuVSResources acquireResource(long rows, long dimension, CagraIndexParams params)
       throws InterruptedException {
     try {
       lock.lock();
-      long neededMem = getEstimatedMemoryRequirement(rows, dimension, params);
+      long neededMemory = getEstimatedMemoryRequirement(rows, dimension, params);
 
-      if (neededMem > totalDeviceMemory) {
+      if (neededMemory > totalDeviceMemory) {
         throw new RuntimeException("Not enough GPU device memory available");
       }
 
       while (getNumLockedResources() == capacity
-          || (totalDeviceMemory - reserveMemory.get()) < neededMem) {
+          || (totalDeviceMemory - reserveMemory.get()) < neededMemory) {
         resourcesAvailable.await();
       }
-      reserveMemory.addAndGet(neededMem);
+      reserveMemory.addAndGet(neededMemory);
 
-      ManagedCuVSResources res = getAvailableResourcesFromPool();
-      assert res != null;
+      ManagedCuVSResources managedCuVSResources = getAvailableResourcesFromPool();
+      assert managedCuVSResources != null;
 
-      res.setNeededMemory(neededMem);
-      res.lock();
-      return res;
+      managedCuVSResources.setNeededMemory(neededMemory);
+      managedCuVSResources.lock();
+      return managedCuVSResources;
     } finally {
       lock.unlock();
     }
@@ -120,30 +101,27 @@ public class CuvsResourcesManager {
   }
 
   public void shutdown() {
-    try {
-      lock.lock();
-      for (int i = 0; i < capacity; i++) {
-        if (pool[i] != null && !pool[i].isLocked() && pool[i].getResource() != null) {
-          pool[i].getResource().close();
-        }
-      }
-    } finally {
-      lock.unlock();
-    }
+    Arrays.stream(pool)
+        .forEach(
+            mcr -> {
+              if (Objects.nonNull(mcr) && Objects.nonNull(mcr.getResource())) {
+                mcr.getResource().close();
+              }
+            });
   }
 
   private static CuVSResources getCuVSResourceInstance() {
     try {
       return CuVSResources.create();
     } catch (UnsupportedOperationException uoe) {
-      log.log(
+      LOG.log(
           Level.WARNING,
           "cuVS is not supported on this platform or java version: " + uoe.getMessage());
     } catch (Throwable t) {
       if (t instanceof ExceptionInInitializerError ex) {
         t = ex.getCause();
       }
-      log.log(Level.WARNING, "Exception occurred during creation of cuVS resources. " + t);
+      LOG.log(Level.WARNING, "Exception occurred during creation of cuVS resources. " + t);
     }
     return null;
   }
@@ -166,17 +144,17 @@ public class CuvsResourcesManager {
 
   class ManagedCuVSResources {
 
-    private final CuVSResources resource;
+    private final CuVSResources cuVSResources;
     private final ReentrantLock lock;
     private long neededMemory;
 
-    public ManagedCuVSResources(CuVSResources resource) {
-      this.resource = resource;
+    public ManagedCuVSResources(CuVSResources cuVSResources) {
+      this.cuVSResources = cuVSResources;
       lock = new ReentrantLock();
     }
 
     public CuVSResources getResource() {
-      return resource;
+      return cuVSResources;
     }
 
     public long getNeededMemory() {
