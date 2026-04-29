@@ -15,7 +15,6 @@ import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_I
 import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_INDEX_EXT;
 import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_META_CODEC_EXT;
 import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_META_CODEC_NAME;
-import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.closeCuVSResourcesInstance;
 import static com.nvidia.cuvs.lucene.Utils.createListFromMergedVectors;
 import static org.apache.lucene.index.VectorEncoding.FLOAT32;
 import static org.apache.lucene.util.RamUsageEstimator.shallowSizeOfInstance;
@@ -346,7 +345,6 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
   public void close() throws IOException {
     printInfoStream(infoStream, COMPONENT, "Closing resources");
     IOUtils.close(hnswMeta, hnswVectorIndex, flatVectorsWriter);
-    closeCuVSResourcesInstance();
   }
 
   /**

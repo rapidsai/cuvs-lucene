@@ -131,17 +131,21 @@ public class CuvsResourcesManager {
     if (buildAlgo.equals(NN_DESCENT)) {
       return 2 * rows * dimension * Float.BYTES;
     } else if (buildAlgo.equals(IVF_PQ)) {
+      assert params.getCuVSIvfPqParams() != null;
       CuVSIvfPqIndexParams ip = params.getCuVSIvfPqParams().getIndexParams();
-      long approximatedIvfBytes =
-          (long)
+      assert ip != null;
+      return 2
+          * (long)
               (rows * (ip.getPqDim() * (ip.getPqBits() / 8.0) + Float.BYTES)
                   + ip.getnLists() * Integer.BYTES);
-      return 2 * approximatedIvfBytes;
     } else {
       throw new IllegalArgumentException("Unsupported CAGRA build algo");
     }
   }
 
+  /**
+   * Holds reference to CuVSResources with its associated lock, and needed memory.
+   */
   class ManagedCuVSResources {
 
     private final CuVSResources cuVSResources;
