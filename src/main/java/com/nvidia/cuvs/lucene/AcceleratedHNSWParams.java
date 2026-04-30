@@ -17,7 +17,7 @@ public class AcceleratedHNSWParams {
 
   public static enum Strategy {
     /*
-     * This strategy allows for automatic selection of the underlining CAGRA build algorithm.
+     * This strategy allows for automatic selection of the underlying CAGRA build algorithm.
      * With this strategy we use NN_DESCENT for data set less then 5M vectors else we use IVF_PQ.
      * Indexing parameters, especially for IVF_PQ, are heuristically identified automatically.
      *
