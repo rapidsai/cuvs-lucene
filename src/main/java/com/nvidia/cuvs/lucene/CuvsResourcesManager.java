@@ -22,6 +22,10 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * Manages a pool of finite {@link ManagedCuVSResources} and allows for the accessing threads
+ * to lock and acquire available instance and release them back to the pool when finished.
+ */
 public class CuvsResourcesManager {
 
   private static final Logger LOG = Logger.getLogger(Utils.class.getName());
@@ -48,20 +52,22 @@ public class CuvsResourcesManager {
     for (int i = 0; i < capacity; i++) {
       pool[i] = new ManagedCuVSResources(getCuVSResourceInstance());
     }
-    CuVSResources rx = getCuVSResourceInstance();
+    CuVSResources cuVSResources = getCuVSResourceInstance();
     reserveMemory = new AtomicLong();
-    totalDeviceMemory = GPU_INFO_PROVIDER.getCurrentInfo(rx).totalDeviceMemoryInBytes();
-    rx.close();
+    totalDeviceMemory = GPU_INFO_PROVIDER.getCurrentInfo(cuVSResources).totalDeviceMemoryInBytes();
+    cuVSResources.close();
   }
 
-  private ManagedCuVSResources getAvailableResourcesFromPool() {
-    return Arrays.stream(pool).filter(mcr -> !mcr.isLocked()).findFirst().orElse(null);
-  }
-
-  private long getNumLockedResources() {
-    return Arrays.stream(pool).filter(mcr -> mcr.isLocked()).count();
-  }
-
+  /**
+   * Acquire an instance of {@link ManagedCuVSResources} when available and enough
+   * device memory is also available for the request to complete.
+   *
+   * @param rows the number of vectors in the dataset
+   * @param dimension the vector dimension in the dataset
+   * @param params an instance of {@link CagraIndexParams}
+   * @return an instance of {@link ManagedCuVSResources}
+   * @throws InterruptedException
+   */
   public ManagedCuVSResources acquireResource(long rows, long dimension, CagraIndexParams params)
       throws InterruptedException {
     try {
@@ -72,7 +78,7 @@ public class CuvsResourcesManager {
         throw new RuntimeException("Not enough GPU device memory available");
       }
 
-      while (getNumLockedResources() == capacity
+      while (getNumberOfUnavailableResources() == capacity
           || (totalDeviceMemory - reserveMemory.get()) < neededMemory) {
         resourcesAvailable.await();
       }
@@ -89,10 +95,16 @@ public class CuvsResourcesManager {
     }
   }
 
+  /**
+   * Releases the acquired instance of {@link ManagedCuVSResources} back to the pool.
+   *
+   * @param resource the acquired instance of {@link ManagedCuVSResources} by the thread
+   */
   public void releaseResource(ManagedCuVSResources resource) {
     try {
       lock.lock();
       reserveMemory.addAndGet(-resource.getNeededMemory());
+      resource.resetNeededMemory();
       resource.unlock();
       resourcesAvailable.signalAll();
     } finally {
@@ -100,12 +112,16 @@ public class CuvsResourcesManager {
     }
   }
 
+  /**
+   * Shuts down the instances of wrapped {@link CuVSResources} in the pool.
+   */
   public void shutdown() {
     Arrays.stream(pool)
         .forEach(
-            mcr -> {
-              if (Objects.nonNull(mcr) && Objects.nonNull(mcr.getResource())) {
-                mcr.getResource().close();
+            managedCuVSResources -> {
+              if (Objects.nonNull(managedCuVSResources)
+                  && Objects.nonNull(managedCuVSResources.getResource())) {
+                managedCuVSResources.getResource().close();
               }
             });
   }
@@ -124,6 +140,19 @@ public class CuvsResourcesManager {
       LOG.log(Level.WARNING, "Exception occurred during creation of cuVS resources. " + t);
     }
     return null;
+  }
+
+  private ManagedCuVSResources getAvailableResourcesFromPool() {
+    return Arrays.stream(pool)
+        .filter(managedCuVSResources -> !managedCuVSResources.isLocked())
+        .findFirst()
+        .orElse(null);
+  }
+
+  private long getNumberOfUnavailableResources() {
+    return Arrays.stream(pool)
+        .filter(managedCuVSResources -> managedCuVSResources.isLocked())
+        .count();
   }
 
   private long getEstimatedMemoryRequirement(long rows, long dimension, CagraIndexParams params) {
@@ -163,6 +192,10 @@ public class CuvsResourcesManager {
 
     public long getNeededMemory() {
       return neededMemory;
+    }
+
+    public void resetNeededMemory() {
+      setNeededMemory(0);
     }
 
     public void setNeededMemory(long neededMemory) {
