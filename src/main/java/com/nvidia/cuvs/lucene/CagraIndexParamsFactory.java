@@ -52,7 +52,7 @@ public class CagraIndexParamsFactory {
     int nLists = (int) Math.max(1, rows / 2000);
     final int kmeansNIters = 10;
     final double kMinPointsPerCluster = 32;
-    double minKmeansPrainsetPoints = kMinPointsPerCluster * nLists;
+    double minKmeansTrainsetPoints = kMinPointsPerCluster * nLists;
     final double maxKmeansTrainsetFraction = 1.0;
     double minKmeansTrainsetFraction =
         Math.min(maxKmeansTrainsetFraction, minKmeansPrainsetPoints / rows);
