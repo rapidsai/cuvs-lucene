@@ -7,9 +7,7 @@ package com.nvidia.cuvs.lucene;
 
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.CagraIndexParams.CuvsDistanceType;
-import com.nvidia.cuvs.CagraIndexParams.HnswHeuristicType;
 import com.nvidia.cuvs.CuVSIvfPqParams;
-import com.nvidia.cuvs.lucene.AcceleratedHNSWParams.Builder;
 import com.nvidia.cuvs.lucene.CuVS2510GPUVectorsWriter.IndexType;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -42,8 +40,8 @@ public class GPUSearchParams {
   public static final int MAX_INT_GRAPH_DEG = 512;
   public static final int MIN_GRAPH_DEG = 1;
   public static final int MAX_GRAPH_DEG = 512;
-  public static final long MIN_NN_DESCENT_NUM_ITERATIONS = 1;
-  public static final long MAX_NN_DESCENT_NUM_ITERATIONS = 100;
+  public static final int MIN_NN_DESCENT_NUM_ITERATIONS = 1;
+  public static final int MAX_NN_DESCENT_NUM_ITERATIONS = 100;
 
   public static final int DEFAULT_INT_GRAPH_DEGREE = 128;
   public static final int DEFAULT_GRAPH_DEGREE = 64;
@@ -51,13 +49,9 @@ public class GPUSearchParams {
       CagraGraphBuildAlgo.NN_DESCENT;
   public static final IndexType DEFAULT_INDEX_TYPE = IndexType.CAGRA;
   public static final int DEFAULT_WRITER_THREADS = 32;
-  public static final int DEFAULT_M = 16;
-  public static final int DEFAULT_EF_CONSTRUCTION = 16;
   public static final Strategy DEFAULT_STRATEGY = Strategy.HEURISTIC;
-  public static final HnswHeuristicType DEFAULT_HEURISTIC_TYPE =
-      HnswHeuristicType.SAME_GRAPH_FOOTPRINT;
   public static final CuvsDistanceType DEFAULT_CUVS_DISTANCE_TYPE = CuvsDistanceType.L2Expanded;
-  public static final long DEFAULT_NN_DESCENT_NUM_ITERATIONS = 20;
+  public static final int DEFAULT_NN_DESCENT_NUM_ITERATIONS = 20;
 
   public static final Supplier<CuVSIvfPqParams> DEFAULT_IVF_PQ_PARAMS =
       () -> {
@@ -72,7 +66,7 @@ public class GPUSearchParams {
   private final CuVSIvfPqParams cuVSIvfPqParams;
   private final Strategy strategy;
   private final CuvsDistanceType cuvsDistanceType;
-  private final long nNDescentNumIterations;
+  private final int nnDescentNumIterations;
 
   /**
    * Constructs an instance of {@link GPUSearchParams} with specific parameter values.
@@ -83,12 +77,10 @@ public class GPUSearchParams {
    * @param cagraGraphBuildAlgo The CAGRA build algorithm to use.
    * @param indexType The type of index to build - CAGRA, BRUTEFORCE, or both.
    * @param cuVSIvfPqParams An instance of CuVSIvfPqParams containing IVF_PQ specific parameters.
-   * @param m defines The maximum number of bi-directional links (edges) per node.
-   * @param efConstruction Determines the size of the dynamic candidate list during graph construction.
    * @param strategy either HEURISTIC [Default] that automatically chooses build algorithm and its parameters based on data set size or CUSTOM that uses the parameters passed though this class.
    * @param heuristicType the heuristic type. The default option is SAME_GRAPH_FOOTPRINT.
    * @param cuvsDistanceType the cuvsDistanceType. The default option is L2Expanded.
-   * @param nNDescentNumIterations the number of Iterations to run if building with NN_DESCENT.
+   * @param nnDescentNumIterations the number of Iterations to run if building with NN_DESCENT.
    */
   private GPUSearchParams(
       int writerThreads,
@@ -99,7 +91,7 @@ public class GPUSearchParams {
       CuVSIvfPqParams cuVSIvfPqParams,
       Strategy strategy,
       CuvsDistanceType cuvsDistanceType,
-      long nNDescentNumIterations) {
+      int nnDescentNumIterations) {
     super();
     this.writerThreads = writerThreads;
     this.intermediateGraphDegree = intermediateGraphDegree;
@@ -109,7 +101,7 @@ public class GPUSearchParams {
     this.cuVSIvfPqParams = cuVSIvfPqParams;
     this.strategy = strategy;
     this.cuvsDistanceType = cuvsDistanceType;
-    this.nNDescentNumIterations = nNDescentNumIterations;
+    this.nnDescentNumIterations = nnDescentNumIterations;
   }
 
   /**
@@ -193,8 +185,8 @@ public class GPUSearchParams {
    *
    * @return the number of iterations for NN_DESCENT
    */
-  public long getnNDescentNumIterations() {
-    return nNDescentNumIterations;
+  public int getnNDescentNumIterations() {
+    return nnDescentNumIterations;
   }
 
   @Override
@@ -215,8 +207,8 @@ public class GPUSearchParams {
         + strategy
         + ", cuvsDistanceType="
         + cuvsDistanceType
-        + ", nNDescentNumIterations="
-        + nNDescentNumIterations
+        + ", nnDescentNumIterations="
+        + nnDescentNumIterations
         + "]";
   }
 
@@ -233,7 +225,7 @@ public class GPUSearchParams {
     private CuVSIvfPqParams cuVSIvfPqParams = null;
     private Strategy strategy = DEFAULT_STRATEGY;
     private CuvsDistanceType cuvsDistanceType = DEFAULT_CUVS_DISTANCE_TYPE;
-    private long nNDescentNumIterations = DEFAULT_NN_DESCENT_NUM_ITERATIONS;
+    private int nnDescentNumIterations = DEFAULT_NN_DESCENT_NUM_ITERATIONS;
 
     /**
      * Set the number of cuVS writer threads while building the index
@@ -343,11 +335,11 @@ public class GPUSearchParams {
      * Valid range - Minimum: {@value MIN_NN_DESCENT_NUM_ITERATIONS}, Maximum: {@value MAX_NN_DESCENT_NUM_ITERATIONS}
      * Default value - {@value DEFAULT_NN_DESCENT_NUM_ITERATIONS}
      *
-     * @param nNDescentNumIterations number of merge workers to set
+     * @param nnDescentNumIterations number of merge workers to set
      * @return instance of {@link Builder}
      */
-    public Builder withNNDescentNumIterations(int nNDescentNumIterations) {
-      this.nNDescentNumIterations = nNDescentNumIterations;
+    public Builder withNNDescentNumIterations(int nnDescentNumIterations) {
+      this.nnDescentNumIterations = nnDescentNumIterations;
       return this;
     }
 
@@ -394,10 +386,10 @@ public class GPUSearchParams {
       if (Objects.isNull(cuvsDistanceType)) {
         throw new IllegalArgumentException("cuvsDistanceType cannot be null.");
       }
-      if (nNDescentNumIterations < MIN_NN_DESCENT_NUM_ITERATIONS
-          || nNDescentNumIterations > MAX_NN_DESCENT_NUM_ITERATIONS) {
+      if (nnDescentNumIterations < MIN_NN_DESCENT_NUM_ITERATIONS
+          || nnDescentNumIterations > MAX_NN_DESCENT_NUM_ITERATIONS) {
         throw new IllegalArgumentException(
-            "nNDescentNumIterations not in valid range. Valid range: ["
+            "nnDescentNumIterations not in valid range. Valid range: ["
                 + MIN_NN_DESCENT_NUM_ITERATIONS
                 + ", "
                 + MAX_NN_DESCENT_NUM_ITERATIONS
@@ -424,7 +416,7 @@ public class GPUSearchParams {
           cuVSIvfPqParams,
           strategy,
           cuvsDistanceType,
-          nNDescentNumIterations);
+          nnDescentNumIterations);
     }
   }
 }

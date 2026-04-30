@@ -12,7 +12,6 @@ import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CuVSMatrix;
 import com.nvidia.cuvs.RowView;
-import com.nvidia.cuvs.lucene.AcceleratedHNSWParams.Strategy;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -486,19 +485,5 @@ public class AcceleratedHNSWUtils {
     }
 
     return quantizedVectors;
-  }
-
-  /**
-   * Get an instance of {@link CagraIndexParams} based on the chosen {@link Strategy}
-   *
-   * @param acceleratedHNSWParams instance of the {@link AcceleratedHNSWParams}
-   * @param rows the number of vectors in the data set
-   * @param dimension the vector dimension
-   *
-   * @return an instance of {@link CagraIndexParams}
-   */
-  public static CagraIndexParams getCagraIndexParams(
-      AcceleratedHNSWParams acceleratedHNSWParams, long rows, long dimension) {
-    return CagraIndexParamsFactory.create(acceleratedHNSWParams, rows, dimension);
   }
 }

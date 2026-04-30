@@ -63,7 +63,7 @@ public class TestAcceleratedHNSWParams extends LuceneTestCase {
     assertEquals(DEFAULT_CAGRA_GRAPH_BUILD_ALGO, params.getCagraGraphBuildAlgo());
     assertEquals(DEFAULT_STRATEGY, params.getStrategy());
     assertEquals(DEFAULT_CUVS_DISTANCE_TYPE, params.getCuvsDistanceType());
-    assertEquals(DEFAULT_NN_DESCENT_NUM_ITERATIONS, params.getnNDescentNumIterations());
+    assertEquals(DEFAULT_NN_DESCENT_NUM_ITERATIONS, params.getNNDescentNumIterations());
   }
 
   @Test

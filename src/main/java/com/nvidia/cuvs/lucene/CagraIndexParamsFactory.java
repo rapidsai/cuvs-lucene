@@ -55,7 +55,7 @@ public class CagraIndexParamsFactory {
     double minKmeansTrainsetPoints = kMinPointsPerCluster * nLists;
     final double maxKmeansTrainsetFraction = 1.0;
     double minKmeansTrainsetFraction =
-        Math.min(maxKmeansTrainsetFraction, minKmeansPrainsetPoints / rows);
+        Math.min(maxKmeansTrainsetFraction, minKmeansTrainsetPoints / rows);
     double kmeansTrainsetFraction =
         Math.clamp(
             1.0 / Math.sqrt(rows * 1e-5), minKmeansTrainsetFraction, maxKmeansTrainsetFraction);
@@ -122,13 +122,19 @@ public class CagraIndexParamsFactory {
   }
 
   private static CagraIndexParams getIVFPQParams(
-      int graphDegree, int intGraphDegree, int writerThreads, long rows, long dimension) {
+      int graphDegree,
+      int intGraphDegree,
+      int writerThreads,
+      long rows,
+      long dimension,
+      CuvsDistanceType cuvsDistanceType) {
     return new CagraIndexParams.Builder()
         .withCagraGraphBuildAlgo(CagraGraphBuildAlgo.IVF_PQ)
         .withCuVSIvfPqParams(getCuVSIvfPqParams(rows, dimension))
         .withNumWriterThreads(writerThreads)
         .withIntermediateGraphDegree(intGraphDegree)
         .withGraphDegree(graphDegree)
+        .withMetric(cuvsDistanceType)
         .build();
   }
 
@@ -156,7 +162,8 @@ public class CagraIndexParamsFactory {
             gPUSearchParams.getIntermediateGraphDegree(),
             gPUSearchParams.getWriterThreads(),
             rows,
-            dimension);
+            dimension,
+            gPUSearchParams.getCuvsDistanceType());
       }
     } else {
       return new CagraIndexParams.Builder()
@@ -165,6 +172,7 @@ public class CagraIndexParamsFactory {
           .withGraphDegree(gPUSearchParams.getGraphdegree())
           .withCagraGraphBuildAlgo(gPUSearchParams.getCagraGraphBuildAlgo())
           .withCuVSIvfPqParams(gPUSearchParams.getCuVSIvfPqParams())
+          .withNNDescentNumIterations(gPUSearchParams.getnNDescentNumIterations())
           .build();
     }
   }
@@ -192,7 +200,7 @@ public class CagraIndexParamsFactory {
             acceleratedHNSWParams.getGraphdegree(),
             acceleratedHNSWParams.getIntermediateGraphDegree(),
             acceleratedHNSWParams.getWriterThreads(),
-            acceleratedHNSWParams.getnNDescentNumIterations(),
+            acceleratedHNSWParams.getNNDescentNumIterations(),
             acceleratedHNSWParams.getCuvsDistanceType());
       } else {
         return getIVFPQParams(
@@ -200,7 +208,8 @@ public class CagraIndexParamsFactory {
             acceleratedHNSWParams.getIntermediateGraphDegree(),
             acceleratedHNSWParams.getWriterThreads(),
             rows,
-            dimension);
+            dimension,
+            acceleratedHNSWParams.getCuvsDistanceType());
       }
     } else {
       return new CagraIndexParams.Builder()
@@ -209,6 +218,7 @@ public class CagraIndexParamsFactory {
           .withGraphDegree(acceleratedHNSWParams.getGraphdegree())
           .withCagraGraphBuildAlgo(acceleratedHNSWParams.getCagraGraphBuildAlgo())
           .withCuVSIvfPqParams(acceleratedHNSWParams.getCuVSIvfPqParams())
+          .withNNDescentNumIterations(acceleratedHNSWParams.getNNDescentNumIterations())
           .build();
     }
   }
