@@ -105,7 +105,7 @@ public class AcceleratedHNSWParams {
    * @param mergeExec The instance of {@link ExecutorService} to use with the fallback mechanism.
    * @param strategy either HEURISTIC [Default] that automatically chooses build algorithm and its parameters based on data set size or CUSTOM that uses the parameters passed though this class.
    * @param cuvsDistanceType the cuvsDistanceType. The default option is L2Expanded.
-   * @param nNDescentNumIterations the number of Iterations to run if building with NN_DESCENT.
+   * @param nnDescentNumIterations the number of Iterations to run if building with NN_DESCENT.
    */
   private AcceleratedHNSWParams(
       int writerThreads,
