@@ -165,6 +165,11 @@ public class TestCagraToHnswSerializationAndSearchWithFallbackWriter extends Luc
   public static void afterClass() throws Exception {
     // Reset resources for other tests to work
     setCuVSResourcesInstance(cuVSResourcesOrNull());
+    // If setup was skipped (e.g. cuVS not supported), @BeforeClass didn't run and indexDirPath is
+    // null.
+    if (indexDirPath == null) {
+      return;
+    }
     File indexDirPathFile = indexDirPath.toFile();
     if (indexDirPathFile.exists() && indexDirPathFile.isDirectory()) {
       FileUtils.deleteDirectory(indexDirPathFile);
