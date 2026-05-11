@@ -11,6 +11,8 @@ import static com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo.NN_DESCENT;
 import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CagraIndexParams.CagraGraphBuildAlgo;
 import com.nvidia.cuvs.CuVSIvfPqIndexParams;
+import com.nvidia.cuvs.CuVSIvfPqParams;
+import com.nvidia.cuvs.CuVSIvfPqSearchParams;
 import com.nvidia.cuvs.CuVSResources;
 import com.nvidia.cuvs.GPUInfoProvider;
 import com.nvidia.cuvs.spi.CuVSProvider;
@@ -21,6 +23,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.LongStream;
 
 /**
  * Manages a pool of finite {@link ManagedCuVSResources} and allows for the accessing threads
@@ -158,18 +161,85 @@ public class CuvsResourcesManager {
   private long getEstimatedMemoryRequirement(long rows, long dimension, CagraIndexParams params) {
     CagraGraphBuildAlgo buildAlgo = params.getCagraGraphBuildAlgo();
     if (buildAlgo.equals(NN_DESCENT)) {
-      return 2 * rows * dimension * Float.BYTES;
+      return estimateNNDescentIndexBuildPeakMemory(rows, dimension, params);
     } else if (buildAlgo.equals(IVF_PQ)) {
       assert params.getCuVSIvfPqParams() != null;
-      CuVSIvfPqIndexParams ip = params.getCuVSIvfPqParams().getIndexParams();
-      assert ip != null;
-      return 2
-          * (long)
-              (rows * (ip.getPqDim() * (ip.getPqBits() / 8.0) + Float.BYTES)
-                  + ip.getnLists() * Integer.BYTES);
+      return estimateIVFPQIndexBuildPeakMemory(rows, dimension, params);
     } else {
       throw new IllegalArgumentException("Unsupported CAGRA build algo");
     }
+  }
+
+  private long estimateNNDescentIndexBuildPeakMemory(
+      long rows, long dimension, CagraIndexParams params) {
+    /*
+     * N = Number of vectors
+     * D = Vector dimension
+     * I = Intermediate Graph Degree
+     * Sidx = Bytes per graph neighbor ID. This is sizeof(IdxT), usually 4 for int32_t or uint32_t.
+     *
+     * NND_device_peak = N × (D × 2 + 276)
+     * optimize_peak = N × (4 + (Sidx + 1) × I)
+     * build_peak = dataset_size + max(NND_device_peak, optimize_peak)
+     */
+
+    final int sIdx = 4;
+    long datasetSize = rows * dimension * Float.BYTES;
+    long nnDevicePeak = rows * (dimension * 2 + 276);
+    long optimizePeak = rows * (4 + (sIdx + 1) * params.getIntermediateGraphDegree());
+    return datasetSize + Math.max(nnDevicePeak, optimizePeak);
+  }
+
+  private long estimateIVFPQIndexBuildPeakMemory(
+      long rows, long dimension, CagraIndexParams params) {
+
+    /*
+     * R = IVF-PQ training-set ratio. This is train_set_ratio.
+     * N = Number of vectors
+     * D = Vector dimension
+     * C = Number of IVF-PQ coarse clusters/lists. This is the IVF-PQ n_lists
+     * Q = Query batch size
+     * I = Intermediate graph degree
+     * Sidx = Bytes per graph neighbor ID. This is sizeof(IdxT), usually 4 for int32_t or uint32_t.
+     *
+     * IVFPQ_build_peak ​= (R/N × D × 4) + (C × D × 4) + (R/N * sizeof(uint32_t))
+     * IVFPQ_search_peak = (Q × D × 4)+ (Q × I × sizeof(uint32_t))+ (Q × I × 4)
+     * optimize_peak = N × (4 + (Sidx + 1) × I)
+     * build_peak = dataset_size + max(IVFPQ_build_peak, IVFPQ_search_peak, optimize_peak)
+     *
+     * https://github.com/rapidsai/cuvs/blob/main/cpp/src/neighbors/ivf_pq/ivf_pq_build.cuh#L1253
+     * trainset_ratio = max(1, n_rows / max(kmeans_trainset_fraction * n_rows, n_lists))
+     */
+
+    CuVSIvfPqParams p = params.getCuVSIvfPqParams();
+    CuVSIvfPqIndexParams ip = p.getIndexParams();
+    CuVSIvfPqSearchParams sp = p.getSearchParams();
+    assert ip != null;
+    assert sp != null;
+
+    final int sIdx = 4;
+    long datasetSize = rows * dimension * Float.BYTES;
+
+    double trainsetRatio =
+        Math.max(1, rows / Math.max((ip.getKmeansTrainsetFraction() * rows), ip.getnLists()));
+
+    double ivfPQBuildPeak =
+        (trainsetRatio / rows * dimension * 4)
+            + (ip.getnLists() * dimension * 4)
+            + (trainsetRatio / rows * 4);
+
+    long queryBatchSize = 4096; // Not sure about this yet "max_internal_batch_size"
+
+    long ivfPQSearchPeak =
+        (queryBatchSize * dimension * 4)
+            + (2 * queryBatchSize * params.getIntermediateGraphDegree() * 4);
+
+    long optimizePeak = rows * (4 + (sIdx + 1) * params.getIntermediateGraphDegree());
+
+    return datasetSize
+        + LongStream.of((long) Math.ceil(ivfPQBuildPeak), ivfPQSearchPeak, optimizePeak)
+            .max()
+            .getAsLong();
   }
 
   /**
