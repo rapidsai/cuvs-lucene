@@ -4,7 +4,6 @@
  */
 package com.nvidia.cuvs.lucene;
 
-import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.cagraIndexParams;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.createMultiLayerHnswGraph;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.createSingleVectorHnswGraph;
 import static com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.printInfoStream;
@@ -156,12 +155,8 @@ public class LuceneAcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVector
     }
 
     CagraIndexParams params =
-        cagraIndexParams(
-            acceleratedHNSWParams.getWriterThreads(),
-            acceleratedHNSWParams.getIntermediateGraphDegree(),
-            acceleratedHNSWParams.getGraphdegree(),
-            acceleratedHNSWParams.getCagraGraphBuildAlgo(),
-            acceleratedHNSWParams.getCuVSIvfPqParams());
+        CagraIndexParamsFactory.create(
+            acceleratedHNSWParams, vectors.size(), vectors.get(0).length);
     ManagedCuVSResources managedCuVSResources =
         cuvsResourcesManager.acquireResource(vectors.size(), vectors.get(0).length, params);
 
