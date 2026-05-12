@@ -6,6 +6,7 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+permissions: {}
 jobs:
   pr-builder:
     needs:
@@ -19,6 +20,12 @@ jobs:
     if: always()
     with:
       needs: ${{ toJSON(needs) }}
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   telemetry-setup:
     continue-on-error: true
     runs-on: ubuntu-latest
@@ -54,6 +61,12 @@ jobs:
           - '**'
           - '!.pre-commit-config.yaml'
           - '!README.md'
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   checks:
     needs: telemetry-setup
     secrets: inherit
@@ -61,6 +74,12 @@ jobs:
     with:
       enable_check_generated_files: false
       ignored_pr_jobs: "telemetry-summarize"
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   conda-java-tests:
     needs: [changed-files, checks]
     secrets: inherit
@@ -82,6 +101,12 @@ jobs:
       script: "ci/test_java.sh"
       file_to_upload: "target/"
       artifact-name: "cuvs-lucene-cuda${{ matrix.cuda_version }}"
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      packages: read
+      pull-requests: read
   telemetry-summarize:
     # This job must use a self-hosted runner to record telemetry traces.
     runs-on: linux-amd64-cpu4
@@ -93,3 +118,5 @@ jobs:
         uses: rapidsai/shared-actions/telemetry-dispatch-summarize@main
     env:
       GH_TOKEN: ${{ github.token }}
+    permissions:
+      actions: write
