@@ -42,6 +42,7 @@ public class CuvsResourcesManager {
   private AtomicLong reserveMemory;
   private long totalDeviceMemory;
   private int capacity;
+  private CuVSResources cuVSResources;
 
   public CuvsResourcesManager(int capacity) {
     if (capacity > MAX_POOL_SIZE || capacity <= 0) {
@@ -55,10 +56,9 @@ public class CuvsResourcesManager {
     for (int i = 0; i < capacity; i++) {
       pool[i] = new ManagedCuVSResources(getCuVSResourceInstance());
     }
-    CuVSResources cuVSResources = getCuVSResourceInstance();
+    cuVSResources = getCuVSResourceInstance();
     reserveMemory = new AtomicLong();
     totalDeviceMemory = GPU_INFO_PROVIDER.getCurrentInfo(cuVSResources).totalDeviceMemoryInBytes();
-    cuVSResources.close();
   }
 
   /**
@@ -81,8 +81,12 @@ public class CuvsResourcesManager {
         throw new RuntimeException("Not enough GPU device memory available");
       }
 
+      long currentFreeMemory =
+          GPU_INFO_PROVIDER.getCurrentInfo(cuVSResources).freeDeviceMemoryInBytes();
+
       while (getNumberOfUnavailableResources() == capacity
-          || (totalDeviceMemory - reserveMemory.get()) < neededMemory) {
+          || (totalDeviceMemory - reserveMemory.get()) < neededMemory
+          || currentFreeMemory < neededMemory) {
         resourcesAvailable.await();
       }
       reserveMemory.addAndGet(neededMemory);
@@ -127,6 +131,9 @@ public class CuvsResourcesManager {
                 managedCuVSResources.getResource().close();
               }
             });
+    if (cuVSResources != null) {
+      cuVSResources.close();
+    }
   }
 
   private static CuVSResources getCuVSResourceInstance() {
@@ -187,7 +194,7 @@ public class CuvsResourcesManager {
     long datasetSize = rows * dimension * Float.BYTES;
     long nnDevicePeak = rows * (dimension * 2 + 276);
     long optimizePeak = rows * (4 + (sIdx + 1) * params.getIntermediateGraphDegree());
-    return datasetSize + Math.max(nnDevicePeak, optimizePeak);
+    return (long) ((datasetSize + Math.max(nnDevicePeak, optimizePeak)) * 1.25);
   }
 
   private long estimateIVFPQIndexBuildPeakMemory(
@@ -218,7 +225,6 @@ public class CuvsResourcesManager {
     assert sp != null;
 
     final int sIdx = 4;
-    long datasetSize = rows * dimension * Float.BYTES;
 
     double trainsetRatio =
         Math.max(1, rows / Math.max((ip.getKmeansTrainsetFraction() * rows), ip.getnLists()));
@@ -236,10 +242,11 @@ public class CuvsResourcesManager {
 
     long optimizePeak = rows * (4 + (sIdx + 1) * params.getIntermediateGraphDegree());
 
-    return datasetSize
-        + LongStream.of((long) Math.ceil(ivfPQBuildPeak), ivfPQSearchPeak, optimizePeak)
-            .max()
-            .getAsLong();
+    return (long)
+        (LongStream.of((long) Math.ceil(ivfPQBuildPeak), ivfPQSearchPeak, optimizePeak)
+                .max()
+                .getAsLong()
+            * 1.25);
   }
 
   /**
