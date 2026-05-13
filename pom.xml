@@ -112,9 +112,10 @@
         <artifactId>maven-assembly-plugin</artifactId>
         <version>3.6.0</version>
         <configuration>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
+          <descriptors>
+            <descriptor>src/main/assembly/jar-with-dependencies.xml</descriptor>
+            <descriptor>src/main/assembly/jar-with-pylucene-dependencies.xml</descriptor>
+          </descriptors>
         </configuration>
         <executions>
           <execution>

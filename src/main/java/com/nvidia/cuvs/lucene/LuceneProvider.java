@@ -8,7 +8,9 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.lucene.codecs.Codec;
@@ -79,7 +81,7 @@ public class LuceneProvider {
   private static String luceneCodec = BASE + codecs + "Lucene<version>Codec";
   private static String luceneCodecFallback = BASE + fallbackCodecs + "Lucene<version>Codec";
 
-  private static LuceneProvider instance;
+  private static final Map<String, LuceneProvider> INSTANCES = new HashMap<>();
 
   private static MethodHandles.Lookup lookup = MethodHandles.lookup();
 
@@ -92,9 +94,12 @@ public class LuceneProvider {
   private Class<?> scalarQuantizedVectorsFormat;
   private Class<?> hnswScalarQuantizedVectorsFormat;
 
-  public static LuceneProvider getInstance(String version) throws ClassNotFoundException {
+  public static synchronized LuceneProvider getInstance(String version)
+      throws ClassNotFoundException {
+    LuceneProvider instance = INSTANCES.get(version);
     if (instance == null) {
       instance = new LuceneProvider(version);
+      INSTANCES.put(version, instance);
     }
     return instance;
   }
@@ -171,6 +176,21 @@ public class LuceneProvider {
         loadClass(setVersion(luceneCodec, version), setVersion(luceneCodecFallback, version));
     Constructor<?> codecClassConstructor = codecClass.getConstructor();
     return (Codec) codecClassConstructor.newInstance();
+  }
+
+  public static Codec getDefaultDelegateCodec() {
+    for (String version : List.of("101", "99")) {
+      try {
+        return getCodec(version);
+      } catch (ReflectiveOperationException
+          | SecurityException
+          | IllegalArgumentException
+          | LinkageError e) {
+        log.log(Level.FINE, "Unable to load Lucene" + version + "Codec", e);
+      }
+    }
+    log.log(Level.FINE, "Falling back to the runtime default codec");
+    return Codec.getDefault();
   }
 
   public FlatVectorsFormat getLuceneFlatVectorsFormatInstance(FlatVectorsScorer scorer)
