@@ -229,21 +229,38 @@ public class AcceleratedHNSWUtils {
   }
 
   /**
+   * Version at which Lucene uses GroupVarInt for HNSW neighbor encoding (1 in 10.3.x). When format
+   * version >= this value, neighbors are written with {@link IndexOutput#writeGroupVInts(int[],
+   * int)} for compatibility with Lucene99HnswVectorsReader.
+   */
+  private static final int VERSION_GROUPVARINT = 1;
+
+  private static int[] getSortedNodes(NodesIterator nodesOnLevel) {
+    int[] nodes = new int[nodesOnLevel.size()];
+    int consumed = nodesOnLevel.consume(nodes);
+    assert consumed == nodesOnLevel.size();
+    Arrays.sort(nodes);
+    return nodes;
+  }
+
+  /**
    * Returns a 2D array of offsets (information written while writing the meta info)
    *
    * @param graph instance of GPUBuiltHnswGraph
    * @param vectorIndex instance of IndexOutput
+   * @param version format version (e.g. Lucene99HnswVectorsFormat.VERSION_CURRENT). When >= {@link
+   *     #VERSION_GROUPVARINT}, neighbors are written with GroupVarInt for Lucene 10.3.x compat.
    * @return a 2D array of offsets
    * @throws IOException I/O Exceptions
    */
-  public static int[][] writeGraph(GPUBuiltHnswGraph graph, IndexOutput vectorIndex)
+  public static int[][] writeGraph(GPUBuiltHnswGraph graph, IndexOutput vectorIndex, int version)
       throws IOException {
     // write vectors' neighbors on each level into the vectorIndex file
     int countOnLevel0 = graph.size();
     int[][] offsets = new int[graph.numLevels()][];
     int[] scratch = new int[graph.maxConn() * 2];
     for (int level = 0; level < graph.numLevels(); level++) {
-      int[] sortedNodes = NodesIterator.getSortedNodes(graph.getNodesOnLevel(level));
+      int[] sortedNodes = getSortedNodes(graph.getNodesOnLevel(level));
       offsets[level] = new int[sortedNodes.length];
       int nodeOffsetId = 0;
 
@@ -276,9 +293,13 @@ public class AcceleratedHNSWUtils {
         }
         // Write the size after duplicates are removed
         vectorIndex.writeVInt(actualSize);
-        // Write de-duplicated neighbors
-        for (int i = 0; i < actualSize; i++) {
-          vectorIndex.writeVInt(scratch[i]);
+        // Write de-duplicated neighbors (GroupVarInt when version >= 1 for Lucene 10.3.x compat)
+        if (version >= VERSION_GROUPVARINT) {
+          vectorIndex.writeGroupVInts(scratch, actualSize);
+        } else {
+          for (int i = 0; i < actualSize; i++) {
+            vectorIndex.writeVInt(scratch[i]);
+          }
         }
         offsets[level][nodeOffsetId++] =
             Math.toIntExact(vectorIndex.getFilePointer() - offsetStart);

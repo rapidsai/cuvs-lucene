@@ -39,6 +39,11 @@ public class TestLucene99AcceleratedHNSWVectorsFormat extends BaseKnnVectorsForm
     return TestUtil.alwaysKnnVectorsFormat(new Lucene99AcceleratedHNSWVectorsFormat());
   }
 
+  @Override
+  protected boolean supportsFloatVectorFallback() {
+    return false;
+  }
+
   public void testMergeTwoSegsWithASingleDocPerSeg() throws Exception {
     float[][] f = new float[][] {randomVector(384), randomVector(384)};
     try (Directory dir = newDirectory();

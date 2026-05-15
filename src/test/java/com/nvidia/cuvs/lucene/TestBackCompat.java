@@ -35,7 +35,8 @@ public class TestBackCompat {
   public void testExistingComponents() throws Exception {
     LuceneProvider provider = LuceneProvider.getInstance("99");
     assertTrue(provider.getLuceneFlatVectorsFormatInstance(null) instanceof FlatVectorsFormat);
-    assertEquals(provider.getStaticIntParam("VERSION_CURRENT"), 0);
+    // Lucene 10.4: Lucene99HnswVectorsFormat.VERSION_CURRENT == 1 (GroupVarInt graph encoding).
+    assertEquals(1, provider.getStaticIntParam("VERSION_CURRENT"));
     assertNotEquals(provider.getSimilarityFunctions().size(), 0);
   }
 }
