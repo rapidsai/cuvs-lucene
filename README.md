@@ -60,8 +60,14 @@ export LD_LIBRARY_PATH={ PATH TO YOUR LOCAL libcuvs_c.so }:$LD_LIBRARY_PATH && m
 The snippet below plugs the GPU-accelerated HNSW codec into a standard Lucene `IndexWriter`. Once the codec is set on the `IndexWriterConfig`, indexing proceeds exactly as it would with the default Lucene codec, and search uses the stock `KnnFloatVectorQuery`:
 
 ```java
+package com.nvidia.cuvs.lucene.examples;
+
+import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
+
 import com.nvidia.cuvs.lucene.AcceleratedHNSWParams;
 import com.nvidia.cuvs.lucene.Lucene101AcceleratedHNSWCodec;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.KnnFloatVectorField;
@@ -70,17 +76,23 @@ import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
-import static org.apache.lucene.index.VectorSimilarityFunction.EUCLIDEAN;
+public class ReadmeSnippet {
+  public static void main(String[] args) throws Exception {
+    AcceleratedHNSWParams params = new AcceleratedHNSWParams.Builder().build();
+    Codec codec = new Lucene101AcceleratedHNSWCodec(params);
+    IndexWriterConfig config = new IndexWriterConfig().setCodec(codec);
 
-AcceleratedHNSWParams params = new AcceleratedHNSWParams.Builder().build();
-Codec codec = new Lucene101AcceleratedHNSWCodec(params);
-IndexWriterConfig config = new IndexWriterConfig().setCodec(codec);
+    Path indexPath = Paths.get("index");
+    float[] embedding = new float[] {0.1f, 0.2f, 0.3f, 0.4f};
 
-try (Directory dir = FSDirectory.open(indexPath);
-    IndexWriter writer = new IndexWriter(dir, config)) {
-  Document doc = new Document();
-  doc.add(new KnnFloatVectorField("vector_field", embedding, EUCLIDEAN));
-  writer.addDocument(doc);
+    try (Directory dir = FSDirectory.open(indexPath);
+        IndexWriter writer = new IndexWriter(dir, config)) {
+      Document doc = new Document();
+      doc.add(new KnnFloatVectorField("vector_field", embedding, EUCLIDEAN));
+      writer.addDocument(doc);
+    }
+    System.out.println("README snippet ran successfully.");
+  }
 }
 ```
 
