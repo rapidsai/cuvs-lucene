@@ -11,6 +11,7 @@ import com.nvidia.cuvs.CagraQuery;
 import com.nvidia.cuvs.CagraSearchParams;
 import com.nvidia.cuvs.CuVSMatrix;
 import com.nvidia.cuvs.CuVSResources;
+import com.nvidia.cuvs.FilterBitsetHandle;
 import com.nvidia.cuvs.MultiSegmentCagraSearch;
 import com.nvidia.cuvs.MultiSegmentSearchResults;
 import java.io.IOException;
@@ -22,6 +23,7 @@ import java.util.List;
 import org.apache.lucene.codecs.KnnVectorsReader;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.FilterLeafReader;
+import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.DocIdSetIterator;
@@ -39,13 +41,13 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.Weight;
 import org.apache.lucene.search.knn.KnnCollectorManager;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.FixedBitSet;
 
 /**
  * Extends {@link KnnFloatVectorQuery} for GPU-only search.
  *
  * <p>When all index segments use {@link CuVS2510GPUVectorsReader} and the query uses CAGRA
- * (k&nbsp;&le;&nbsp;1024, no explicit filter), {@link #rewrite} runs a globally-optimized
- * multi-segment search:
+ * (k&nbsp;&le;&nbsp;1024), {@link #rewrite} runs a globally-optimized multi-segment search:
  * <ol>
  *   <li>All per-segment CAGRA searches write into a single shared device buffer without any
  *       per-segment device-to-host copy or stream synchronization.</li>
@@ -53,9 +55,13 @@ import org.apache.lucene.util.Bits;
  *   <li>Results are copied to host in one pass and mapped to Lucene doc IDs.</li>
  * </ol>
  *
- * <p>Falls back to the standard per-segment Lucene path when the optimized path cannot be
- * applied (mixed segment types, explicit query filter, k&nbsp;&gt;&nbsp;1024, brute-force
- * fallback needed, or missing CAGRA index).
+ * <p>When an explicit {@code filter} query is present, each segment's matching doc IDs are
+ * intersected with {@code liveDocs} and packed into a combined bitset transferred to the GPU once
+ * per unique (filter, reader-state, field) triple via {@link FilterBitsetCache}.
+ *
+ * <p>Falls back to the standard per-segment Lucene path when the optimized path cannot be applied
+ * (mixed segment types, k&nbsp;&gt;&nbsp;1024, brute-force fallback needed, or missing CAGRA
+ * index).
  *
  * @since 25.10
  */
@@ -65,6 +71,7 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
   private final int searchWidth;
   private final int threadBlockSize;
   private final CagraSearchParams.SearchAlgo searchAlgo;
+
   /**
    * Initializes {@link GPUKnnFloatVectorQuery} with {@link CagraSearchParams.SearchAlgo#AUTO},
    * and max_iterations auto-selected (0).
@@ -115,11 +122,6 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
 
   @Override
   public Query rewrite(IndexSearcher indexSearcher) throws IOException {
-    // Only apply the optimized path when there is no explicit filter.
-    // Live-document filtering (deletions) is handled via acceptDocs below.
-    if (filter != null) {
-      return super.rewrite(indexSearcher);
-    }
     // CAGRA search is capped at k=1024.
     if (k > 1024) {
       return super.rewrite(indexSearcher);
@@ -157,6 +159,13 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
     int maxIterations =
         computeMaxIterations(Math.max(iTopK, k), searchWidth, maxDatasetSize, graphDegree);
 
+    // Build filter handle when an explicit filter query is present.
+    // The handle encodes (filter ∩ liveDocs) per segment and is cached by reader state.
+    FilterBitsetHandle filterHandle = null;
+    if (filter != null) {
+      filterHandle = buildOrGetCachedFilterHandle(indexSearcher, leaves, gpuReaders);
+    }
+
     // Build one CagraIndex + CagraQuery per segment.
     CuVSResources resources = getCuVSResourcesInstance();
     List<CagraIndex> cagraIndices = new ArrayList<>(leaves.size());
@@ -184,16 +193,30 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
           LeafReaderContext ctx = leaves.get(i);
           cagraIndices.add(gpuReaders.get(i).getCagraIndexForField(field));
 
-          // Pass live-document bits as the prefilter so deleted docs are excluded.
-          Bits liveDocs = ctx.reader().getLiveDocs();
-          CagraQuery query =
-              buildCagraQuery(
-                  resources, queryVector, k, searchParams, liveDocs, gpuReaders.get(i), ctx);
+          CagraQuery query;
+          if (filterHandle != null) {
+            // Filter (and liveDocs) are encoded in the handle; no per-query prefilter.
+            query =
+                new CagraQuery.Builder(resources)
+                    .withTopK(k)
+                    .withSearchParams(searchParams)
+                    .withQueryVectors(queryVector)
+                    .build();
+          } else {
+            // No explicit filter; pass live-document bits as the prefilter.
+            Bits liveDocs = ctx.reader().getLiveDocs();
+            query =
+                buildCagraQuery(
+                    resources, queryVector, k, searchParams, liveDocs, gpuReaders.get(i), ctx);
+          }
           cagraQueries.add(query);
         }
 
         MultiSegmentSearchResults results =
-            MultiSegmentCagraSearch.search(resources, cagraIndices, cagraQueries, k);
+            filterHandle != null
+                ? MultiSegmentCagraSearch.search(
+                    resources, cagraIndices, cagraQueries, k, filterHandle)
+                : MultiSegmentCagraSearch.search(resources, cagraIndices, cagraQueries, k);
 
         if (results.count() == 0) {
           return new MatchNoDocsQuery();
@@ -226,7 +249,7 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
   }
 
   // -------------------------------------------------------------------------
-  // Per-segment fallback path (used when filter != null or k > 1024)
+  // Per-segment fallback path (used when k > 1024 or not all GPU segments)
   // -------------------------------------------------------------------------
 
   @Override
@@ -238,14 +261,151 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
       throws IOException {
     GPUPerLeafCuVSKnnCollector results =
         new GPUPerLeafCuVSKnnCollector(
-            k,
-            visitedLimit,
-            iTopK,
-            searchWidth,
-            threadBlockSize,
-            searchAlgo);
+            k, visitedLimit, iTopK, searchWidth, threadBlockSize, searchAlgo);
     context.reader().searchNearestVectors(field, getTargetCopy(), results, acceptDocs);
     return results.topDocs();
+  }
+
+  // -------------------------------------------------------------------------
+  // Filter handle construction
+  // -------------------------------------------------------------------------
+
+  /**
+   * Returns a {@link FilterBitsetHandle} encoding ({@link #filter} ∩ liveDocs) for every segment,
+   * pulling from {@link FilterBitsetCache} when the reader state is unchanged.
+   *
+   * <p>Cache key uses per-reader keys (not just core keys) so that liveDocs changes — which happen
+   * when a reader is reopened after deletes — automatically invalidate the cached bitset.
+   */
+  private FilterBitsetHandle buildOrGetCachedFilterHandle(
+      IndexSearcher indexSearcher,
+      List<LeafReaderContext> leaves,
+      List<CuVS2510GPUVectorsReader> gpuReaders)
+      throws IOException {
+
+    List<Object> segReaderKeys = new ArrayList<>(leaves.size());
+    for (LeafReaderContext ctx : leaves) {
+      var helper = ctx.reader().getReaderCacheHelper();
+      if (helper == null) {
+        // This reader can't be cached; build without caching.
+        return buildFilterHandle(indexSearcher, leaves, gpuReaders);
+      }
+      segReaderKeys.add(helper.getKey());
+    }
+
+    FilterBitsetHandle cached = FilterBitsetCache.get(filter, segReaderKeys, field);
+    if (cached != null) return cached;
+
+    FilterBitsetHandle handle = buildFilterHandle(indexSearcher, leaves, gpuReaders);
+    FilterBitsetCache.put(filter, segReaderKeys, field, handle);
+    return handle;
+  }
+
+  /**
+   * Evaluates {@link #filter} per segment, intersects with liveDocs, and packs the result into a
+   * new {@link FilterBitsetHandle}.
+   */
+  private FilterBitsetHandle buildFilterHandle(
+      IndexSearcher indexSearcher,
+      List<LeafReaderContext> leaves,
+      List<CuVS2510GPUVectorsReader> gpuReaders)
+      throws IOException {
+
+    Weight filterWeight =
+        indexSearcher.createWeight(
+            indexSearcher.rewrite(filter), ScoreMode.COMPLETE_NO_SCORES, 1.0f);
+
+    int numSegments = leaves.size();
+    long[] segBitOffsets = new long[numSegments];
+    long totalBits = 0;
+    for (int i = 0; i < numSegments; i++) {
+      segBitOffsets[i] = totalBits;
+      int numOrds = gpuReaders.get(i).getFloatVectorValues(field).size();
+      totalBits += ((long) (numOrds + 63) / 64) * 64;
+    }
+    long[] combinedLongs = new long[(int) (totalBits / 64)];
+
+    for (int i = 0; i < numSegments; i++) {
+      LeafReaderContext ctx = leaves.get(i);
+      Bits liveDocs = ctx.reader().getLiveDocs();
+      Bits acceptDocs = evalFilter(filterWeight, ctx, liveDocs);
+      FloatVectorValues fvv = gpuReaders.get(i).getFloatVectorValues(field);
+      Bits acceptedOrds = fvv.getAcceptOrds(acceptDocs);
+      int numOrds = fvv.size();
+      int longOffset = (int) (segBitOffsets[i] / 64);
+      packOrdsToLongs(acceptedOrds, numOrds, combinedLongs, longOffset);
+    }
+
+    return new FilterBitsetHandle(combinedLongs, segBitOffsets, totalBits);
+  }
+
+  /**
+   * Evaluates {@code filterWeight} in {@code ctx} and intersects with {@code liveDocs}.
+   * Returns a {@link Bits} over local doc IDs where {@code get(doc)} is true for accepted docs.
+   */
+  private static Bits evalFilter(Weight filterWeight, LeafReaderContext ctx, Bits liveDocs)
+      throws IOException {
+    ScorerSupplier scorerSupplier = filterWeight.scorerSupplier(ctx);
+    if (scorerSupplier == null) {
+      int maxDoc = ctx.reader().maxDoc();
+      return new Bits() {
+        @Override
+        public boolean get(int i) {
+          return false;
+        }
+
+        @Override
+        public int length() {
+          return maxDoc;
+        }
+      };
+    }
+
+    int maxDoc = ctx.reader().maxDoc();
+    FixedBitSet filterBits = new FixedBitSet(maxDoc);
+    Scorer scorer = scorerSupplier.get(Long.MAX_VALUE);
+    DocIdSetIterator it = scorer.iterator();
+    int doc;
+    while ((doc = it.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
+      filterBits.set(doc);
+    }
+
+    if (liveDocs == null) return filterBits;
+
+    // Intersect: accept only docs that pass both filter and liveDocs.
+    return new Bits() {
+      @Override
+      public boolean get(int i) {
+        return filterBits.get(i) && liveDocs.get(i);
+      }
+
+      @Override
+      public int length() {
+        return maxDoc;
+      }
+    };
+  }
+
+  /**
+   * Packs {@code numOrds} ordinal bits from {@code bits} into {@code dest} starting at long index
+   * {@code destLongOffset}. {@code bits == null} means all ordinals accepted (Lucene convention).
+   */
+  private static void packOrdsToLongs(Bits bits, int numOrds, long[] dest, int destLongOffset) {
+    if (bits == null) {
+      // All ordinals accepted: fill with all-ones, masking the last partial word.
+      int numLongs = (numOrds + 63) / 64;
+      Arrays.fill(dest, destLongOffset, destLongOffset + numLongs, -1L);
+      int tail = numOrds % 64;
+      if (tail != 0) {
+        dest[destLongOffset + numLongs - 1] = (1L << tail) - 1L;
+      }
+      return;
+    }
+    for (int i = 0; i < numOrds; i++) {
+      if (bits.get(i)) {
+        dest[destLongOffset + i / 64] |= (1L << (i % 64));
+      }
+    }
   }
 
   // -------------------------------------------------------------------------

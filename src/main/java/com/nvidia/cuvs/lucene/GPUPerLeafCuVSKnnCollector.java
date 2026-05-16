@@ -57,5 +57,4 @@ class GPUPerLeafCuVSKnnCollector extends TopKnnCollector {
   public CagraSearchParams.SearchAlgo getSearchAlgo() {
     return searchAlgo;
   }
-
 }
