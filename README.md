@@ -27,7 +27,7 @@ Four codecs are currently provided:
 - [CUDA 12.0+](https://developer.nvidia.com/cuda-toolkit-archive)
 - [JDK 22](https://jdk.java.net/archive/)
 - [Maven 3.9.6+](https://maven.apache.org/download.cgi)
-- The native `libcuvs_c.so` on the runtime library path. Please see the cuVS [Build and Install Guide](https://docs.rapids.ai/api/cuvs/nightly/build/) for install options (conda, pip, tarball, or build from source).
+- A compatible cuVS installation (26.04 - 26.06). For Maven usage, install the cuVS tarball and add it to your system library load path. See the cuVS [tarball install instructions](https://docs.rapids.ai/api/cuvs/stable/build/#download-extract).
 
 ### Maven
 
@@ -49,15 +49,19 @@ cd cuvs-lucene
 mvn clean compile package
 ```
 
-The resulting artifacts are written to `target/`. To run the tests, point `LD_LIBRARY_PATH` at a local `libcuvs_c.so`:
+The resulting artifacts are written to `target/`. To run the tests, first install cuVS and add it to your system library load path, as described in the cuVS [tarball install instructions](https://docs.rapids.ai/api/cuvs/stable/build/#download-extract), then run:
 
 ```sh
-export LD_LIBRARY_PATH={ PATH TO YOUR LOCAL libcuvs_c.so }:$LD_LIBRARY_PATH && mvn clean test
+mvn clean test
 ```
 
 ## Getting Started
 
-The snippet below plugs the GPU-accelerated HNSW codec into a standard Lucene `IndexWriter`. Once the codec is set on the `IndexWriterConfig`, indexing proceeds exactly as it would with the default Lucene codec, and search uses the stock `KnnFloatVectorQuery`:
+The example below plugs the GPU-accelerated HNSW codec into a standard Lucene `IndexWriter`. Once the codec is set on the `IndexWriterConfig`, indexing proceeds exactly as it would with the default Lucene codec, and search uses the stock `KnnFloatVectorQuery`.
+
+Before running it, make sure cuVS is installed and available on your system library load path. The cuVS [tarball install instructions](https://docs.rapids.ai/api/cuvs/stable/build/#download-extract) show how to set this up.
+
+In a Maven project that includes the `cuvs-lucene` dependency shown above, create `src/main/java/com/nvidia/cuvs/lucene/examples/HelloCuvsLucene.java`:
 
 ```java
 package com.nvidia.cuvs.lucene.examples;
@@ -76,7 +80,7 @@ import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
-public class ReadmeSnippet {
+public class HelloCuvsLucene {
   public static void main(String[] args) throws Exception {
     AcceleratedHNSWParams params = new AcceleratedHNSWParams.Builder().build();
     Codec codec = new Lucene101AcceleratedHNSWCodec(params);
@@ -91,12 +95,20 @@ public class ReadmeSnippet {
       doc.add(new KnnFloatVectorField("vector_field", embedding, EUCLIDEAN));
       writer.addDocument(doc);
     }
-    System.out.println("README snippet ran successfully.");
+
+    System.out.println("Hello cuVS Lucene ran successfully.");
   }
 }
 ```
 
-For fully runnable versions of this example, including one that indexes and searches entirely on the GPU using `CuVS2510GPUSearchCodec`, please refer to the [`examples/`](examples) directory.
+Run it:
+
+```sh
+mvn -q compile org.codehaus.mojo:exec-maven-plugin:3.5.1:java \
+  -Dexec.mainClass=com.nvidia.cuvs.lucene.examples.HelloCuvsLucene
+```
+
+For more examples, including one that indexes and searches entirely on the GPU using `CuVS2510GPUSearchCodec`, please refer to the [`examples/`](examples) directory.
 
 ## Contributing
 
