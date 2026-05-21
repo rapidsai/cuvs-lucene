@@ -35,7 +35,7 @@ public class LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVector
 
   static {
     try {
-      LUCENE_PROVIDER = LuceneProvider.getInstance("104");
+      LUCENE_PROVIDER = LuceneProvider.getInstance(LuceneProvider.LUCENE_CODEC_LINE);
       FLAT_VECTORS_FORMAT =
           LUCENE_PROVIDER.getLuceneFlatVectorsFormatInstance(DefaultFlatVectorScorer.INSTANCE);
     } catch (Exception e) {
@@ -77,14 +77,13 @@ public class LuceneAcceleratedHNSWBinaryQuantizedVectorsFormat extends KnnVector
           state, acceleratedHNSWParams, flatWriter);
     } else {
       try {
-        // Fallback to Lucene's Lucene102HnswBinaryQuantizedVectorsFormat format
+        // Lucene 10.4: binary-quantized HNSW lives in backward_codecs.lucene102
         log.log(
             Level.WARNING,
             "GPU based indexing not supported, falling back to using the"
-                + " Lucene104HnswBinaryQuantizedVectorsFormat");
+                + " Lucene102HnswBinaryQuantizedVectorsFormat (backward-codecs)");
         KnnVectorsFormat fallbackFormat =
-            LUCENE_PROVIDER.getLuceneHnswBinaryQuantizedVectorsFormatInstance(
-                acceleratedHNSWParams.getMaxConn(), acceleratedHNSWParams.getBeamWidth());
+            LUCENE_PROVIDER.getLuceneHnswBinaryQuantizedVectorsFormatInstance();
         return fallbackFormat.fieldsWriter(state);
       } catch (Exception e) {
         throw new RuntimeException(e.getMessage());

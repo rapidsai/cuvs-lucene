@@ -43,7 +43,7 @@ public class AcceleratedHNSWUtils {
 
   static {
     try {
-      LUCENE_PROVIDER = LuceneProvider.getInstance("99");
+      LUCENE_PROVIDER = LuceneProvider.getInstance(LuceneProvider.LUCENE_FLOAT_HNSW_LINE);
       VECTOR_SIMILARITY_FUNCTIONS = LUCENE_PROVIDER.getSimilarityFunctions();
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e.getMessage());
@@ -230,13 +230,6 @@ public class AcceleratedHNSWUtils {
     return CuVSMatrix.ofArray(remappedAdjacency);
   }
 
-  /**
-   * Version at which Lucene uses GroupVarInt for HNSW neighbor encoding (1 in 10.3.x). When format
-   * version >= this value, neighbors are written with {@link IndexOutput#writeGroupVInts(int[],
-   * int)} for compatibility with Lucene99HnswVectorsReader.
-   */
-  private static final int VERSION_GROUPVARINT = 1;
-
   private static int[] getSortedNodes(NodesIterator nodesOnLevel) {
     int[] nodes = new int[nodesOnLevel.size()];
     int consumed = nodesOnLevel.consume(nodes);
@@ -246,16 +239,16 @@ public class AcceleratedHNSWUtils {
   }
 
   /**
-   * Returns a 2D array of offsets (information written while writing the meta info)
+   * Returns a 2D array of offsets (information written while writing the meta info). Neighbor ids
+   * are written with {@link IndexOutput#writeGroupVInts(int[], int)} to match Apache Lucene 10.4
+   * {@code Lucene99HnswVectorsFormat} (GroupVarInt encoding).
    *
    * @param graph instance of GPUBuiltHnswGraph
    * @param vectorIndex instance of IndexOutput
-   * @param version format version (e.g. Lucene99HnswVectorsFormat.VERSION_CURRENT). When >= {@link
-   *     #VERSION_GROUPVARINT}, neighbors are written with GroupVarInt for Lucene 10.3.x compat.
    * @return a 2D array of offsets
    * @throws IOException I/O Exceptions
    */
-  public static int[][] writeGraph(GPUBuiltHnswGraph graph, IndexOutput vectorIndex, int version)
+  public static int[][] writeGraph(GPUBuiltHnswGraph graph, IndexOutput vectorIndex)
       throws IOException {
     // write vectors' neighbors on each level into the vectorIndex file
     int countOnLevel0 = graph.size();
@@ -295,14 +288,7 @@ public class AcceleratedHNSWUtils {
         }
         // Write the size after duplicates are removed
         vectorIndex.writeVInt(actualSize);
-        // Write de-duplicated neighbors (GroupVarInt when version >= 1 for Lucene 10.3.x compat)
-        if (version >= VERSION_GROUPVARINT) {
-          vectorIndex.writeGroupVInts(scratch, actualSize);
-        } else {
-          for (int i = 0; i < actualSize; i++) {
-            vectorIndex.writeVInt(scratch[i]);
-          }
-        }
+        vectorIndex.writeGroupVInts(scratch, actualSize);
         offsets[level][nodeOffsetId++] =
             Math.toIntExact(vectorIndex.getFilePointer() - offsetStart);
       }

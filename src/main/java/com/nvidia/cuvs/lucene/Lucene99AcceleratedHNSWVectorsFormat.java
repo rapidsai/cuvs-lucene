@@ -40,7 +40,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
 
   static {
     try {
-      LUCENE_PROVIDER = LuceneProvider.getInstance("99");
+      LUCENE_PROVIDER = LuceneProvider.getInstance(LuceneProvider.LUCENE_FLOAT_HNSW_LINE);
       FLAT_VECTORS_FORMAT =
           LUCENE_PROVIDER.getLuceneFlatVectorsFormatInstance(DefaultFlatVectorScorer.INSTANCE);
     } catch (Exception e) {
