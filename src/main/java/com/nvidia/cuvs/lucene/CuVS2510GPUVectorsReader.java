@@ -70,7 +70,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
 
   static {
     try {
-      LUCENE_PROVIDER = LuceneProvider.getInstance("99");
+      LUCENE_PROVIDER = LuceneProvider.getInstance(LuceneProvider.LUCENE_FLOAT_HNSW_LINE);
       VECTOR_SIMILARITY_FUNCTIONS = LUCENE_PROVIDER.getSimilarityFunctions();
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e.getMessage());

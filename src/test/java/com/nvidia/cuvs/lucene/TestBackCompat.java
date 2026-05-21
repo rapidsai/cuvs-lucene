@@ -21,8 +21,8 @@ public class TestBackCompat {
 
   @Test
   public void testFallback() throws Exception {
-    // Lucene99Codec exists in the org.apache.lucene.backward_codecs.lucene99
-    Codec c = LuceneProvider.getCodec("99");
+    // Lucene 10.4 backward-codecs: Lucene99Codec (SPI line id matches float/HNSW package line "99")
+    Codec c = LuceneProvider.getCodec(LuceneProvider.LUCENE_FLOAT_HNSW_LINE);
     assertEquals(c.getName(), "Lucene99");
   }
 
@@ -33,7 +33,7 @@ public class TestBackCompat {
 
   @Test
   public void testExistingComponents() throws Exception {
-    LuceneProvider provider = LuceneProvider.getInstance("99");
+    LuceneProvider provider = LuceneProvider.getInstance(LuceneProvider.LUCENE_FLOAT_HNSW_LINE);
     assertTrue(provider.getLuceneFlatVectorsFormatInstance(null) instanceof FlatVectorsFormat);
     // Lucene 10.4: Lucene99HnswVectorsFormat.VERSION_CURRENT == 1 (GroupVarInt graph encoding).
     assertEquals(1, provider.getStaticIntParam("VERSION_CURRENT"));

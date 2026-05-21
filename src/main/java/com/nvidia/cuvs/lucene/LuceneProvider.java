@@ -27,13 +27,24 @@ import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.search.TaskExecutor;
 
 /**
- * Dynamically loads Lucene format, reader, and writer classes with a fallback mechanism.
+ * Reflectively loads Lucene codec and vector format classes. This module targets <strong>Apache
+ * Lucene 10.4.x</strong> only ({@link #LUCENE_CODEC_LINE} / {@link #LUCENE_FLOAT_HNSW_LINE}).
  *
  * @since 25.12
  */
 public class LuceneProvider {
 
   static final Logger log = Logger.getLogger(LuceneProvider.class.getName());
+
+  /** Lucene {@code Codec} SPI line id for the Lucene 10.4 core delegate (e.g. {@code Lucene104Codec}). */
+  public static final String LUCENE_CODEC_LINE = "104";
+
+  /**
+   * Lucene 10.4 keeps float HNSW and the default {@code FlatVectorsFormat} under {@code
+   * codecs.lucene99} (there is no {@code Lucene104FlatVectorsFormat} / {@code Lucene104HnswVectors*}
+   * in {@code lucene-core}).
+   */
+  public static final String LUCENE_FLOAT_HNSW_LINE = "99";
 
   private static final String BASE = "org.apache.lucene.";
   private static String codecs = "codecs.lucene<version>.";
@@ -58,16 +69,6 @@ public class LuceneProvider {
       BASE + codecs + "Lucene<version>HnswVectorsWriter";
   private static String luceneHnswVectorsWriterFallback =
       BASE + fallbackCodecs + "Lucene<version>HnswVectorsWriter";
-
-  private static String luceneBinaryQuantizedVectorsFormat =
-      BASE + codecs + "Lucene<version>BinaryQuantizedVectorsFormat";
-  private static String luceneBinaryQuantizedVectorsFormatFallback =
-      BASE + fallbackCodecs + "Lucene<version>BinaryQuantizedVectorsFormat";
-
-  private static String luceneHnswBinaryQuantizedVectorsFormat =
-      BASE + codecs + "Lucene<version>HnswBinaryQuantizedVectorsFormat";
-  private static String luceneHnswBinaryQuantizedVectorsFormatFallback =
-      BASE + fallbackCodecs + "Lucene<version>HnswBinaryQuantizedVectorsFormat";
 
   private static String luceneScalarQuantizedVectorsFormat =
       BASE + codecs + "Lucene<version>ScalarQuantizedVectorsFormat";
@@ -115,16 +116,24 @@ public class LuceneProvider {
   }
 
   private LuceneProvider(String version) throws ClassNotFoundException {
-    // Lucene 10.4 still stores float HNSW and the default FlatVectorsFormat under lucene99; there
-    // is no lucene104 Lucene104FlatVectorsFormat / Lucene104HnswVectorsFormat in lucene-core.
+    final String floatHnswPackageLine =
+        LUCENE_CODEC_LINE.equals(version) ? LUCENE_FLOAT_HNSW_LINE : version;
     flatVectorsFormat =
-        loadVectorFamilyClass(version, luceneFlatVectorsFormat, luceneFlatVectorsFormatFallback);
+        loadClass(
+            setVersion(luceneFlatVectorsFormat, floatHnswPackageLine),
+            setVersion(luceneFlatVectorsFormatFallback, floatHnswPackageLine));
     hnswVectorsFormat =
-        loadVectorFamilyClass(version, luceneHnswVectorsFormat, luceneHnswVectorsFormatFallback);
+        loadClass(
+            setVersion(luceneHnswVectorsFormat, floatHnswPackageLine),
+            setVersion(luceneHnswVectorsFormatFallback, floatHnswPackageLine));
     hnswVectorsReader =
-        loadVectorFamilyClass(version, luceneHnswVectorsReader, luceneHnswVectorsReaderFallback);
+        loadClass(
+            setVersion(luceneHnswVectorsReader, floatHnswPackageLine),
+            setVersion(luceneHnswVectorsReaderFallback, floatHnswPackageLine));
     hnswVectorsWriter =
-        loadVectorFamilyClass(version, luceneHnswVectorsWriter, luceneHnswVectorsWriterFallback);
+        loadClass(
+            setVersion(luceneHnswVectorsWriter, floatHnswPackageLine),
+            setVersion(luceneHnswVectorsWriterFallback, floatHnswPackageLine));
     scalarQuantizedVectorsFormat =
         loadClass(
             setVersion(luceneScalarQuantizedVectorsFormat, version),
@@ -135,18 +144,7 @@ public class LuceneProvider {
             setVersion(luceneHnswScalarQuantizedVectorsFormat, version),
             setVersion(luceneHnswScalarQuantizedVectorsFormatFallback, version));
 
-    // Binary-quantized storage lives under lucene102 packages. Lucene 10.4 keeps these types in
-    // backward-codecs only; there is no lucene104 BinaryQuantizedVectorsFormat.
-    if ("102".equals(version)) {
-      binaryQuantizedVectorsFormat =
-          loadClass(
-              setVersion(luceneBinaryQuantizedVectorsFormat, version),
-              setVersion(luceneBinaryQuantizedVectorsFormatFallback, version));
-      hnswBinaryQuantizedVectorsFormat =
-          loadClass(
-              setVersion(luceneHnswBinaryQuantizedVectorsFormat, version),
-              setVersion(luceneHnswBinaryQuantizedVectorsFormatFallback, version));
-    } else if ("104".equals(version)) {
+    if (LUCENE_CODEC_LINE.equals(version)) {
       final String lucene102BinaryFlat =
           BASE + "backward_codecs.lucene102.Lucene102BinaryQuantizedVectorsFormat";
       final String lucene102HnswBinary =
@@ -158,18 +156,6 @@ public class LuceneProvider {
 
   private static String setVersion(String pkg, String version) {
     return pkg.replaceAll("<version>", version);
-  }
-
-  private Class<?> loadVectorFamilyClass(String version, String primaryTpl, String fallbackTpl)
-      throws ClassNotFoundException {
-    try {
-      return loadClass(setVersion(primaryTpl, version), setVersion(fallbackTpl, version));
-    } catch (ClassNotFoundException e) {
-      if ("99".equals(version)) {
-        throw e;
-      }
-      return loadClass(setVersion(primaryTpl, "99"), setVersion(fallbackTpl, "99"));
-    }
   }
 
   private static Class<?> loadClass(String defaultClassName, String fallbackClassName)
@@ -200,6 +186,18 @@ public class LuceneProvider {
         loadClass(setVersion(luceneCodec, version), setVersion(luceneCodecFallback, version));
     Constructor<?> codecClassConstructor = codecClass.getConstructor();
     return (Codec) codecClassConstructor.newInstance();
+  }
+
+  /** Lucene 10.4 default codec delegate ({@link #LUCENE_CODEC_LINE}). */
+  public static Codec getLucene104Codec()
+      throws ClassNotFoundException,
+          NoSuchMethodException,
+          SecurityException,
+          InstantiationException,
+          IllegalAccessException,
+          IllegalArgumentException,
+          InvocationTargetException {
+    return getCodec(LUCENE_CODEC_LINE);
   }
 
   public FlatVectorsFormat getLuceneFlatVectorsFormatInstance(FlatVectorsScorer scorer)
@@ -287,22 +285,11 @@ public class LuceneProvider {
     }
   }
 
-  public KnnVectorsFormat getLuceneHnswBinaryQuantizedVectorsFormatInstance(
-      int maxConn, int beamWidth) throws Exception {
+  /** Lucene 10.4 {@code Lucene102HnswBinaryQuantizedVectorsFormat} (backward-codecs) no-arg ctor. */
+  public KnnVectorsFormat getLuceneHnswBinaryQuantizedVectorsFormatInstance() throws Exception {
     try {
-      Constructor<?> ctor =
-          hnswBinaryQuantizedVectorsFormat.getConstructor(Integer.TYPE, Integer.TYPE);
-      return (KnnVectorsFormat) ctor.newInstance(maxConn, beamWidth);
-    } catch (NoSuchMethodException ignored) {
-      try {
-        Constructor<?> ctor = hnswBinaryQuantizedVectorsFormat.getConstructor();
-        return (KnnVectorsFormat) ctor.newInstance();
-      } catch (Exception e) {
-        log.log(
-            Level.SEVERE,
-            "Unable to initialize LuceneHnswBinaryQuantizedVectorsFormat: " + e.getMessage());
-        throw e;
-      }
+      Constructor<?> ctor = hnswBinaryQuantizedVectorsFormat.getConstructor();
+      return (KnnVectorsFormat) ctor.newInstance();
     } catch (Exception e) {
       log.log(
           Level.SEVERE,
