@@ -23,7 +23,7 @@ import com.nvidia.cuvs.CagraIndex;
 import com.nvidia.cuvs.CagraIndexParams;
 import com.nvidia.cuvs.CuVSMatrix;
 import com.nvidia.cuvs.lucene.AcceleratedHNSWUtils.QuantizationType;
-import com.nvidia.cuvs.lucene.CuvsResourcesManager.ManagedCuVSResources;
+import com.nvidia.cuvs.lucene.CuVSResourcesManager.ManagedCuVSResources;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -63,7 +63,7 @@ public class LuceneAcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVector
   private final List<FieldWriter> fields = new ArrayList<>();
   private final InfoStream infoStream;
   private final AcceleratedHNSWParams acceleratedHNSWParams;
-  private final CuvsResourcesManager cuvsResourcesManager;
+  private final CuVSResourcesManager cuvsResourcesManager;
   private IndexOutput hnswMeta = null, hnswVectorIndex = null;
   private boolean finished;
   private String vemFileName;
@@ -81,7 +81,7 @@ public class LuceneAcceleratedHNSWBinaryQuantizedVectorsWriter extends KnnVector
       SegmentWriteState state,
       AcceleratedHNSWParams acceleratedHNSWParams,
       FlatVectorsWriter flatVectorsWriter,
-      CuvsResourcesManager cuvsResourcesManager)
+      CuVSResourcesManager cuvsResourcesManager)
       throws IOException {
     super();
     this.acceleratedHNSWParams = acceleratedHNSWParams;

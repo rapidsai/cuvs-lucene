@@ -29,12 +29,13 @@ import java.util.stream.LongStream;
  * Manages a pool of finite {@link ManagedCuVSResources} and allows for the accessing threads
  * to lock and acquire available instance and release them back to the pool when finished.
  */
-public class CuvsResourcesManager {
+public class CuVSResourcesManager {
 
   private static final Logger LOG = Logger.getLogger(Utils.class.getName());
   private static final CuVSProvider PROVIDER = CuVSProvider.provider();
   private static final GPUInfoProvider GPU_INFO_PROVIDER = PROVIDER.gpuInfoProvider();
   private static final int MAX_POOL_SIZE = 512;
+  private static final double ONE_G = Math.pow(1024, 3);
 
   private ManagedCuVSResources[] pool;
   private ReentrantLock lock;
@@ -44,7 +45,7 @@ public class CuvsResourcesManager {
   private int capacity;
   private CuVSResources cuVSResources;
 
-  public CuvsResourcesManager(int capacity) {
+  public CuVSResourcesManager(int capacity) {
     if (capacity > MAX_POOL_SIZE || capacity <= 0) {
       throw new IllegalArgumentException(
           "Invalid capacity, should be between 1 and " + MAX_POOL_SIZE);
@@ -191,10 +192,9 @@ public class CuvsResourcesManager {
      */
 
     final int sIdx = 4;
-    long datasetSize = rows * dimension * Float.BYTES;
     long nnDevicePeak = rows * (dimension * 2 + 276);
     long optimizePeak = rows * (4 + (sIdx + 1) * params.getIntermediateGraphDegree());
-    return (long) ((datasetSize + Math.max(nnDevicePeak, optimizePeak)) * 1.25);
+    return (long) ((Math.max(nnDevicePeak, optimizePeak)) + ONE_G);
   }
 
   private long estimateIVFPQIndexBuildPeakMemory(
@@ -246,7 +246,7 @@ public class CuvsResourcesManager {
         (LongStream.of((long) Math.ceil(ivfPQBuildPeak), ivfPQSearchPeak, optimizePeak)
                 .max()
                 .getAsLong()
-            * 1.25);
+            + (2.5 * ONE_G));
   }
 
   /**

@@ -31,7 +31,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
   private static final FlatVectorsFormat FLAT_VECTORS_FORMAT;
   private static final int MAX_DIMENSIONS = 4096;
   private final AcceleratedHNSWParams acceleratedHNSWParams;
-  private final CuvsResourcesManager cuvsResourcesManager;
+  private final CuVSResourcesManager cuvsResourcesManager;
 
   static final String HNSW_META_CODEC_NAME = "Lucene99HnswVectorsFormatMeta";
   static final String HNSW_META_CODEC_EXT = "vem";
@@ -69,7 +69,7 @@ public class Lucene99AcceleratedHNSWVectorsFormat extends KnnVectorsFormat {
     super("Lucene99AcceleratedHNSWVectorsFormat");
     this.acceleratedHNSWParams = acceleratedHNSWParams;
     if (isSupported()) {
-      cuvsResourcesManager = new CuvsResourcesManager(acceleratedHNSWParams.getWriterThreads());
+      cuvsResourcesManager = new CuVSResourcesManager(acceleratedHNSWParams.getWriterThreads());
     } else {
       cuvsResourcesManager = null; // Will not be needed in fallback mode.
     }
