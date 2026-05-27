@@ -66,6 +66,11 @@ public class GPUSearchParams extends ParamsBase {
     return indexType;
   }
 
+  @Override
+  public String toString() {
+    return super.toString() + " GPUSearchParams [indexType=" + indexType + "]";
+  }
+
   /**
    * Builder class for creating an instance of {@link GPUSearchParams}
    */

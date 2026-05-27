@@ -207,6 +207,31 @@ public class ParamsBase {
     return nnDescentNumIterations;
   }
 
+  @Override
+  public String toString() {
+    return "ParamsBase [writerThreads="
+        + writerThreads
+        + ", intermediateGraphDegree="
+        + intermediateGraphDegree
+        + ", graphdegree="
+        + graphdegree
+        + ", maxConn="
+        + maxConn
+        + ", beamWidth="
+        + beamWidth
+        + ", cagraGraphBuildAlgo="
+        + cagraGraphBuildAlgo
+        + ", cuVSIvfPqParams="
+        + cuVSIvfPqParams
+        + ", strategy="
+        + strategy
+        + ", cuvsDistanceType="
+        + cuvsDistanceType
+        + ", nnDescentNumIterations="
+        + nnDescentNumIterations
+        + "]";
+  }
+
   /**
    * Validates the base input parameters.
    *

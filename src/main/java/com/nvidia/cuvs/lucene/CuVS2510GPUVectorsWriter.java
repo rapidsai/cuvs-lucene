@@ -11,6 +11,7 @@ import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.CUVS_META_CODEC_NA
 import static com.nvidia.cuvs.lucene.CuVS2510GPUVectorsFormat.VERSION_CURRENT;
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.closeCuVSResourcesInstance;
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.getCuVSResourcesInstance;
+import static com.nvidia.cuvs.lucene.Utils.getCagraIndexParams;
 import static com.nvidia.cuvs.lucene.Utils.info;
 import static org.apache.lucene.index.VectorEncoding.FLOAT32;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
@@ -242,7 +243,7 @@ public class CuVS2510GPUVectorsWriter extends KnnVectorsWriter {
    */
   private void writeCagraIndex(OutputStream os, CuVSMatrix dataset) throws Throwable {
     CagraIndexParams params =
-        CagraIndexParamsFactory.create(gpuSearchParams, dataset.size(), dataset.columns());
+        getCagraIndexParams(gpuSearchParams, dataset.size(), dataset.columns());
     CagraIndex index =
         CagraIndex.newBuilder(getCuVSResourcesInstance())
             .withDataset(dataset)

@@ -64,6 +64,7 @@ public class AcceleratedHNSWParams extends ParamsBase {
       Strategy strategy,
       CuvsDistanceType cuvsDistanceType,
       int nnDescentNumIterations) {
+
     super(
         writerThreads,
         intermediateGraphDegree,
@@ -105,6 +106,18 @@ public class AcceleratedHNSWParams extends ParamsBase {
    */
   public ExecutorService getMergeExec() {
     return mergeExec;
+  }
+
+  @Override
+  public String toString() {
+    return super.toString()
+        + " AcceleratedHNSWParams [hnswLayers="
+        + hnswLayers
+        + ", numMergeWorkers="
+        + numMergeWorkers
+        + ", mergeExec="
+        + mergeExec
+        + "]";
   }
 
   /**
