@@ -154,7 +154,7 @@ public class CagraIndexParamsFactory {
             gPUSearchParams.getGraphdegree(),
             gPUSearchParams.getIntermediateGraphDegree(),
             gPUSearchParams.getWriterThreads(),
-            gPUSearchParams.getnNDescentNumIterations(),
+            gPUSearchParams.getNNDescentNumIterations(),
             gPUSearchParams.getCuvsDistanceType());
       } else {
         return getIVFPQParams(
@@ -172,7 +172,7 @@ public class CagraIndexParamsFactory {
           .withGraphDegree(gPUSearchParams.getGraphdegree())
           .withCagraGraphBuildAlgo(gPUSearchParams.getCagraGraphBuildAlgo())
           .withCuVSIvfPqParams(gPUSearchParams.getCuVSIvfPqParams())
-          .withNNDescentNumIterations(gPUSearchParams.getnNDescentNumIterations())
+          .withNNDescentNumIterations(gPUSearchParams.getNNDescentNumIterations())
           .build();
     }
   }
