@@ -90,8 +90,7 @@ public class AcceleratedHNSWUtils {
       QuantizationType quantization)
       throws Throwable {
 
-    // Calculate M as cagraGraphDegree/2
-    int M = graphDegree / 2;
+    int M = Math.ceilDiv(graphDegree, 2);
 
     // Store all layers data
     List<int[]> layerNodes = new ArrayList<>();
@@ -320,7 +319,7 @@ public class AcceleratedHNSWUtils {
     meta.writeVLong(vectorIndexLength);
     meta.writeVInt(field.getVectorDimension());
     meta.writeInt(count);
-    meta.writeVInt(graphDegree / 2); // M = cagraGraphDegree/2
+    meta.writeVInt(Math.ceilDiv(graphDegree, 2));
 
     // write graph nodes on each level
     if (graph == null) {
