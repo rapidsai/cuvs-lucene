@@ -194,6 +194,10 @@ public class TestCagraToHnswSerializationAndSearch extends LuceneTestCase {
 
   @After
   public void afterTest() throws Exception {
+    // If setup was skipped (e.g. cuVS not supported), @Before didn't run and indexDirPath is null.
+    if (indexDirPath == null) {
+      return;
+    }
     File indexDirPathFile = indexDirPath.toFile();
     if (indexDirPathFile.exists() && indexDirPathFile.isDirectory()) {
       FileUtils.deleteDirectory(indexDirPathFile);

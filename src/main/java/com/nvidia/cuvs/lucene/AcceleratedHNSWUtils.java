@@ -34,7 +34,8 @@ public class AcceleratedHNSWUtils {
 
   public enum QuantizationType {
     BINARY,
-    SCALAR
+    SCALAR,
+    NONE
   }
 
   private static final LuceneProvider LUCENE_PROVIDER;
@@ -42,7 +43,7 @@ public class AcceleratedHNSWUtils {
 
   static {
     try {
-      LUCENE_PROVIDER = LuceneProvider.getInstance("99");
+      LUCENE_PROVIDER = LuceneProvider.getInstance(LuceneProvider.LUCENE_FLOAT_HNSW_LINE);
       VECTOR_SIMILARITY_FUNCTIONS = LUCENE_PROVIDER.getSimilarityFunctions();
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e.getMessage());
@@ -84,7 +85,7 @@ public class AcceleratedHNSWUtils {
       int size,
       int dimensions,
       CuVSMatrix adjacencyListMatrix,
-      List<byte[]> vectors,
+      List<?> vectors,
       int hnswLayers,
       int graphDegree,
       CagraIndexParams params,
@@ -132,17 +133,32 @@ public class AcceleratedHNSWUtils {
 
       layerNodes.add(selectedNodes);
 
-      // Extract vectors for selected nodes
-      int bytesPerVector = (dimensions + 7) / 8;
-      byte[][] selectedVectors = new byte[nextLayerSize][];
-      for (int i = 0; i < nextLayerSize; i++) {
-        selectedVectors[i] = vectors.get(selectedNodes[i]);
-      }
+      if (quantization == QuantizationType.NONE) {
+        // Extract vectors for selected nodes
+        float[][] selectedVectors = new float[nextLayerSize][];
+        for (int i = 0; i < nextLayerSize; i++) {
+          selectedVectors[i] = (float[]) vectors.get(selectedNodes[i]);
+        }
 
-      // Build CAGRA graph for this layer
-      layerAdjacencies.add(
-          buildCagraGraphForSubset(
-              selectedVectors, selectedNodes, bytesPerVector, params, dimensions, quantization));
+        // Build CAGRA graph for this layer
+        layerAdjacencies.add(
+            buildCagraGraphForSubset(
+                selectedVectors, selectedNodes, 0, params, dimensions, quantization));
+
+      } else {
+
+        // Extract vectors for selected nodes
+        int bytesPerVector = (dimensions + 7) / 8;
+        byte[][] selectedVectors = new byte[nextLayerSize][];
+        for (int i = 0; i < nextLayerSize; i++) {
+          selectedVectors[i] = (byte[]) vectors.get(selectedNodes[i]);
+        }
+
+        // Build CAGRA graph for this layer
+        layerAdjacencies.add(
+            buildCagraGraphForSubset(
+                selectedVectors, selectedNodes, bytesPerVector, params, dimensions, quantization));
+      }
 
       // Update for next iteration
       currentLayerSize = nextLayerSize;
@@ -160,7 +176,7 @@ public class AcceleratedHNSWUtils {
    * Builds a CAGRA graph for a subset of binary quantized vectors
    */
   private static CuVSMatrix buildCagraGraphForSubset(
-      byte[][] vectors,
+      Object vectors,
       int[] selectedNodes,
       int bytesPerVector,
       CagraIndexParams params,
@@ -172,9 +188,12 @@ public class AcceleratedHNSWUtils {
 
     if (quantization == QuantizationType.BINARY) {
       subsetDataset =
-          createByteMatrixFromArray(vectors, bytesPerVector, getCuVSResourcesInstance());
+          createByteMatrixFromArray((byte[][]) vectors, bytesPerVector, getCuVSResourcesInstance());
+    } else if (quantization == QuantizationType.SCALAR) {
+      subsetDataset =
+          createByteMatrixFromArray((byte[][]) vectors, dimensions, getCuVSResourcesInstance());
     } else {
-      subsetDataset = createByteMatrixFromArray(vectors, dimensions, getCuVSResourcesInstance());
+      subsetDataset = CuVSMatrix.ofArray((float[][]) vectors);
     }
 
     // Build CAGRA index for the subset
@@ -211,8 +230,18 @@ public class AcceleratedHNSWUtils {
     return CuVSMatrix.ofArray(remappedAdjacency);
   }
 
+  private static int[] getSortedNodes(NodesIterator nodesOnLevel) {
+    int[] nodes = new int[nodesOnLevel.size()];
+    int consumed = nodesOnLevel.consume(nodes);
+    assert consumed == nodesOnLevel.size();
+    Arrays.sort(nodes);
+    return nodes;
+  }
+
   /**
-   * Returns a 2D array of offsets (information written while writing the meta info)
+   * Returns a 2D array of offsets (information written while writing the meta info). Neighbor ids
+   * are written with {@link IndexOutput#writeGroupVInts(int[], int)} to match Apache Lucene 10.4
+   * {@code Lucene99HnswVectorsFormat} (GroupVarInt encoding).
    *
    * @param graph instance of GPUBuiltHnswGraph
    * @param vectorIndex instance of IndexOutput
@@ -226,7 +255,7 @@ public class AcceleratedHNSWUtils {
     int[][] offsets = new int[graph.numLevels()][];
     int[] scratch = new int[graph.maxConn() * 2];
     for (int level = 0; level < graph.numLevels(); level++) {
-      int[] sortedNodes = NodesIterator.getSortedNodes(graph.getNodesOnLevel(level));
+      int[] sortedNodes = getSortedNodes(graph.getNodesOnLevel(level));
       offsets[level] = new int[sortedNodes.length];
       int nodeOffsetId = 0;
 
@@ -259,10 +288,7 @@ public class AcceleratedHNSWUtils {
         }
         // Write the size after duplicates are removed
         vectorIndex.writeVInt(actualSize);
-        // Write de-duplicated neighbors
-        for (int i = 0; i < actualSize; i++) {
-          vectorIndex.writeVInt(scratch[i]);
-        }
+        vectorIndex.writeGroupVInts(scratch, actualSize);
         offsets[level][nodeOffsetId++] =
             Math.toIntExact(vectorIndex.getFilePointer() - offsetStart);
       }

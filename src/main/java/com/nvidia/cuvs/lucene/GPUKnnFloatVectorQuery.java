@@ -7,11 +7,11 @@ package com.nvidia.cuvs.lucene;
 import java.io.IOException;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.search.AcceptDocs;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.knn.KnnCollectorManager;
-import org.apache.lucene.util.Bits;
 
 /**
  * Extends upon KnnFloatVectorQuery for GPU-only search.
@@ -43,7 +43,7 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
   @Override
   protected TopDocs approximateSearch(
       LeafReaderContext context,
-      Bits acceptDocs,
+      AcceptDocs acceptDocs,
       int visitedLimit,
       KnnCollectorManager knnCollectorManager)
       throws IOException {
