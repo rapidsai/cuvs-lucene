@@ -6,6 +6,8 @@ package com.nvidia.cuvs.lucene;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.lucene.codecs.Codec;
@@ -37,5 +39,31 @@ public class TestBackCompat {
     assertTrue(provider.getLuceneFlatVectorsFormatInstance(null) instanceof FlatVectorsFormat);
     assertEquals(provider.getStaticIntParam("VERSION_CURRENT"), 0);
     assertNotEquals(provider.getSimilarityFunctions().size(), 0);
+  }
+
+  @Test
+  public void testProviderCachesByVersion() throws Exception {
+    LuceneProvider provider99 = LuceneProvider.getInstance("99");
+    LuceneProvider provider102 = LuceneProvider.getInstance("102");
+    assertNotSame(provider99, provider102);
+  }
+
+  @Test
+  public void testDefaultDelegateCodec() {
+    assertNotNull(LuceneProvider.getDefaultDelegateCodec());
+  }
+
+  @Test
+  public void testServiceLoadedCodecsCanBeInstantiated() {
+    String[] codecNames = {
+      "Lucene101AcceleratedHNSWCodec",
+      "CuVS2510GPUSearchCodec",
+      "Lucene101AcceleratedHNSWBinaryQuantizedCodec",
+      "Lucene101AcceleratedHNSWScalarQuantizedCodec"
+    };
+    for (String codecName : codecNames) {
+      assertTrue(Codec.availableCodecs().contains(codecName));
+      assertEquals(codecName, Codec.forName(codecName).getName());
+    }
   }
 }

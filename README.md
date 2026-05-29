@@ -18,6 +18,40 @@ mvn clean compile package
 ```
 The artifacts would be built and available in the target / folder.
 
+### Using with PyLucene
+
+PyLucene embeds a JVM and starts it with the classpath passed to `lucene.initVM(...)`.
+Because PyLucene's generated Python module only exposes the Java classes it was built
+to wrap, use Lucene's service provider lookup to load `cuvs-lucene` codecs from
+Python instead of importing `com.nvidia.cuvs.lucene` classes directly.
+
+Build the PyLucene sidecar jar:
+
+```sh
+mvn clean package -DskipTests
+```
+
+Then add the generated PyLucene jar to `lucene.CLASSPATH` before starting the VM:
+
+```python
+import os
+import lucene
+
+cuvs_lucene_jar = "target/cuvs-lucene-26.06.0-jar-with-pylucene-dependencies.jar"
+lucene.initVM(classpath=os.pathsep.join([lucene.CLASSPATH, cuvs_lucene_jar]))
+
+from org.apache.lucene.codecs import Codec
+
+codec = Codec.forName("Lucene101AcceleratedHNSWCodec")
+```
+
+Use the returned `codec` with `IndexWriterConfig.setCodec(codec)`. The
+`jar-with-pylucene-dependencies` artifact includes `cuvs-lucene` and its non-Lucene
+runtime dependencies while leaving Lucene itself to PyLucene's own classpath. This
+avoids loading a second copy of Lucene classes into the embedded JVM. The regular
+`jar-with-dependencies` artifact also merges `META-INF/services` entries and is
+available for non-PyLucene Java applications that want a standalone jar.
+
 ### Running Tests
 ```sh
 export LD_LIBRARY_PATH={ PATH TO YOUR LOCAL libcuvs_c.so }:$LD_LIBRARY_PATH && mvn clean test
