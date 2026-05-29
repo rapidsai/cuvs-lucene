@@ -4,10 +4,14 @@
  */
 package com.nvidia.cuvs.lucene;
 
+import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.getCuVSProvider;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 
+import com.nvidia.cuvs.CagraIndexParams;
+import com.nvidia.cuvs.CagraIndexParams.HnswHeuristicType;
 import com.nvidia.cuvs.CuVSMatrix;
 import com.nvidia.cuvs.CuVSResources;
+import com.nvidia.cuvs.lucene.ParamsBase.Strategy;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -203,6 +207,36 @@ public class Utils {
   static void info(InfoStream infoStream, String component, String msg) {
     if (infoStream.isEnabled(component)) {
       infoStream.message(component, msg);
+    }
+  }
+
+  /**
+   * Creates an instance of {@link CagraIndexParams} based on the chosen strategy in the {@link GPUSearchParams}.
+   *
+   * @param params an instance of {@link GPUSearchParams} containing input params incoming via the build and search on the GPU API.
+   * @param rows number of vectors in the data set
+   * @param dimension the dimension of the vectors in the data set
+   * @return an instance of {@link CagraIndexParams}
+   */
+  public static CagraIndexParams getCagraIndexParams(ParamsBase params, long rows, long dimension) {
+    if (params.getStrategy().equals(Strategy.HEURISTIC)) {
+      return getCuVSProvider()
+          .cagraIndexParamsFromHnswParams(
+              rows,
+              dimension,
+              params.getMaxConn(),
+              params.getBeamWidth(),
+              HnswHeuristicType.SIMILAR_SEARCH_PERFORMANCE,
+              params.getCuvsDistanceType());
+    } else {
+      return new CagraIndexParams.Builder()
+          .withNumWriterThreads(params.getWriterThreads())
+          .withIntermediateGraphDegree(params.getIntermediateGraphDegree())
+          .withGraphDegree(params.getGraphdegree())
+          .withCagraGraphBuildAlgo(params.getCagraGraphBuildAlgo())
+          .withCuVSIvfPqParams(params.getCuVSIvfPqParams())
+          .withNNDescentNumIterations(params.getNNDescentNumIterations())
+          .build();
     }
   }
 }

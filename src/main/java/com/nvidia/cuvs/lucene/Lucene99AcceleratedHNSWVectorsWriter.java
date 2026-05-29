@@ -17,6 +17,7 @@ import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_M
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.closeCuVSResourcesInstance;
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.getCuVSResourcesInstance;
 import static com.nvidia.cuvs.lucene.Utils.createListFromMergedVectors;
+import static com.nvidia.cuvs.lucene.Utils.getCagraIndexParams;
 import static org.apache.lucene.index.VectorEncoding.FLOAT32;
 import static org.apache.lucene.util.RamUsageEstimator.shallowSizeOfInstance;
 
@@ -160,7 +161,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
               vectors, fieldInfo.getVectorDimension(), getCuVSResourcesInstance());
 
       CagraIndexParams params =
-          CagraIndexParamsFactory.create(acceleratedHNSWParams, dataset.size(), dataset.columns());
+          getCagraIndexParams(acceleratedHNSWParams, dataset.size(), dataset.columns());
 
       CagraIndex cagraIndex =
           CagraIndex.newBuilder(getCuVSResourcesInstance())
@@ -178,7 +179,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
               adjacencyListMatrix,
               vectors,
               acceleratedHNSWParams.getHnswLayers(),
-              acceleratedHNSWParams.getGraphdegree(),
+              (int) params.getGraphDegree(),
               params,
               QuantizationType.NONE);
       long vectorIndexOffset = hnswVectorIndex.getFilePointer();
@@ -193,7 +194,7 @@ public class Lucene99AcceleratedHNSWVectorsWriter extends KnnVectorsWriter {
           size,
           hnswGraph,
           graphLevelNodeOffsets,
-          acceleratedHNSWParams.getGraphdegree());
+          (int) params.getGraphDegree());
       cagraIndex.close();
     } catch (Throwable t) {
       Utils.handleThrowable(t);

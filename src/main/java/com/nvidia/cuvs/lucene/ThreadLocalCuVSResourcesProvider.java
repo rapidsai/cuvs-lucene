@@ -6,6 +6,7 @@
 package com.nvidia.cuvs.lucene;
 
 import com.nvidia.cuvs.CuVSResources;
+import com.nvidia.cuvs.spi.CuVSProvider;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -19,9 +20,15 @@ public class ThreadLocalCuVSResourcesProvider {
   private static final Logger log =
       Logger.getLogger(ThreadLocalCuVSResourcesProvider.class.getName());
   private static final ThreadLocal<CuVSResources> cuVSResources;
+  private static final CuVSProvider CUVS_PROVIDER;
 
   static {
     cuVSResources = ThreadLocal.withInitial(() -> cuVSResourcesOrNull());
+    CUVS_PROVIDER = CuVSProvider.provider();
+  }
+
+  public static CuVSProvider getCuVSProvider() {
+    return CUVS_PROVIDER;
   }
 
   /**
