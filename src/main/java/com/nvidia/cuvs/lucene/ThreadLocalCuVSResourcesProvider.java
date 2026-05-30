@@ -42,9 +42,17 @@ public class ThreadLocalCuVSResourcesProvider {
     cuVSResources.set(resources);
   }
 
+  /** System property controlling the workspace pool size per resources handle (in bytes). */
+  public static final String WORKSPACE_POOL_SIZE_PROPERTY = "com.nvidia.cuvs.workspacePoolSize";
+
   private static CuVSResources cuVSResourcesOrNull() {
     try {
-      return CuVSResources.create();
+      CuVSResources resources = CuVSResources.create();
+      String poolSizeProp = System.getProperty(WORKSPACE_POOL_SIZE_PROPERTY);
+      if (poolSizeProp != null) {
+        resources.setWorkspacePool(Long.parseLong(poolSizeProp));
+      }
+      return resources;
     } catch (UnsupportedOperationException uoe) {
       log.log(
           Level.WARNING,
