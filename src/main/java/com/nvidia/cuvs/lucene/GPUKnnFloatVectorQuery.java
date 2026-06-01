@@ -45,13 +45,11 @@ import org.apache.lucene.util.FixedBitSet;
 /**
  * Extends {@link KnnFloatVectorQuery} for GPU-only search.
  *
- * <p>When all index segments use {@link CuVS2510GPUVectorsReader}, {@link #rewrite} delegates a
- * single multi-partition search to cuVS, passing one Lucene segment per cuVS partition. cuVS
- * runs the per-partition CAGRA searches, applies distance post-processing, and performs the
- * cross-partition top-k merge internally; the returned arrays are mapped to Lucene doc IDs on
- * the host. The multi-partition path supports k beyond the per-partition SINGLE_CTA cap by
- * having each partition emit up to {@code itopk_size} candidates and letting the cross-partition
- * select_k assemble the global top-k.
+ * <p>When all index segments use {@link CuVS2510GPUVectorsReader} and the query uses CAGRA
+ * (k&nbsp;&le;&nbsp;1024), {@link #rewrite} delegates a single multi-partition search to cuVS,
+ * passing one Lucene segment per cuVS partition. cuVS runs the per-partition CAGRA searches,
+ * applies distance post-processing, and performs the cross-partition top-k merge internally; the
+ * returned arrays are mapped to Lucene doc IDs on the host.
  *
  * <p>If the query has an explicit {@code filter}, or if any segment carries live-document deletes,
  * the combined acceptance mask (filter ∩ liveDocs) is packed across all segments into a single
@@ -122,6 +120,11 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
 
   @Override
   public Query rewrite(IndexSearcher indexSearcher) throws IOException {
+    // CAGRA search is capped at k=1024.
+    if (k > 1024) {
+      return super.rewrite(indexSearcher);
+    }
+
     IndexReader reader = indexSearcher.getIndexReader();
     List<LeafReaderContext> leaves = reader.leaves();
     if (leaves.isEmpty()) {
@@ -177,13 +180,9 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
 
     try {
       float[] target = getTargetCopy();
-      // SINGLE_CTA caps itopk_size at 512. When k exceeds that, the multi-partition path emits up
-      // to itopk_size candidates per segment and merges across segments to produce the global k.
-      // Feasibility (itopk_size * num_segments >= k) is enforced by cuVS in search_multi_partition.
-      int effectiveItopk = Math.min(Math.max(iTopK, k), 512);
       CagraSearchParams searchParams =
           new CagraSearchParams.Builder()
-              .withItopkSize(effectiveItopk)
+              .withItopkSize(Math.max(iTopK, k))
               .withSearchWidth(searchWidth)
               .withMaxIterations(maxIterations)
               .withThreadBlockSize(threadBlockSize)
