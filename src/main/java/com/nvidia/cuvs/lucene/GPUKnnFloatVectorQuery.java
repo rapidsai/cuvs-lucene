@@ -142,21 +142,6 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
       gpuReaders.add(gpuReader);
     }
 
-    // Compute max_iterations from the largest segment so all segments use the same value,
-    // ensuring consistent search quality across segments of different sizes.
-    int maxDatasetSize = 0;
-    int graphDegree = 0;
-    for (int i = 0; i < gpuReaders.size(); i++) {
-      CuVSMatrix graph = gpuReaders.get(i).getCagraIndexForField(field).getGraph();
-      int segSize = (int) graph.size();
-      if (segSize > maxDatasetSize) {
-        maxDatasetSize = segSize;
-        graphDegree = (int) graph.columns();
-      }
-    }
-    int maxIterations =
-        computeMaxIterations(Math.max(iTopK, k), searchWidth, maxDatasetSize, graphDegree);
-
     // Build a single filter handle encoding (filter ∩ liveDocs) across every segment whenever
     // any filtering is required — either an explicit Lucene filter, or live-document deletes in
     // at least one segment. With the single-query multi-partition API, there is no other channel
@@ -184,7 +169,6 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
           new CagraSearchParams.Builder()
               .withItopkSize(Math.max(iTopK, k))
               .withSearchWidth(searchWidth)
-              .withMaxIterations(maxIterations)
               .withThreadBlockSize(threadBlockSize)
               .withAlgo(searchAlgo)
               .build();
@@ -411,25 +395,6 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
   // -------------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------------
-
-  /**
-   * Mirrors {@code adjust_search_params()} from {@code search_plan.cuh}: computes the
-   * {@code max_iterations} value that CAGRA would auto-select for the given parameters.
-   *
-   * <p>Called with the <em>largest</em> segment's size so that all segments produce the same
-   * value, ensuring consistent search quality regardless of segment size.
-   */
-  private static int computeMaxIterations(
-      int itopkSize, int searchWidth, int datasetSize, int graphDegree) {
-    int maxIter = itopkSize / searchWidth;
-    long numReachableNodes = 1;
-    long factor = Math.max(2L, graphDegree / 2);
-    while (numReachableNodes < datasetSize) {
-      numReachableNodes *= factor;
-      maxIter++;
-    }
-    return maxIter;
-  }
 
   /**
    * Unwraps the {@link LeafReaderContext}'s reader to a {@link CuVS2510GPUVectorsReader}, or
