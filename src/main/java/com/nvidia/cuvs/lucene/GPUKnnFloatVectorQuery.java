@@ -45,11 +45,13 @@ import org.apache.lucene.util.FixedBitSet;
 /**
  * Extends {@link KnnFloatVectorQuery} for GPU-only search.
  *
- * <p>When all index segments use {@link CuVS2510GPUVectorsReader} and the query uses CAGRA
- * (k&nbsp;&le;&nbsp;1024), {@link #rewrite} delegates a single multi-partition search to cuVS,
- * passing one Lucene segment per cuVS partition. cuVS runs the per-partition CAGRA searches,
- * applies distance post-processing, and performs the cross-partition top-k merge internally; the
- * returned arrays are mapped to Lucene doc IDs on the host.
+ * <p>When all index segments use {@link CuVS2510GPUVectorsReader}, {@link #rewrite} delegates a
+ * single multi-partition search to cuVS, passing one Lucene segment per cuVS partition. cuVS
+ * runs the per-partition CAGRA searches, applies distance post-processing, and performs the
+ * cross-partition top-k merge internally; the returned arrays are mapped to Lucene doc IDs on
+ * the host. The effective CAGRA algorithm (SINGLE_CTA or MULTI_KERNEL) is selected by cuVS
+ * based on {@code searchAlgo} and {@code itopk_size}, with MULTI_KERNEL handling k beyond
+ * SINGLE_CTA's per-partition cap.
  *
  * <p>If the query has an explicit {@code filter}, or if any segment carries live-document deletes,
  * the combined acceptance mask (filter ∩ liveDocs) is packed across all segments into a single
@@ -57,9 +59,8 @@ import org.apache.lucene.util.FixedBitSet;
  * (filter, reader-state, field) triple via {@link FilterBitsetCache}; the device upload is cached
  * inside the handle itself across threads.
  *
- * <p>Falls back to the standard per-segment Lucene path when the optimized path cannot be applied
- * (mixed segment types, k&nbsp;&gt;&nbsp;1024, brute-force fallback needed, or missing CAGRA
- * index).
+ * <p>Falls back to the standard per-segment Lucene path when the optimized path cannot be
+ * applied (mixed segment types or missing CAGRA index for the field on any segment).
  *
  * @since 25.10
  */
@@ -120,11 +121,6 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
 
   @Override
   public Query rewrite(IndexSearcher indexSearcher) throws IOException {
-    // CAGRA search is capped at k=1024.
-    if (k > 1024) {
-      return super.rewrite(indexSearcher);
-    }
-
     IndexReader reader = indexSearcher.getIndexReader();
     List<LeafReaderContext> leaves = reader.leaves();
     if (leaves.isEmpty()) {
