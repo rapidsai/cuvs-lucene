@@ -17,6 +17,7 @@ import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_M
 import static com.nvidia.cuvs.lucene.Lucene99AcceleratedHNSWVectorsFormat.HNSW_META_CODEC_NAME;
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.closeCuVSResourcesInstance;
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.getCuVSResourcesInstance;
+import static com.nvidia.cuvs.lucene.Utils.getCagraIndexParams;
 import static org.apache.lucene.index.VectorEncoding.FLOAT32;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 import static org.apache.lucene.util.RamUsageEstimator.shallowSizeOfInstance;
@@ -190,7 +191,7 @@ public class LuceneAcceleratedHNSWScalarQuantizedVectorsWriter extends KnnVector
       }
 
       CagraIndexParams params =
-          CagraIndexParamsFactory.create(acceleratedHNSWParams, dataset.size(), dataset.columns());
+          getCagraIndexParams(acceleratedHNSWParams, dataset.size(), dataset.columns());
 
       CagraIndex cagraIndex =
           CagraIndex.newBuilder(getCuVSResourcesInstance())

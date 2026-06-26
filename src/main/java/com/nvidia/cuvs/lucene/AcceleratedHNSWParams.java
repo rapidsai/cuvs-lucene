@@ -13,81 +13,24 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 
-public class AcceleratedHNSWParams {
+public class AcceleratedHNSWParams extends ParamsBase {
 
-  public static enum Strategy {
-    /*
-     * This strategy allows for automatic selection of the underlying CAGRA build algorithm.
-     * With this strategy we use NN_DESCENT for dataset less than 5M vectors, else we use IVF_PQ.
-     * Indexing parameters, especially for IVF_PQ, are heuristically identified automatically.
-     *
-     * This is the default and the recommended strategy.
-     */
-    HEURISTIC,
-    /*
-     * This is an option when the end-user would want to use custom parameter values.
-     * This strategy should only be used under expert guidance.
-     */
-    CUSTOM
-  }
-
-  /*
-   * TODO: Update boundaries for all parameters when a consensus is reached.
-   * Issue: https://github.com/rapidsai/cuvs-lucene/issues/99
-   */
-  public static final int MIN_WRITER_THREADS = 1;
-  public static final int MAX_WRITER_THREADS = 512;
-  public static final int MIN_INT_GRAPH_DEG = 2;
-  public static final int MAX_INT_GRAPH_DEG = 512;
-  public static final int MIN_GRAPH_DEG = 1;
-  public static final int MAX_GRAPH_DEG = 512;
   public static final int MIN_HNSW_LAYERS = 1;
-  public static final int MAX_HNSW_LAYERS = 3;
-  public static final int MIN_MAX_CONN = 1;
-  public static final int MAX_MAX_CONN = 512;
-  public static final int MIN_BEAM_WIDTH = 1;
-  public static final int MAX_BEAM_WIDTH = 512;
+  public static final int MAX_HNSW_LAYERS = 512;
   public static final int MIN_NUM_MERGE_WORKERS = 1;
   public static final int MAX_NUM_MERGE_WORKERS = 512;
-  public static final int MIN_NN_DESCENT_NUM_ITERATIONS = 1;
-  public static final int MAX_NN_DESCENT_NUM_ITERATIONS = 100;
 
-  public static final int DEFAULT_WRITER_THREADS = 1;
-  public static final int DEFAULT_INT_GRAPH_DEGREE = 128;
-  public static final int DEFAULT_GRAPH_DEGREE = 64;
   public static final int DEFAULT_HNSW_LAYERS = 1;
-  public static final int DEFAULT_MAX_CONN = 32;
-  public static final int DEFAULT_BEAM_WIDTH = 32;
-  public static final CagraGraphBuildAlgo DEFAULT_CAGRA_GRAPH_BUILD_ALGO =
-      CagraGraphBuildAlgo.NN_DESCENT;
-  public static final int DEFAULT_NUM_MERGE_WORKERS = 1;
-  public static final Strategy DEFAULT_STRATEGY = Strategy.HEURISTIC;
-  public static final CuvsDistanceType DEFAULT_CUVS_DISTANCE_TYPE = CuvsDistanceType.L2Expanded;
-  public static final int DEFAULT_NN_DESCENT_NUM_ITERATIONS = 20;
-
-  public static final Supplier<CuVSIvfPqParams> DEFAULT_IVF_PQ_PARAMS =
-      () -> {
-        return new CuVSIvfPqParams.Builder().build();
-      };
+  public static final int DEFAULT_NUM_MERGE_WORKERS = 16;
 
   public static final Supplier<ExecutorService> DEFAULT_MERGE_EXE_SRVC =
       () -> {
         return Executors.newFixedThreadPool(DEFAULT_NUM_MERGE_WORKERS);
       };
 
-  private final int writerThreads;
-  private final int intermediateGraphDegree;
-  private final int graphdegree;
   private final int hnswLayers;
-  private final int maxConn;
-  private final int beamWidth;
-  private final CagraGraphBuildAlgo cagraGraphBuildAlgo;
-  private final CuVSIvfPqParams cuVSIvfPqParams;
   private final int numMergeWorkers;
   private final ExecutorService mergeExec;
-  private final Strategy strategy;
-  private final CuvsDistanceType cuvsDistanceType;
-  private final int nnDescentNumIterations;
 
   /**
    * Constructs an instance of {@link AcceleratedHNSWParams} with specific parameter values.
@@ -121,47 +64,21 @@ public class AcceleratedHNSWParams {
       Strategy strategy,
       CuvsDistanceType cuvsDistanceType,
       int nnDescentNumIterations) {
-    super();
-    this.writerThreads = writerThreads;
-    this.intermediateGraphDegree = intermediateGraphDegree;
-    this.graphdegree = graphdegree;
+
+    super(
+        writerThreads,
+        intermediateGraphDegree,
+        graphdegree,
+        maxConn,
+        beamWidth,
+        cagraGraphBuildAlgo,
+        cuVSIvfPqParams,
+        strategy,
+        cuvsDistanceType,
+        nnDescentNumIterations);
     this.hnswLayers = hnswLayers;
-    this.maxConn = maxConn;
-    this.beamWidth = beamWidth;
-    this.cagraGraphBuildAlgo = cagraGraphBuildAlgo;
-    this.cuVSIvfPqParams = cuVSIvfPqParams;
     this.numMergeWorkers = numMergeWorkers;
     this.mergeExec = mergeExec;
-    this.strategy = strategy;
-    this.cuvsDistanceType = cuvsDistanceType;
-    this.nnDescentNumIterations = nnDescentNumIterations;
-  }
-
-  /**
-   * Get the cuVS writer threads parameter
-   *
-   * @return cuVS writer threads parameter
-   */
-  public int getWriterThreads() {
-    return writerThreads;
-  }
-
-  /**
-   * Get the intermediate graph degree
-   *
-   * @return the graph degree parameter
-   */
-  public int getIntermediateGraphDegree() {
-    return intermediateGraphDegree;
-  }
-
-  /**
-   * Get the graph degree
-   *
-   * @return the graph degree parameter
-   */
-  public int getGraphdegree() {
-    return graphdegree;
   }
 
   /**
@@ -171,42 +88,6 @@ public class AcceleratedHNSWParams {
    */
   public int getHnswLayers() {
     return hnswLayers;
-  }
-
-  /**
-   * Get the max connection parameter
-   *
-   * @return the max connection parameter
-   */
-  public int getMaxConn() {
-    return maxConn;
-  }
-
-  /**
-   * Get the beam width parameter
-   *
-   * @return the beam width parameter
-   */
-  public int getBeamWidth() {
-    return beamWidth;
-  }
-
-  /**
-   * Get the CAGRA graph build algorithm
-   *
-   * @return the CAGRA graph build algorithm
-   */
-  public CagraGraphBuildAlgo getCagraGraphBuildAlgo() {
-    return cagraGraphBuildAlgo;
-  }
-
-  /**
-   * Get the instance of {@link CuVSIvfPqParams}
-   *
-   * @return the instance of {@link CuVSIvfPqParams}
-   */
-  public CuVSIvfPqParams getCuVSIvfPqParams() {
-    return cuVSIvfPqParams;
   }
 
   /**
@@ -227,64 +108,15 @@ public class AcceleratedHNSWParams {
     return mergeExec;
   }
 
-  /**
-   * Get the chosen strategy:
-   *
-   * When HEURISTIC [Default] is chosen, the CAGRA build algorithm and its indexing parameters are automatically chosen based on the size of the data set
-   * When CUSTOM is chosen, the build algorithm and its parameters (either defaults or overridden values with the use of With* methods) is used internally
-   *
-   * @return get the chosen {@link Strategy}
-   */
-  public Strategy getStrategy() {
-    return strategy;
-  }
-
-  /**
-   * Get the cuvs distance type
-   *
-   * @return the distance type
-   */
-  public CuvsDistanceType getCuvsDistanceType() {
-    return cuvsDistanceType;
-  }
-
-  /**
-   * get the number of Iterations to run if building with NN_DESCENT
-   *
-   * @return the number of iterations for NN_DESCENT
-   */
-  public int getNNDescentNumIterations() {
-    return nnDescentNumIterations;
-  }
-
   @Override
   public String toString() {
-    return "AcceleratedHNSWParams [writerThreads="
-        + writerThreads
-        + ", intermediateGraphDegree="
-        + intermediateGraphDegree
-        + ", graphdegree="
-        + graphdegree
-        + ", hnswLayers="
+    return super.toString()
+        + " AcceleratedHNSWParams [hnswLayers="
         + hnswLayers
-        + ", maxConn="
-        + maxConn
-        + ", beamWidth="
-        + beamWidth
-        + ", cagraGraphBuildAlgo="
-        + cagraGraphBuildAlgo
-        + ", cuVSIvfPqParams="
-        + cuVSIvfPqParams
         + ", numMergeWorkers="
         + numMergeWorkers
         + ", mergeExec="
         + mergeExec
-        + ", strategy="
-        + strategy
-        + ", cuvsDistanceType="
-        + cuvsDistanceType
-        + ", nnDescentNumIterations="
-        + nnDescentNumIterations
         + "]";
   }
 
@@ -480,31 +312,6 @@ public class AcceleratedHNSWParams {
      * @throws IllegalArgumentException
      */
     private void validate() throws IllegalArgumentException {
-      if (writerThreads < MIN_WRITER_THREADS || writerThreads > MAX_WRITER_THREADS) {
-        throw new IllegalArgumentException(
-            "writerThreads not in valid range. Valid range: ["
-                + MIN_WRITER_THREADS
-                + ", "
-                + MAX_WRITER_THREADS
-                + "]");
-      }
-      if (intermediateGraphDegree < MIN_INT_GRAPH_DEG
-          || intermediateGraphDegree > MAX_INT_GRAPH_DEG) {
-        throw new IllegalArgumentException(
-            "intermediateGraphDegree not in valid range. Valid range: ["
-                + MIN_INT_GRAPH_DEG
-                + ", "
-                + MAX_INT_GRAPH_DEG
-                + "]");
-      }
-      if (graphdegree < MIN_GRAPH_DEG || graphdegree > MAX_GRAPH_DEG) {
-        throw new IllegalArgumentException(
-            "graphdegree not in valid range. Valid range: ["
-                + MIN_GRAPH_DEG
-                + ", "
-                + MAX_GRAPH_DEG
-                + "]");
-      }
       if (hnswLayers < MIN_HNSW_LAYERS || hnswLayers > MAX_HNSW_LAYERS) {
         throw new IllegalArgumentException(
             "hnswLayers not in valid range. Valid range: ["
@@ -513,46 +320,12 @@ public class AcceleratedHNSWParams {
                 + MAX_HNSW_LAYERS
                 + "]");
       }
-      if (maxConn < MIN_MAX_CONN || maxConn > MAX_MAX_CONN) {
-        throw new IllegalArgumentException(
-            "maxConn not in valid range. Valid range: ["
-                + MIN_MAX_CONN
-                + ", "
-                + MAX_MAX_CONN
-                + "]");
-      }
-      if (beamWidth < MIN_BEAM_WIDTH || beamWidth > MAX_BEAM_WIDTH) {
-        throw new IllegalArgumentException(
-            "beamWidth not in valid range. Valid range: ["
-                + MIN_BEAM_WIDTH
-                + ", "
-                + MAX_BEAM_WIDTH
-                + "]");
-      }
-      if (Objects.isNull(cagraGraphBuildAlgo)) {
-        throw new IllegalArgumentException("cagraGraphBuildAlgo cannot be null.");
-      }
       if (numMergeWorkers < MIN_NUM_MERGE_WORKERS || numMergeWorkers > MAX_NUM_MERGE_WORKERS) {
         throw new IllegalArgumentException(
             "numMergeWorkers not in valid range. Valid range: ["
                 + MIN_NUM_MERGE_WORKERS
                 + ", "
                 + MAX_NUM_MERGE_WORKERS
-                + "]");
-      }
-      if (Objects.isNull(strategy)) {
-        throw new IllegalArgumentException("strategy cannot be null.");
-      }
-      if (Objects.isNull(cuvsDistanceType)) {
-        throw new IllegalArgumentException("cuvsDistanceType cannot be null.");
-      }
-      if (nnDescentNumIterations < MIN_NN_DESCENT_NUM_ITERATIONS
-          || nnDescentNumIterations > MAX_NN_DESCENT_NUM_ITERATIONS) {
-        throw new IllegalArgumentException(
-            "nnDescentNumIterations not in valid range. Valid range: ["
-                + MIN_NN_DESCENT_NUM_ITERATIONS
-                + ", "
-                + MAX_NN_DESCENT_NUM_ITERATIONS
                 + "]");
       }
     }
@@ -563,9 +336,6 @@ public class AcceleratedHNSWParams {
      * @return instance of {@link AcceleratedHNSWParams}
      */
     public AcceleratedHNSWParams build() {
-      if (Objects.isNull(cuVSIvfPqParams)) {
-        cuVSIvfPqParams = DEFAULT_IVF_PQ_PARAMS.get();
-      }
       if (Objects.isNull(mergeExec)) {
         mergeExec = DEFAULT_MERGE_EXE_SRVC.get();
       }
