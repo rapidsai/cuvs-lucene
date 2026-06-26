@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
@@ -143,6 +143,11 @@ class FilterCuVSProvider implements CuVSProvider {
   @Override
   public HnswIndex hnswIndexFromCagra(HnswIndexParams arg0, CagraIndex arg1) throws Throwable {
     return delegate.hnswIndexFromCagra(arg0, arg1);
+  }
+
+  @Override
+  public void enableRMMAsyncMemory() {
+    delegate.enableRMMAsyncMemory();
   }
 
   @Override

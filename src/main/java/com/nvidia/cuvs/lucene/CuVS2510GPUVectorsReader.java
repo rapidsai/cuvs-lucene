@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
@@ -443,6 +443,8 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
               new CagraSearchParams.Builder()
                   .withItopkSize(Math.max(collector.getiTopK(), topK))
                   .withSearchWidth(collector.getSearchWidth())
+                  .withThreadBlockSize(collector.getThreadBlockSize())
+                  .withAlgo(collector.getSearchAlgo())
                   .build();
         } else {
           // Setting itopK as topK because in any case iTopK should be ATLEAST equal to topK
@@ -598,6 +600,37 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
               + versionVectorData,
           in);
     }
+  }
+
+  /**
+   * Maps a local segment ordinal to a Lucene doc ID within this segment.
+   *
+   * <p>Used by {@link GPUKnnFloatVectorQuery} after a multi-segment GPU search to convert
+   * select_k result ordinals to doc IDs before adding {@code docBase}.
+   *
+   * @param field   the vector field name
+   * @param ordinal the local ordinal returned by CAGRA
+   * @return the Lucene doc ID within this segment
+   * @throws IOException if the vector values cannot be read
+   */
+  public int ordToDoc(String field, int ordinal) throws IOException {
+    return flatVectorsReader.getFloatVectorValues(field).ordToDoc(ordinal);
+  }
+
+  /**
+   * Returns the {@link CagraIndex} for the given field, or {@code null} if unavailable
+   * (e.g., during a merge or when the field is missing).
+   *
+   * @param field the vector field name
+   * @return the CAGRA index, or {@code null}
+   */
+  public CagraIndex getCagraIndexForField(String field) {
+    if (cuvsIndices == null) return null;
+    FieldInfo info = fieldInfos.fieldInfo(field);
+    if (info == null) return null;
+    GPUIndex gpuIndex = cuvsIndices.get(info.number);
+    if (gpuIndex == null) return null;
+    return gpuIndex.getCagraIndex();
   }
 
   /**
