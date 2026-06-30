@@ -316,7 +316,7 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
       packOrdsToLongs(acceptedOrds, numOrds, combinedLongs, longOffset);
     }
 
-    return new FilterBitsetHandle(combinedLongs, segBitOffsets, totalBits);
+    return FilterBitsetHandle.create(combinedLongs, segBitOffsets, totalBits);
   }
 
   /**
