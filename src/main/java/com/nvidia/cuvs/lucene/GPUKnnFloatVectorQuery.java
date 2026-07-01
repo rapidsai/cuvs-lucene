@@ -69,6 +69,7 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
   private final int iTopK;
   private final int searchWidth;
   private final int threadBlockSize;
+  private final int maxIterations;
   private final CagraSearchParams.SearchAlgo searchAlgo;
 
   /**
@@ -84,7 +85,7 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
    */
   public GPUKnnFloatVectorQuery(
       String field, float[] target, int k, Query filter, int iTopK, int searchWidth) {
-    this(field, target, k, filter, iTopK, searchWidth, 0, CagraSearchParams.SearchAlgo.AUTO);
+    this(field, target, k, filter, iTopK, searchWidth, 0, 0, CagraSearchParams.SearchAlgo.AUTO);
   }
 
   /**
@@ -97,6 +98,7 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
    * @param iTopK           CAGRA itopk_size parameter
    * @param searchWidth     CAGRA search_width parameter
    * @param threadBlockSize CAGRA thread_block_size (0 = auto)
+   * @param maxIterations   CAGRA max_iterations (0 = auto)
    * @param searchAlgo      CAGRA search algorithm
    */
   public GPUKnnFloatVectorQuery(
@@ -107,11 +109,13 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
       int iTopK,
       int searchWidth,
       int threadBlockSize,
+      int maxIterations,
       CagraSearchParams.SearchAlgo searchAlgo) {
     super(field, target, k, filter);
     this.iTopK = iTopK;
     this.searchWidth = searchWidth;
     this.threadBlockSize = threadBlockSize;
+    this.maxIterations = maxIterations;
     this.searchAlgo = searchAlgo;
   }
 
@@ -166,6 +170,7 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
               .withItopkSize(Math.max(iTopK, k))
               .withSearchWidth(searchWidth)
               .withThreadBlockSize(threadBlockSize)
+              .withMaxIterations(maxIterations)
               .withAlgo(searchAlgo)
               .build();
 
@@ -234,7 +239,7 @@ public class GPUKnnFloatVectorQuery extends KnnFloatVectorQuery {
       throws IOException {
     GPUPerLeafCuVSKnnCollector results =
         new GPUPerLeafCuVSKnnCollector(
-            k, visitedLimit, iTopK, searchWidth, threadBlockSize, searchAlgo);
+            k, visitedLimit, iTopK, searchWidth, threadBlockSize, maxIterations, searchAlgo);
     context.reader().searchNearestVectors(field, getTargetCopy(), results, acceptDocs);
     return results.topDocs();
   }

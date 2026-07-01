@@ -444,6 +444,7 @@ public class CuVS2510GPUVectorsReader extends KnnVectorsReader {
                   .withItopkSize(Math.max(collector.getiTopK(), topK))
                   .withSearchWidth(collector.getSearchWidth())
                   .withThreadBlockSize(collector.getThreadBlockSize())
+                  .withMaxIterations(collector.getMaxIterations())
                   .withAlgo(collector.getSearchAlgo())
                   .build();
         } else {
