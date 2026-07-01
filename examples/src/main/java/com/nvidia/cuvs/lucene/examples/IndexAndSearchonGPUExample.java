@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene.examples;
@@ -30,9 +30,12 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnFloatVectorQuery;
+import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
@@ -56,6 +59,7 @@ public class IndexAndSearchonGPUExample {
     final int COMMIT_FREQ = 2000;
     final String ID_FIELD = "id";
     final String VECTOR_FIELD = "vector_field";
+    final String STATUS_FIELD = "status";
 
     int numDocs = 2000;
     int dimension = 32;
@@ -70,6 +74,9 @@ public class IndexAndSearchonGPUExample {
         Document document = new Document();
         document.add(new StringField(ID_FIELD, Integer.toString(i), Field.Store.YES));
         document.add(new KnnFloatVectorField(VECTOR_FIELD, dataset[i], EUCLIDEAN));
+        // Alternatively flip the status's for documents as an example.
+        document.add(
+            new StringField(STATUS_FIELD, i % 2 == 0 ? "active" : "in-active", Field.Store.YES));
         indexWriter.addDocument(document);
         count -= 1;
         if (count == 0) {
@@ -103,8 +110,11 @@ public class IndexAndSearchonGPUExample {
       float[] queryVector = generateDataset(random, 1, dimension)[0];
       log.log(Level.FINE, "Query vector: " + Arrays.toString(queryVector));
 
+      // Make a filter query
+      Query filter = new TermQuery(new Term(STATUS_FIELD, "active"));
+
       KnnFloatVectorQuery query =
-          new GPUKnnFloatVectorQuery(VECTOR_FIELD, queryVector, topK, null, topK, 1);
+          new GPUKnnFloatVectorQuery(VECTOR_FIELD, queryVector, topK, filter, topK, 1);
       TopDocs results = searcher.search(query, topK);
 
       log.log(Level.FINE, "Search results (" + results.totalHits + " total hits):");
@@ -113,12 +123,15 @@ public class IndexAndSearchonGPUExample {
         ScoreDoc scoreDoc = results.scoreDocs[i];
         Document doc = searcher.storedFields().document(scoreDoc.doc);
         String id = doc.get(ID_FIELD);
+        String status = doc.get(STATUS_FIELD);
         log.log(
             Level.FINE,
             "  Rank "
                 + (i + 1)
                 + ": doc "
                 + scoreDoc.doc
+                + " status "
+                + status
                 + " (id="
                 + id
                 + "), score="

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+ * SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.nvidia.cuvs.lucene;
@@ -7,6 +7,7 @@ package com.nvidia.cuvs.lucene;
 import static com.nvidia.cuvs.lucene.ThreadLocalCuVSResourcesProvider.assertIsSupported;
 
 import com.nvidia.cuvs.LibraryException;
+import com.nvidia.cuvs.spi.CuVSProvider;
 import java.io.IOException;
 import org.apache.lucene.codecs.KnnVectorsFormat;
 import org.apache.lucene.codecs.KnnVectorsReader;
@@ -39,6 +40,7 @@ public class CuVS2510GPUVectorsFormat extends KnnVectorsFormat {
 
   static {
     try {
+      CuVSProvider.provider().enableRMMAsyncMemory();
       LUCENE_PROVIDER = LuceneProvider.getInstance("99");
       FLAT_VECTORS_FORMAT =
           LUCENE_PROVIDER.getLuceneFlatVectorsFormatInstance(DefaultFlatVectorScorer.INSTANCE);
